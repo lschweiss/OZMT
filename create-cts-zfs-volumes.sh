@@ -2,7 +2,7 @@
 
 # Built specifically for the CTS backup server
 
-instanceid="i-1a501b63"
+instanceid="i-9a3710e3"
 
 vdevs=5
 devices=8
