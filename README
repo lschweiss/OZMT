@@ -1,0 +1,53 @@
+EC2 ZFS tools
+
+A collection of tools to setup a ZFS pool of EBS devices on EC2.
+
+Requirements:
+ * Small instance or larger.  
+ * If using a small instance swap space is required to run pool expansions
+ * ec2-api-tools need to be installed and in the search path or referenced
+   in the zfs-config.sh file.
+ * JAVA_HOME must be set
+ * EC2 keys need to be on the system and referenced in the zfs-config.sh file
+
+
+
+First copy zfs-config.sh.example to zfs-config.sh and configure it for your machine.
+
+1. To create the pool of EBS devices run create-zfs-volumes.sh.  
+2. Run create-zfs-pool.sh to create the pool.  If you have specified encryption in the config
+   you will be prompted for the encryption key.   
+
+
+
+To expand your pool vertically, you must use raidz1 or better.
+
+1. Change the EBS size in the zfs-config.sh file.
+2. Run grow-zfs-pool.sh
+
+On a Small instance with 40 device pool in the example it will take about 1 1/2 to 2 hours 
+to grow the pool.  The job will be significantly faster on larger instances.   
+
+
+
+Running on a small instance:
+
+Out of memory problems can occur when you grow your pool if you don't add swap space.   
+
+Take advantage of the instance storage and setup swap space.  The setup-swap.sh will setup 
+an 8GB swap for you.  Since instance storage is not persistant you will want to call this 
+from your startup scripts.
+
+
+
+Using encryption:
+
+Make sure you have the right packages and modules installed.  On Ubuntu do the following:
+
+sudo apt-get install cryptsetup
+sudo echo aes-x86_64 >> /etc/modules
+sudo echo dm_mod >> /etc/modules
+sudo echo dm_crypt >> /etc/modules
+
+Some commands will prompt you for the encryption key.   You will need to supply the crypto key 
+after boot by calling setup-crypto.sh and mountall.
