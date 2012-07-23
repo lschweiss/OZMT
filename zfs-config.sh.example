@@ -25,7 +25,8 @@ vdevs=5
 
 devices=8
 
-# Size of each EBS block device in Gigabytes
+# Size of each EBS block device in Gigabytes.   Must be a whole number 1 or greater.
+# You can increase this later and run grow-zfs-pool.sh
 
 devsize=2
 

@@ -2,6 +2,47 @@ EC2 ZFS tools
 
 A collection of tools to setup a ZFS pool of EBS devices on EC2.
 
+Author: 
+   Chip Schweiss
+   chip.schweiss@wustl.edu
+
+Background:   
+   For a project I am managing we decided we want to backup our data in the cloud instead
+   of traditional tapes being shipped off site.
+
+   We already decided on using OpenIndiana for file storage with ZFS, and wanted
+   to utilize ZFS send & receive to push changes to the cloud.
+
+   Goals:
+     1. Secure, meaning encrypted data in the cloud.
+     2. Relatively inexpensive.
+     3. Fully automated.
+     4. Scalable
+     5. Possibly be used for disaster recovery in the cloud.
+
+   This collection of scripts were developed to deploy and maintain our ZFS backups in the
+   cloud.   
+
+   We anticipate approximately 1 TB total data to be backed up, with less than 50 GB to start.
+   
+   EBS storage is fixed in size when deployed and cannot be resized.  This may change in the future,
+   but at the time of this development it is the case.  ZFS cannot restripe, but it can grow vertically
+   if the underlying devices are replaced one at a time with larger devices.  
+
+   I built my initial pool of 40 1GB EBS devices, striped in 5 vdevs of 8 EBS devices as raidz1.  The
+   grow script I wrote will replace one EBS at a time in each vdev, wait for a resilver and replace the
+   next until all have been replace.   This allows for in place growth of the storage and keeps
+   the pool balanced and never requires restripe.   It can grow in increments of 40GB raw storage until 
+   the EBS devices are at the EC2 max.  (1TB at the time of writing).
+
+   The primary ZFS server also has ec2-api tools installed and controls the backup operation.  The
+   EC2 instance is only turned on once a day to receive the day's worth of snapshots then shutdown.   
+   This keeps running time per month very low and keeps the data locked since it is encrypted on
+   EBS devices.   The encryption key is never stored on the EC2 instance.  It is supplied through
+   an ssh tunnel from the primary site.  
+
+
+
 Requirements:
  * Small instance or larger.  
  * If using a small instance swap space is required to run pool expansions
@@ -35,7 +76,7 @@ Running on a small instance:
 Out of memory problems can occur when you grow your pool if you don't add swap space.   
 
 Take advantage of the instance storage and setup swap space.  The setup-swap.sh will setup 
-an 8GB swap for you.  Since instance storage is not persistant you will want to call this 
+an 8GB swap for you.  Since instance storage is not persistent you will want to call this 
 from your startup scripts.
 
 
