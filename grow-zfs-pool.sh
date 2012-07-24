@@ -32,6 +32,10 @@ if [ "$crypt" == "true" ]; then
     echo
 fi
 
+# Confirm the key
+
+check_key
+
 function log() {
     if [ "$DEBUG" == "true" ]; then
         echo "$(now): ${1}" | tee -a ${2}

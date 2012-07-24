@@ -1,2 +1,5 @@
+syntax: glob
+
 ec2-api*
 zfs-config.sh
+*.sha512

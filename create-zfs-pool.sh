@@ -28,6 +28,8 @@ if [ "$crypt" == "true" ]; then
     echo
 fi
 
+echo $key|sha512sum|cut -d " " -f 1 > ./${zfspool}_key.sha512
+
 x=1
 raidzlist=""
 while [ $x -le $vdevs ]; do

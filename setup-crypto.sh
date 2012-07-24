@@ -29,6 +29,10 @@
 echo -n "Enter encryption key: "
 read -s key
 
+# Confirm the key 
+
+check_key
+
 x=1
 while [ $x -le $vdevs ]; do
     y=1

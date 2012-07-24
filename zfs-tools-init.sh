@@ -59,7 +59,22 @@ while [ $x -lt $vdevs ]; do
     x=$(( $x + 1 ))
 done
 
-function now() {
+now() {
     date +"%F %r %Z"
+}
+
+check_key () {
+
+# confirm the key
+poolkey=`cat ${zfspool}_key.sha512`
+sha512=`echo $key|sha512sum|cut -d " " -f 1`
+
+if [ "$poolkey" != "$sha512" ]; then
+   echo "Invalid encryption key for ${zfspool}!"
+   exit 1
+else
+   echo "Key is valid."
+fi
+
 }
 
