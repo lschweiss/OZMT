@@ -68,6 +68,7 @@ grow-vdev () {
     local attached=1
     local volumeid=""
     local oldvolumeid=""
+    local volumestat=""
     
     mkdir -p /var/log/zfs
     
@@ -83,6 +84,9 @@ grow-vdev () {
     volumeid=$(ec2-create-volume -z $zone --size $devsize | cut -f2)
     log "Created volume: ${phydev}" "$logfile"
 
+    # Tag the new volume with a Name
+    ec2addtag $volumeid --tag Name="${HOSTNAME}_${awsdev}" &
+
     # Remove the old device from our pool
     log "Removing ${zname} from the pool" "$logfile"
     zpool offline $zfspool $zname
@@ -96,6 +100,12 @@ grow-vdev () {
     oldvolumeid=`cat /tmp/ebs-volumes | grep "TAG" | grep "${HOSTNAME}_${awsdev}" | cut -f3`
     log "Detaching old EBS volume $oldvolumeid from ${awsdev}." "$logfile"
     ec2-detach-volume $oldvolumeid
+
+    # Wait for status to be detached
+    volumestat=""
+    while [ "$volumestat" != "available" ]; do
+        volumestat=`ec2-describe-volumes --show-empty-fields $oldvolumeid | cut -f 6`
+    done
 
     # Destroy the old volume
     ec2-delete-volume $oldvolumeid &
@@ -123,9 +133,6 @@ grow-vdev () {
 
     # Replace the vdev
     zpool replace $zfspool $zname
-
-    # Tag the new volume with a Name
-    ec2addtag $volumeid --tag Name="${HOSTNAME}_${awsdev}" &
 
     # Notify calling process we are done
 
@@ -162,6 +169,8 @@ while [ $y -le $devices ]; do
             sleep 5
             zpool status ${zfspool} | grep -q "action: Wait for the resilver to complete"
             resilver_complete=$?
+            # TODO: Add check that "status: ONLINE"
+
         done
         echo "Resilver complete" 
     

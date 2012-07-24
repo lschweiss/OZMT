@@ -32,9 +32,9 @@ while [ $x -le $vdevs ]; do
         volumeid=$(ec2-create-volume -z $zone --size $devsize | cut -f2)
         echo "$i: created  $volumeid"
         echo "Adding name tag: ${HOSTNAME}_${awsdev}"
-        ec2addtag $volumeid --tag Name="${HOSTNAME}_${awsdev}"
+        ec2addtag $volumeid --tag Name="${HOSTNAME}_${awsdev}" &
         echo "Attaching volume"
-        ec2-attach-volume -d $awsdev -i $instanceid $volumeid
+        ec2-attach-volume -d $awsdev -i $instanceid $volumeid &
         y=$(( $y + 1 ))
     done
     x=$(( $x + 1 ))
