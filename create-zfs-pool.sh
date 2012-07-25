@@ -42,7 +42,7 @@ while [ $x -le $vdevs ]; do
         if [ "$crypt" == "true" ]; then
             raidzlist="${raidzlist} ${cryptdev}"
             echo "Creating encrypted /dev/mapper device: $cryptname"
-            echo $key | cryptsetup --key-file - create $cryptname $phydev
+            echo $key | $remote cryptsetup --key-file - create $cryptname $phydev
             # TODO: Trap errors
         else
             raidzlist="${raidzlist} ${physdev}"
@@ -52,4 +52,4 @@ while [ $x -le $vdevs ]; do
     x=$(( $x + 1 ))
 done
 
-zpool create -o ashift=12 -o autoexpand=on -o listsnaps=on $zfspool $raidzlist
+    $remote zpool create -o ashift=12 -o autoexpand=on -o listsnaps=on $zfspool $raidzlist

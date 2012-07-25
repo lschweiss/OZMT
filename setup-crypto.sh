@@ -20,10 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# Built specifically for the AWS backup server
-# This process could take hours even days as the pool gets bigger so plan accordingly.
-# Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
-
 . ./zfs-tools-init.sh
 
 echo -n "Enter encryption key: "
@@ -41,7 +37,7 @@ while [ $x -le $vdevs ]; do
         cryptdev=`echo ${cryptdev[$x]} | cut -d " " -f $y`
         phydev=`echo ${phydev[$x]} | cut -d " " -f $y`
             echo "Creating encrypted /dev/mapper device: $cryptname"
-            echo $key | cryptsetup --key-file - create $cryptname $phydev
+            echo $key | $remote cryptsetup --key-file - create $cryptname $phydev
             # TODO: Trap errors
         y=$(( $y + 1 ))
     done

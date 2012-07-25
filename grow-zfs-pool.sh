@@ -30,11 +30,9 @@ if [ "$crypt" == "true" ]; then
     echo -n "Enter encryption key: "
     read -s key
     echo
+    # Confirm the key
+    check_key
 fi
-
-# Confirm the key
-
-check_key
 
 function log() {
     if [ "$DEBUG" == "true" ]; then
@@ -85,19 +83,19 @@ grow-vdev () {
     log "Created volume: ${phydev}" "$logfile"
 
     # Tag the new volume with a Name
-    ec2addtag $volumeid --tag Name="${HOSTNAME}_${awsdev}" &
+    ec2addtag $volumeid --tag Name="${instance_hostname}_${awsdev}" &
 
     # Remove the old device from our pool
     log "Removing ${zname} from the pool" "$logfile"
-    zpool offline $zfspool $zname
+    $remote zpool offline $zfspool $zname
 
     if [ "$crypt" == "true" ]; then
-        cryptsetup remove $cryptname
+        $remote cryptsetup remove $cryptname
     fi
 
     # Detach the old volume
     #   Find the volume name
-    oldvolumeid=`cat /tmp/ebs-volumes | grep "TAG" | grep "${HOSTNAME}_${awsdev}" | cut -f3`
+    oldvolumeid=`cat /tmp/ebs-volumes | grep "TAG" | grep "${instance_hostname}_${awsdev}" | cut -f3`
     log "Detaching old EBS volume $oldvolumeid from ${awsdev}." "$logfile"
     ec2-detach-volume $oldvolumeid
 
@@ -128,11 +126,11 @@ grow-vdev () {
     log "Volume $volumeid is attached" "$logfile"
 
     if [ "$crypt" == "true" ]; then
-        echo $key | cryptsetup --key-file - create $cryptname $phydev
+        echo $key | $remote cryptsetup --key-file - create $cryptname $phydev
     fi
 
     # Replace the vdev
-    zpool replace $zfspool $zname
+    $remote zpool replace $zfspool $zname
 
     # Notify calling process we are done
 
@@ -167,7 +165,7 @@ while [ $y -le $devices ]; do
         echo "Waiting for resilver to complete."
         while [ "$resilver_complete" -eq "0" ]; do
             sleep 5
-            zpool status ${zfspool} | grep -q "action: Wait for the resilver to complete"
+            $remote zpool status ${zfspool} | grep -q "action: Wait for the resilver to complete"
             resilver_complete=$?
             # TODO: Add check that "status: ONLINE"
 

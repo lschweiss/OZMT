@@ -20,10 +20,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  
+
+. ./zfs-config.sh
  
 pushd .
 
-cd /dev/mapper
+cd /dev/mapper 
 
 for a in crypt*; do cryptsetup remove $a;done
 
