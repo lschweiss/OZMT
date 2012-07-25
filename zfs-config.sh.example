@@ -27,11 +27,11 @@
 
 # Amazon EC2 instance id for this machine
 
-instanceid="myinstanceid"
+instanceid=$(ec2metadata --instance-id)
 
 # Amazon zone
 
-zone="us-east-1d"
+zone=$(ec2metadata --availability-zone)
 
 # Name of the ZFS pool we are creating or manipulating
 
