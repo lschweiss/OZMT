@@ -92,3 +92,18 @@ sudo echo dm_crypt >> /etc/modules
 
 Some commands will prompt you for the encryption key.   You will need to supply the crypto key 
 after boot by calling setup-crypto.sh and mountall.
+
+
+
+Running from a remote system:
+
+These scripts are designed to run from outside the or inside the EC2 instance using the 
+Amazon EC2 API.   Everything that must be run locally on the EC2 instance will be prepended with
+a variable called 'remote' that is set in the config file.  This is meant to be something like 
+'ssh root@myec2host.afraid.org'.  Make sure you have public key authentication setup to your
+EC2 instance.
+
+The config script has other variables that must be set for this to work properly.  See the
+config example for more information.
+
+

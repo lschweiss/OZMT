@@ -25,13 +25,29 @@
 # Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
 
 
-# Amazon EC2 instance id for this machine
+# Amazon EC2 instance id for this machine.  If the scripts are running locally on your instance
+# keep them as they are, otherwise change to the instance-id.
 
 instanceid=$(ec2metadata --instance-id)
 
-# Amazon zone
+# Amazon zone.  Again if running locally the example is fine.
 
 zone=$(ec2metadata --availability-zone)
+
+# Instance Hostname.  If you are running these scripts externally this needs to be
+# hard coded to the EC2 instance hostname.   It is used in tagging EBS volumes.
+
+instance_hostname="${HOSTNAME}"
+
+# Public DNS name of instance.  This is used if these scripts are run externally.
+
+instance_dns="aws-zfs01.homenet.org"
+
+# Remote call prefix.  If you want these script to run off the EC2 instance use the format
+# that is commented out and setup ssh public key authentication.
+
+remote=""
+#remote="ssh root@${instance_dns}"
 
 # Name of the ZFS pool we are creating or manipulating
 

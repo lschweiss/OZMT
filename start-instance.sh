@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # start-instance.sh
 
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-. ./zfs-config.sh
+. ./zfs-tools-init.sh
 
 if [ "$crypt" == "true" ]; then
     echo -n "Enter encryption key: "
@@ -38,18 +38,16 @@ while [ "$state" != "running" ]; do
             ec2-start-instances ${instanceid} ;;
         'stopping')
             sleep 10 ;;
-        'running')
-            exit 0 ;;
         'pending')
             sleep 10 ;;
     esac
 
     instance_status=`ec2-describe-instances --show-empty-fields ${instanceid}|grep INSTANCE`
-    state=`echo $instance_status|cut -f 6`
+    state=`echo $instance_status|cut -d " " -f 6`
 
 done
 
-instance_ip=`echo $instance_status|cut -f 17`
+instance_ip=`echo $instance_status|cut -d " " -f 17`
 
 # wait for DNS to update
 
@@ -57,6 +55,11 @@ resolved_dns=`host $instance_dns|cut -d " " -f 4`
 
 while [ "$resolved_dns" != "$instance_ip" ]; do
     sleep 30
+    # Kill Name Service Cache Daemon
+    nscd_pid=`ps -o fname,pid -e |grep nscd|awk -F " " '{print $2}'`
+    if [ $nscd_pid -ne 0 ]; then
+        kill -15 $nscd_pid
+    fi
     resolved_dns=`host $instance_dns|cut -d " " -f 4`
 done
 
@@ -64,6 +67,8 @@ done
 if [ "$crypt" == "true" ]; then
     echo $key | ./setup-crypto.sh
 fi
+
+$remote mountall
 
 
 
