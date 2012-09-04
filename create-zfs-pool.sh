@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ./zfs-tools-init.sh
 
 if [ "$crypt" == "true" ]; then
@@ -28,7 +29,7 @@ if [ "$crypt" == "true" ]; then
     echo
 fi
 
-echo $key|sha512sum|cut -d " " -f 1 > ./${zfspool}_key.sha512
+echo $key|sha512sum|cut -d " " -f 1 > ./${ec2_zfspool}_key.sha512
 
 x=1
 raidzlist=""
@@ -52,4 +53,6 @@ while [ $x -le $vdevs ]; do
     x=$(( $x + 1 ))
 done
 
-    $remote zpool create -o ashift=12 -o autoexpand=on -o listsnaps=on $zfspool $raidzlist
+    $remote zpool create -o ashift=12 -o autoexpand=on $ec2_zfspool $raidzlist
+
+    $remote zfs set checksum=sha256 $ec2_zfspool

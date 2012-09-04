@@ -20,12 +20,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# Built specifically for the AWS backup server
-# This process could take hours even days as the pool gets bigger so plan accordingly.
-# Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
-
-. ./zfs-config.sh
-
+if [ -f /etc/sysconfig/zfs-config ]; then 
+    . /etc/sysconfig/zfs-config
+else if [ -f /root/zfs-config.sh ]; then
+    . /root/zfs-config.sh 
+else if [ -f ./zfs-config.sh ]; then
+    . ./zfs-config.sh 
+fi 
+fi 
+fi
 
 volumes=`expr $vdevs \* $devices`
 
@@ -66,11 +69,11 @@ now() {
 check_key () {
 
 # confirm the key
-poolkey=`cat ${zfspool}_key.sha512`
+poolkey=`cat ${ec2_zfspool}_key.sha512`
 sha512=`echo $key|sha512sum|cut -d " " -f 1`
 
 if [ "$poolkey" != "$sha512" ]; then
-   echo "Invalid encryption key for ${zfspool}!"
+   echo "Invalid encryption key for ${ec2_zfspool}!"
    exit 1
 else
    echo "Key is valid."

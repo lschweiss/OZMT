@@ -1,7 +1,7 @@
-#! /bin/bash
+#! /bin/bash 
 
-# setup-swap.sh
-#
+# stop-instance.sh
+
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
 # Copyright (C) 2012  Chip Schweiss
@@ -20,12 +20,32 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# Built specifically for the AWS backup server
-# This process could take hours even days as the pool gets bigger so plan accordingly.
-# Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
-
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. ./zfs-tools-init.sh
 
-fdisk /dev/xvdb < fdisk.input
-mkswap /dev/xvdb1
-swapon /dev/xvdb1
+state=""
+stopping=0
+
+while [ "$state" != "stopped" ]; do
+    case $state in
+        'running')
+            ec2-stop-instances ${instanceid} ;;
+        'stopping')
+            stopping=$(( stopping + 10 ))
+            sleep 10
+            if [ $stopping -gt 600 ]; then
+                echo "Instance did not stop gracefully in 10 minutes.  Stopping forcefully."
+                ec2-stop-instances -f ${instanceid}
+                stopping=0
+            fi ;;
+        'pending')
+            sleep 10 ;;
+    esac
+
+    instance_status=`ec2-describe-instances --show-empty-fields ${instanceid}|grep INSTANCE`
+    state=`echo $instance_status|cut -d " " -f 6`
+
+done
+
+
+

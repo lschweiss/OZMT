@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ./zfs-tools-init.sh
 
 if [ "$crypt" == "true" ]; then
@@ -30,20 +31,31 @@ if [ "$crypt" == "true" ]; then
     check_key
 fi
 
-state=""
+
+get_ec2_state () {
+    instance_status=`ec2-describe-instances --show-empty-fields ${instanceid} 2>/dev/null |grep INSTANCE`
+    state=`echo $instance_status|cut -d " " -f 6`
+}
+
+get_ec2_state
+
+if [ "$state" == "running" ]; then
+    echo "EC2 instance start, but the instance is already running." >&2
+    exit 1
+fi
 
 while [ "$state" != "running" ]; do
     case $state in
         'stopped') 
-            ec2-start-instances ${instanceid} ;;
+            echo "Starting instance ${instanceid}"
+            ec2-start-instances ${instanceid} 2>/dev/null ;;
         'stopping')
             sleep 10 ;;
         'pending')
             sleep 10 ;;
     esac
 
-    instance_status=`ec2-describe-instances --show-empty-fields ${instanceid}|grep INSTANCE`
-    state=`echo $instance_status|cut -d " " -f 6`
+    get_ec2_state
 
 done
 

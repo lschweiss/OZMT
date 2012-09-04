@@ -51,6 +51,15 @@ Requirements:
  * JAVA_HOME must be set
  * EC2 keys need to be on the system and referenced in the zfs-config.sh file
 
+If scripts are run on a machine other than the EC2 instance: (Recommended)
+ * Public key authentication needs to be configured between the controlling
+   machine and the EC2 instance.   
+ * Since the EC2 instance will be under a different IP each boot turn
+   off IP address checking on the ssh client by adding
+        CheckHostIP no
+        StrictHostKeyChecking ask
+   to /etc/ssh/ssh_config
+
 
 
 First copy zfs-config.sh.example to zfs-config.sh and configure it for your machine.

@@ -24,6 +24,7 @@
 # This process could take hours even days as the pool gets bigger so plan accordingly.
 # Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ./zfs-tools-init.sh
 
 if [ "$crypt" == "true" ]; then
@@ -87,7 +88,7 @@ grow-vdev () {
 
     # Remove the old device from our pool
     log "Removing ${zname} from the pool" "$logfile"
-    $remote zpool offline $zfspool $zname
+    $remote zpool offline $ec2_zfspool $zname
 
     if [ "$crypt" == "true" ]; then
         $remote cryptsetup remove $cryptname
@@ -130,7 +131,7 @@ grow-vdev () {
     fi
 
     # Replace the vdev
-    $remote zpool replace $zfspool $zname
+    $remote zpool replace $ec2_zfspool $zname
 
     # Notify calling process we are done
 
@@ -165,7 +166,7 @@ while [ $y -le $devices ]; do
         echo "Waiting for resilver to complete."
         while [ "$resilver_complete" -eq "0" ]; do
             sleep 5
-            $remote zpool status ${zfspool} | grep -q "action: Wait for the resilver to complete"
+            $remote zpool status ${ec2_zfspool} | grep -q "action: Wait for the resilver to complete"
             resilver_complete=$?
             # TODO: Add check that "status: ONLINE"
 

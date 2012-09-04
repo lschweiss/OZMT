@@ -51,7 +51,7 @@ remote=""
 
 # Name of the ZFS pool we are creating or manipulating
 
-zfspool="mypool"
+ec2_zfspool="mypool"
 
 # The type of redunancy being used in each vdev
 # Can be mirror, raidz1, raidz2, or raidz3
