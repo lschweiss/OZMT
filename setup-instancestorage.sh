@@ -26,6 +26,14 @@
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-fdisk /dev/xvdb < fdisk.input
+parted -- /dev/xvdb unit MB mklabel msdos mkpart primary linux-swap 1 8192
+parted -- /dev/xvdb unit MB mkpart primary ext4 8192 -0
+
+mkfs.ext4 /dev/xvdb2
+
+mkdir -p /data/instancestore
+
+mount /dev/xvdb2 /data/instancestore
+
 mkswap /dev/xvdb1
 swapon /dev/xvdb1
