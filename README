@@ -124,7 +124,7 @@ Requirements:
 If bbcp network accelerator is used bbcp binary must be in the excution $PATH and pwgen must be installed.
 
 If scripts are run on a machine other than the EC2 instance: (Recommended)
- * Public key authentication needs to be configured between the controlling
+ * SSH Public key authentication needs to be configured between the controlling
    machine and the EC2 instance.   
  * Since the EC2 instance will be under a different IP each boot turn
    off IP address checking on the ssh client by adding
@@ -150,20 +150,6 @@ To expand your pool vertically, you must use raidz1 or better.
 1. Change the EBS size in the zfs-config.sh file.
 2. Run grow-zfs-pool.sh
 
-On a Small instance with 40 device pool in the example it will take about 1 1/2 to 2 hours 
-to grow the pool.  The job will be significantly faster on larger instances.   
-
-
-
-Running on a small instance:
-
-Out of memory problems can occur when you grow your pool if you don't add swap space.   
-
-Take advantage of the instance storage and setup swap space.  The setup-swap.sh will setup 
-an 8GB swap for you.  Since instance storage is not persistent you will want to call this 
-from your startup scripts.
-
-
 
 Using encryption:
 
@@ -176,7 +162,6 @@ sudo echo dm_crypt >> /etc/modules
 
 Some commands will prompt you for the encryption key.   You will need to supply the crypto key 
 after boot by calling setup-crypto.sh and mountall.
-
 
 
 Running from a remote system:
