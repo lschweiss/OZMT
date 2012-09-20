@@ -1,0 +1,35 @@
+#! /usr/bin/bash
+
+t=0
+xdf=2048
+
+while [ "$t" -le "8" ]; do
+	s=0
+	while [ "$s" -le "15" ]; do
+		link="c0t${t}d0s${s}"
+		let code=s+97
+		
+		oct=`echo "ibase=10;obase=8;${code}"|bc`
+		ascii=`echo -n "\0${oct}"`
+		target="../../devices/xpvd/xdf@${xdf}:${ascii}"
+		ln -s ${target} /dev/dsk/${link}
+		ln -s ${target},raw /dev/rdsk/${link}
+		(( s += 1 ))
+	done # $s
+	p=0
+	while [ "$p" -le "4" ]; do
+		link="c0t${t}d0p${p}"
+		let code=p+113
+		oct=`echo "ibase=10;obase=8;${code}"|bc`
+                ascii=`echo -n "\0${oct}"`
+		target="../../devices/xpvd/xdf@${xdf}:${ascii}"
+		ln -s ${target} /dev/dsk/${link}
+		ln -s ${target},raw /dev/rdsk/${link}
+                (( p += 1 ))
+        done # $p
+		
+	(( t += 1 ))
+	(( xdf += 16 ))
+done # $t
+
+
