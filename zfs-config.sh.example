@@ -20,17 +20,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-# Built specifically for the AWS backup server
-# This process could take hours even days as the pool gets bigger so plan accordingly.
-# Using raidz1 means redundency is broken troughout this process make sure you have a successful scrub first.
 
+# The directory we are storing all of our snapshot and ec2tools
 
-# Amazon EC2 instance id for this machine.  If the scripts are running locally on your instance
+TOOLS_ROOT="/mypool/tools"
+
+# Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
 # keep them as they are, otherwise change to the instance-id.
 
 instanceid=$(ec2metadata --instance-id)
 
-# Amazon zone.  Again if running locally the example is fine.
+# Amazon zone.  Again if running on the instance the example is fine.
 
 zone=$(ec2metadata --availability-zone)
 
@@ -78,6 +78,27 @@ dev_first_letter="f"
 # Use crypto layer?  If set to 'true' it will, anything else will ignore.
 
 crypt="false"
+
+# Staging zfs folder for sync to EC2
+
+staging_folder="/stagingpool/primarystaging"
+
+# rpool backup folder
+
+rpool_backup_folder="/stagingpool/primarystaging/rpool_backup"
+
+# Accelerate the tranfers to EC2 via bbcp
+# Set this to the path to the binary for bbcp
+# The bbcp binary must be in the search path on the EC2 instance.
+# see http://www.slac.stanford.edu/~abh/bbcp/
+
+bbcp="/usr/bin/bbcp"
+bbcp_streams="10"    # Definately tune this for your connection
+
+# Use EC2 instance storage to dump the zfs send to first to verify the send is succesful before
+# using ZFS receive
+
+inst_store_staging="true"
 
 # Make sure the EC2 Private Key and Cert files are referenced
 

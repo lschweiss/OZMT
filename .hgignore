@@ -4,3 +4,6 @@ ec2-api*
 zfs-config.sh
 *.sha512
 .*.swp
+snapshots/jobs
+backup/jobs
+pools_filesystems/setup-filesystems.sh

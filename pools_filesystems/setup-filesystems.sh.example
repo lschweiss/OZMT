@@ -1,0 +1,84 @@
+#! /bin/bash 
+
+# Chip Schweiss - chip.schweiss@wustl.edu
+#
+# Copyright (C) 2012  Chip Schweiss
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. ../zfs-tools-init.sh
+
+rm $TOOLS_ROOT/snapshots/jobs/*/*
+rm -rf $TOOLS_ROOT/backup/jobs/*
+
+. ./zfs_functions.sh
+
+# This is a not very elegant at this point but easy and straight forward
+#
+# setupzfs expects certain variable to be set before calling it:
+#
+# pool:     The zpool we are operating on.
+# staging:  The folder that snapshots will be staged for backup to EC2
+# crypt:    (true/false)  If true the file level encryption routine will be used to maintain
+#           the staging copy.  If false zfs send/receive will be used.
+# backup:   This is the zfs folder on the EC2 instance that the folder will be duplicated too.
+# 
+# setupzfs get 3 parameters:
+#
+# 1:        The zfs folder being setup.
+# 2:        zfs options being set.
+# 3:        The snapshot policy to apply.
+
+
+pool="primarypool"
+
+staging="${staging_folder:1}" # From zfs-config, in this case "stagingpool/primarystaging"
+crypt="true"
+backup=""
+
+setupzfs "tools" \
+    "compression=on
+    atime=off" \
+    "daily|30"
+
+setupzfs "my_important_data" \
+    "compression=on 
+    checksum=sha256 
+    sharenfs=rw=@192.168.0.0/24" \
+    "mid-day|2
+    daily|60
+    weekly|4
+    monthly|6
+    bi-annual|1
+    annual|1"
+
+#########################
+#
+# Staging pool
+#
+#########################
+
+pool="stagingpool"
+
+staging=""
+crypt="false"
+backup="${ec2_zfspool}"
+
+setupzfs "staging" \
+    "compression=off
+    checksum=sha256
+    atime=off"
+

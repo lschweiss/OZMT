@@ -1,0 +1,14 @@
+Snapshot Management Scripts
+
+Place the following in your root crontab:
+
+0 * * * *       /{path_to_tools}/snapshots/process_snaps.sh hourly
+0 12 * * *      /{path_to_tools}/snapshots/process_snaps.sh mid-day
+0 0 * * *       /{path_to_tools}/snapshots/process_snaps.sh daily
+0 0 * * 0       /{path_to_tools}/snapshots/process_snaps.sh weekly
+0 0 1 * *       /{path_to_tools}/snapshots/process_snaps.sh monthly
+0 0 1 1,7 *     /{path_to_tools}/snapshots/process_snaps.sh bi-annual
+0 0 1 1 *       /{path_to_tools}/snapshots/process_snaps.sh annual
+
+
+
