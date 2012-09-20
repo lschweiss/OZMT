@@ -26,8 +26,8 @@
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
-parted -- /dev/xvdb unit MB mklabel msdos mkpart primary linux-swap 1 8192
-parted -- /dev/xvdb unit MB mkpart primary ext4 8192 -0
+parted -s -- /dev/xvdb unit MB mklabel msdos mkpart primary linux-swap 1 8192
+parted -s -- /dev/xvdb unit MB mkpart primary ext4 8192 -0
 
 mkfs.ext4 /dev/xvdb2
 
