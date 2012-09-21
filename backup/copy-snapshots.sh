@@ -128,6 +128,7 @@ fi
 # Confirm we are using the correct snapshot for the target
 
 last_target_snapname=`zfs list -t snapshot -H -o name,creation -s creation | \
+                        grep -v "aws-backup_" | \
                         grep "^${zfs_target}@" | \
                         cut -f 1 | \
                         tail -n 1 | cut -d "@" -f 2`
