@@ -80,6 +80,16 @@ if [ "$crypt" == "true" ]; then
     echo $key | ./setup-crypto.sh
 fi
 
+zpool_status=`$remote zpool status`
+
+if [ "$zpool_status" == "no pools available" ]; then
+    if [ "$crypt" == "true" ]; then
+        $remote zpool import -d /dev/mapper $ec2_zfspool
+    else
+        $remote zpool import $ec2_zfspool
+    fi
+fi
+
 $remote mountall
 
 
