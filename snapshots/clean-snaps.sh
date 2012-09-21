@@ -23,7 +23,6 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 jobfolder="$TOOLS_ROOT/snapshots/jobs"
 
-snaptypes="hourly daily mid-day weekly monthly bi-annual annual"
 
 for snaptype in $snaptypes; do
 

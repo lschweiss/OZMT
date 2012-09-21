@@ -90,7 +90,7 @@ setupzfs () {
     jobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
 
     # Prep the jobs folders
-    for snaptype in "hourly" "mid-day" "daily" "weekly" "monthly" "bi-annual" "annual"; do
+    for snaptype in $snaptypes; do
         if [ ! -d $snapjobdir/$snaptype ]; then
             mkdir $snapjobdir/$snaptype
         fi

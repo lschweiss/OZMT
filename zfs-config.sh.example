@@ -100,6 +100,10 @@ bbcp_streams="10"    # Definately tune this for your connection
 
 inst_store_staging="true"
 
+# Snapshot type to be handled
+
+snaptypes="hourly daily mid-day weekly monthly bi-annual annual"
+
 # Make sure the EC2 Private Key and Cert files are referenced
 
 EC2_PRIVATE_KEY=/root/pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
