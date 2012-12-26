@@ -39,7 +39,7 @@ for volumeid in $volumeids; do
     awsdev="/dev/${awsdev}"
     
     echo "Attaching volume $volumeid to $awsdev on $instanceid" 
-    ec2-attach-volume -v $volumeid -i $instanceid -d $awsdev 
+    ec2-attach-volume -v $volumeid -i $instanceid -d $awsdev &
 
 done
 
