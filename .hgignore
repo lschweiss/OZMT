@@ -7,3 +7,4 @@ zfs-config.sh
 snapshots/jobs
 backup/jobs
 pools_filesystems/setup-filesystems.sh
+amazon-glacier-cmd-interface

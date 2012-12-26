@@ -28,78 +28,82 @@ TOOLS_ROOT="/mypool/tools"
 # Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
 # keep them as they are, otherwise change to the instance-id.
 
-instanceid=$(ec2metadata --instance-id)
+    instanceid=$(ec2metadata --instance-id)
+    
+    # Amazon zone.  Again if running on the instance the example is fine.
+    
+    zone=$(ec2metadata --availability-zone)
+    
+    # Instance Hostname.  If you are running these scripts externally this needs to be
+    # hard coded to the EC2 instance hostname.   It is used in tagging EBS volumes.
+    
+    instance_hostname="${HOSTNAME}"
+    
+    # Public DNS name of instance.  This is used if these scripts are run externally.
+    
+    instance_dns="aws-zfs01.homenet.org"
+    
+    # Remote call prefix.  If you want these script to run off the EC2 instance use the format
+    # that is commented out and setup ssh public key authentication.
+    
+    remote=""
+    #remote="ssh root@${instance_dns}"
+    
+    # Name of the ZFS pool we are creating or manipulating
+    
+    ec2_zfspool="mypool"
+    
+    # The type of redunancy being used in each vdev
+    # Can be mirror, raidz1, raidz2, or raidz3
+    
+    raidz="raidz1"
+    
+    # Number of raidz vdevs in the pool
+    
+    vdevs=5
+    
+    # Number of EBS block devices per raidz vdev
+    
+    devices=8
+    
+    # Size of each EBS block device in Gigabytes.   Must be a whole number 1 or greater.
+    # You can increase this later and run grow-zfs-pool.sh
+    
+    devsize=2
+    
+    # First device letter used in the pool.   EC2 defaults to 'f' as in /dev/sdf
+    
+    dev_first_letter="f"
+    
+    # Use crypto layer?  If set to 'true' it will, anything else will ignore.
+    
+    crypt="false"
+    
+    # Staging zfs folder for sync to EC2
+    
+    staging_folder="/stagingpool/primarystaging"
+    
+    # rpool backup folder
+    
+    rpool_backup_folder="/stagingpool/primarystaging/rpool_backup"
+    
+    # Accelerate the tranfers to EC2 via bbcp
+    # Set this to the path to the binary for bbcp
+    # The bbcp binary must be in the search path on the EC2 instance.
+    # see http://www.slac.stanford.edu/~abh/bbcp/
+    
+    bbcp="/usr/bin/bbcp"
+    bbcp_streams="10"    # Definately tune this for your connection
+    
+    # Use EC2 instance storage to dump the zfs send to first to verify the send is succesful before
+    # using ZFS receive
+    
+    inst_store_staging="true"
 
-# Amazon zone.  Again if running on the instance the example is fine.
+# Alternate backup to Glacier
 
-zone=$(ec2metadata --availability-zone)
-
-# Instance Hostname.  If you are running these scripts externally this needs to be
-# hard coded to the EC2 instance hostname.   It is used in tagging EBS volumes.
-
-instance_hostname="${HOSTNAME}"
-
-# Public DNS name of instance.  This is used if these scripts are run externally.
-
-instance_dns="aws-zfs01.homenet.org"
-
-# Remote call prefix.  If you want these script to run off the EC2 instance use the format
-# that is commented out and setup ssh public key authentication.
-
-remote=""
-#remote="ssh root@${instance_dns}"
-
-# Name of the ZFS pool we are creating or manipulating
-
-ec2_zfspool="mypool"
-
-# The type of redunancy being used in each vdev
-# Can be mirror, raidz1, raidz2, or raidz3
-
-raidz="raidz1"
-
-# Number of raidz vdevs in the pool
-
-vdevs=5
-
-# Number of EBS block devices per raidz vdev
-
-devices=8
-
-# Size of each EBS block device in Gigabytes.   Must be a whole number 1 or greater.
-# You can increase this later and run grow-zfs-pool.sh
-
-devsize=2
-
-# First device letter used in the pool.   EC2 defaults to 'f' as in /dev/sdf
-
-dev_first_letter="f"
-
-# Use crypto layer?  If set to 'true' it will, anything else will ignore.
-
-crypt="false"
-
-# Staging zfs folder for sync to EC2
-
-staging_folder="/stagingpool/primarystaging"
-
-# rpool backup folder
-
-rpool_backup_folder="/stagingpool/primarystaging/rpool_backup"
-
-# Accelerate the tranfers to EC2 via bbcp
-# Set this to the path to the binary for bbcp
-# The bbcp binary must be in the search path on the EC2 instance.
-# see http://www.slac.stanford.edu/~abh/bbcp/
-
-bbcp="/usr/bin/bbcp"
-bbcp_streams="10"    # Definately tune this for your connection
-
-# Use EC2 instance storage to dump the zfs send to first to verify the send is succesful before
-# using ZFS receive
-
-inst_store_staging="true"
-
+    glacier_start_sequence="1000"
+    
 # Snapshot type to be handled
 
 snaptypes="hourly daily mid-day weekly monthly bi-annual annual"

@@ -7,14 +7,11 @@ Author:
    chip.schweiss@wustl.edu
 
 Background:   
-   For a project I am managing we decided we want to backup our data in the cloud instead
-   of traditional tapes being shipped off site.
+   For a project I am managing we decided we want to backup our data in the cloud instead of traditional tapes being shipped off site.
 
-   We already decided on using OpenIndiana for file storage with ZFS, and wanted
-   to utilize ZFS send & receive to push changes to the cloud.  
+   We already decided on using OpenIndiana for file storage with ZFS, and wanted to utilize ZFS send & receive to push changes to the cloud.  
 
-   After numerous failed attempts to get OpenIndiana running on EC2, I moved on to 
-   ZFS on Linux (ZoL) on an Amazon Ubuntu 12.04 instance.   
+   After numerous failed attempts to get OpenIndiana running on EC2, I moved on to ZFS on Linux (ZoL) on an Amazon Ubuntu 12.04 instance.   
 
    Goals:
      1. Highly secure, meaning encrypted data in the cloud.  Keys are tightly controlled.
@@ -23,87 +20,46 @@ Background:
      4. Scalable
      5. Possibly be used for disaster recovery in the cloud.
 
-   This collection of scripts were developed to deploy and maintain our ZFS backups in the
-   cloud.   
+   This collection of scripts were developed to deploy and maintain our ZFS backups in the cloud.   
 
    We anticipate approximately 1 TB total data to be backed up, with less than 50 GB to start.
    
-   EBS storage is fixed in size when deployed and cannot be resized.  This may change in the future,
-   but at the time of this development it is the case.  ZFS cannot restripe, but it can grow vertically
-   if the underlying devices are replaced one at a time with larger devices.  
+   EBS storage is fixed in size when deployed and cannot be resized.  This may change in the future, but at the time of this development it is the case.  ZFS cannot restripe, but it can grow vertically if the underlying devices are replaced one at a time with larger devices.  
 
-   I built my initial pool of 40 1GB EBS devices, striped in 5 vdevs of 8 EBS devices as raidz1.  The
-   grow script I wrote will replace one EBS at a time in each vdev, wait for a resilver and replace the
-   next until all have been replace.   This allows for in place growth of the storage and keeps
-   the pool balanced and never requires restripe.   It can grow in increments of 40GB raw storage until 
-   the EBS devices are at the EC2 max.  (1TB at the time of writing).  If your concerned about not having
-   ZFS level redunancy while growing the pool you can setup a raidz2 pool.   I've decided this is not
-   an issue since EBS itself is already redunant underneith.   I run a scrub before hand to make sure all
-   data is good on all EBS blocks first.
+   I built my initial pool of 40 1GB EBS devices, striped in 5 vdevs of 8 EBS devices as raidz1.  The grow script I wrote will replace one EBS at a time in each vdev, wait for a resilver and replace the next until all have been replace.   This allows for in place growth of the storage and keeps the pool balanced and never requires restripe.   It can grow in increments of 40GB raw storage until the EBS devices are at the EC2 max.  (1TB at the time of writing).  If your concerned about not having ZFS level redunancy while growing the pool you can setup a raidz2 pool.   I've decided this is not an issue since EBS itself is already redunant underneith.   I run a scrub before hand to make sure all data is good on all EBS blocks first.
 
-   The primary ZFS server also has ec2-api tools installed and controls the backup operation.  The
-   EC2 instance is only turned on once a day to receive the day's worth of snapshots then shutdown.   
-   This keeps running time per month very low and keeps the data locked since it is encrypted on
-   EBS devices.   The encryption key is never stored on the EC2 instance.  It is supplied through
-   an ssh tunnel from the primary site. 
+   The primary ZFS server also has ec2-api tools installed and controls the backup operation.  The EC2 instance is only turned on once a day to receive the day's worth of snapshots then shutdown.  This keeps running time per month very low and keeps the data locked since it is encrypted on EBS devices.   The encryption key is never stored on the EC2 instance.  It is supplied through an ssh tunnel from the primary site. 
 
 The solution:
 
    Security first:
-   Our primary server, still OpenIndiana 151a5 at the time of this writing hosts a zpool with many zfs 
-   folders that we want to backup and keep our data secure.   
+   Our primary server, still OpenIndiana 151a5 at the time of this writing hosts a zpool with many zfs folders that we want to backup and keep our data secure.   
    
-   Since the ZoL instance will have everything accessible in a decrypted form when the system is pushing 
-   data, we decided we would build a staging pool that we would copy all of our data to and encrypt on 
-   the file level.   This is done with with public key encryption so a restore process would require 
-   supplying the private key which is not stored on the system at all.  
+   Since the ZoL instance will have everything accessible in a decrypted form when the system is pushing data, we decided we would build a staging pool that we would copy all of our data to and encrypt on the file level.   This is done with with public key encryption so a restore process would require supplying the private key which is not stored on the system at all.  
 
    The procedure:
-   The staging pool will be synced to our EC2 instance using ZFS send / receive.   Using a snapshot
-   schedule, the primary zfs folders each get a snapshot policy that maintains a set number of hourly, 
-   mid-day, daily, weekly, monthy, bi-annual, and annual snap shots.   
+   The staging pool will be synced to our EC2 instance using ZFS send / receive.   Using a snapshot schedule, the primary zfs folders each get a snapshot policy that maintains a set number of hourly, mid-day, daily, weekly, monthy, bi-annual, and annual snap shots.   
 
-   After each snapshot cycle data is synced to the local staging pool and encrypting at the file level
-   with GPG.   The scripts utilize 'zfs diff' to build the working set of files to copy, update, 
-   rename (mv), or delete on the staging pool.   
+   After each snapshot cycle data is synced to the local staging pool and encrypting at the file level with GPG.   The scripts utilize 'zfs diff' to build the working set of files to copy, update, rename (mv), or delete on the staging pool.   
 
    Daily the primary server launches the ZoL instance on EC2, mounts the zpool and syncs the changes.
 
    The challenges:
    Data transfer rates:
-   Even initially the transfer rate over SSH was not acceptible.  We started with approximately 50 GB 
-   which blew up to a 75GB zfs send.   This took approximately 30 hours to push to EC2.  Should we make
-   any significant changes, the tranfer rate would be a problem.  An acceloration was needed.     
+   Even initially the transfer rate over SSH was not acceptible.  We started with approximately 50 GB which blew up to a 75GB zfs send.   This took approximately 30 hours to push to EC2.  Should we make any significant changes, the tranfer rate would be a problem.  An acceloration was needed.     
 
-   Many techniques and tools were examined.  mbuffer helped a little bit along with some TCP tuning, but
-   nothing significant.   I settled on bbcp (http://www.slac.stanford.edu/~abh/bbcp/)
-   because it fit the use case perfectly.  It can take data in and/or out via named pipe which is perfect
-   for zfs send/receive.  With mbuffer and bbcp, I can consistantly push the 75GB in under one hour.   There
-   is still a lot of room in our network, but this rate is quite resonable.
+   Many techniques and tools were examined.  mbuffer helped a little bit along with some TCP tuning, but nothing significant.   I settled on bbcp (http://www.slac.stanford.edu/~abh/bbcp/) because it fit the use case perfectly.  It can take data in and/or out via named pipe which is perfect for zfs send/receive.  With mbuffer and bbcp, I can consistantly push the 75GB in under one hour.   There is still a lot of room in our network, but this rate is quite resonable.
 
-   bbcp introduced another security issue of concern.   The data it sends over the Internet is not encrypted.
-   The setup is all done via SSH, but the transfer channels it sets up are not secured.   To deal with this
-   the primary server generates an encyption key and passes it to the receiving end via SSH and pipes data
-   through openssl before passing to bbcp.   This had zero impact on our transfer rate. 
+   bbcp introduced another security issue of concern.   The data it sends over the Internet is not encrypted.  The setup is all done via SSH, but the transfer channels it sets up are not secured.   To deal with this the primary server generates an encyption key and passes it to the receiving end via SSH and pipes data through openssl before passing to bbcp.   This had zero impact on our transfer rate. 
 
    Memory Requirements:
-   I hoped to make the receiving system to be a m1.micro instance.  It fell over after only a small burst
-   of data being sent to it.  m1.small survived a little longer, but again fell over.  At this point
-   I learned that ZoL needs at least 4GB ram.  I tried adding swap space on the instance storage, but it
-   did not help.   Then I move to using m1.medium.  It has 3.75GB ram.  Seem to be working fine until
-   I add bbcp to pipe and it too fell over after several GB of data transfer.   I have not been able to get
-   an m1.large to fall over.   Unfortunately, just launching an m1.large cost 32 cents.   
+   I hoped to make the receiving system to be a m1.micro instance.  It fell over after only a small burst of data being sent to it.  m1.small survived a little longer, but again fell over.  At this point I learned that ZoL needs at least 4GB ram.  I tried adding swap space on the instance storage, but it did not help.   Then I move to using m1.medium.  It has 3.75GB ram.  Seem to be working fine until I add bbcp to pipe and it too fell over after several GB of data transfer.   I have not been able to get an m1.large to fall over.   Unfortunately, just launching an m1.large cost 32 cents.   
 
-   Enter spot instances. m1.large can be had for a fraction of the cost, typically 2.9 cents an hour in my zone.
-   However, it needs to be able to launch from an AMI image and must gracefully handle an unplanned termination.  
-   These requirements currently being worked out.
+   Enter spot instances. m1.large can be had for a fraction of the cost, typically 2.9 cents an hour in my zone.However, it needs to be able to launch from an AMI image and must gracefully handle an unplanned termination.  These requirements currently being worked out.
 
     
 The zinger:
-   In the middle of this development Amazon release their Glacier archive service.  The storage cost is
-   1/10 the amount of EBS.   It cannot have a ZFS file system natively, however doing something like an 
-   initial full zfs send and daily incrementals, each to an new 'archive' in the vault, a 90 day cycle
-   could be created to start a new full set and incrementals.    
+   In the middle of this development Amazon release their Glacier archive service.  The storage cost is 1/10 the amount of EBS.   It cannot have a ZFS file system natively, however doing something like an initial full zfs send and daily incrementals, each to an new 'archive' in the vault, a 90 day cycle could be created to start a new full set and incrementals.    
 
    No file level recover would be possible, but that is what snapshots are for.   
 
@@ -111,37 +67,35 @@ The zinger:
 
    I would like to build a solution around Clacier, but is not currently on my road map.
 
+UPDATE 26/Dec/2012: Because of delays in our FDA project, this had been on hold for a little while.  It's back in full swing now.
+
+The ZoL EC2 instance kept hanging, and I discovered the glacier-cmd python script.   I have temporarily abandoned the EC2 instance and implemented scripts to utilize Glacier.  
+
 
 Requirements:
 
- * m1.large or larger instance.   Using anything less that 4GB ram runs into vmap allocation errors and
-   kernel freezes when only a few GB have been inserted to ZFS pool.  
- * ec2-api-tools need to be installed and in the search path or referenced
-   in the zfs-config.sh file.
+ * m1.large or larger instance.   Using anything less that 4GB ram runs into vmap allocation errors and kernel freezes when only a few GB have been inserted to ZFS pool.  
+ * ec2-api-tools need to be installed and in the search path or referenced in the zfs-config.sh file.
  * JAVA_HOME must be set
  * EC2 keys need to be on the system and referenced in the zfs-config.sh file
 
 If bbcp network accelerator is used bbcp binary must be in the excution $PATH and pwgen must be installed.
 
 If scripts are run on a machine other than the EC2 instance: (Recommended)
- * SSH Public key authentication needs to be configured between the controlling
-   machine and the EC2 instance.   
- * Since the EC2 instance will be under a different IP each boot turn
-   off IP address checking on the ssh client by adding
+ * SSH Public key authentication needs to be configured between the controlling machine and the EC2 instance.   
+ * Since the EC2 instance will be under a different IP each boot turn off IP address checking on the ssh client by adding
         CheckHostIP no
         StrictHostKeyChecking ask
    to /etc/ssh/ssh_config
 
-If your primary system is Solaris/OpenIndiana many of the necessary packages can easily be installed from
-http://www.opencsw.org.
+If your primary system is Solaris/OpenIndiana many of the necessary packages can easily be installed from http://www.opencsw.org.
 
 
 
 First copy zfs-config.sh.example to zfs-config.sh and configure it for your machine.
 
 1. To create the pool of EBS devices run create-zfs-volumes.sh.  
-2. Run create-zfs-pool.sh to create the pool.  If you have specified encryption in the config
-   you will be prompted for the encryption key.   
+2. Run create-zfs-pool.sh to create the pool.  If you have specified encryption in the config you will be prompted for the encryption key.   
 
 
 
@@ -160,19 +114,13 @@ sudo echo aes-x86_64 >> /etc/modules
 sudo echo dm_mod >> /etc/modules
 sudo echo dm_crypt >> /etc/modules
 
-Some commands will prompt you for the encryption key.   You will need to supply the crypto key 
-after boot by calling setup-crypto.sh and mountall.
+Some commands will prompt you for the encryption key.   You will need to supply the crypto key after boot by calling setup-crypto.sh and mountall.
 
 
 Running from a remote system:
 
-These scripts are designed to run from outside the or inside the EC2 instance using the 
-Amazon EC2 API.   Everything that must be run locally on the EC2 instance will be prepended with
-a variable called 'remote' that is set in the config file.  This is meant to be something like 
-'ssh root@myec2host.afraid.org'.  Make sure you have public key authentication setup to your
-EC2 instance.
+These scripts are designed to run from outside the or inside the EC2 instance using the Amazon EC2 API.   Everything that must be run locally on the EC2 instance will be prepended with a variable called 'remote' that is set in the config file.  This is meant to be something like 'ssh root@myec2host.afraid.org'.  Make sure you have public key authentication setup to your EC2 instance.
 
-The config script has other variables that must be set for this to work properly.  See the
-config example for more information.
+The config script has other variables that must be set for this to work properly.  See the config example for more information.
 
 

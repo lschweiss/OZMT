@@ -24,6 +24,8 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 snapjobdir="$TOOLS_ROOT/snapshots/jobs"
 stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
+glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier"
+glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier_status"
 
 if [ ! -d $snapjobdir ]; then
     mkdir -p $snapjobdir
@@ -35,6 +37,14 @@ fi
 
 if [ ! -d ${ec2backupjobdir} ]; then
     mkdir -p ${ec2backupjobdir}
+fi
+
+if [ ! -d ${glacierjobdir} ]; then
+    mkdir -p ${glacierjobdir}
+fi
+
+if [ ! -d ${glacierjobstatus} ]; then
+    mkdir -p ${glacierjobstatus}
 fi
 
 setupzfs () {
@@ -49,8 +59,10 @@ setupzfs () {
     fi
 
     if [ -e "/$pool/$zfspath" ]; then
+        echo "${pool}/${zfspath} already exists, resetting options"
         setzfs "${pool}/${zfspath}" "$options"
     else
+        echo "Creating ${pool}/${zfspath} and setting options"
         zfs create -p $pool/$zfspath
         setzfs "${pool}/${zfspath}" "$options"
     fi
@@ -84,6 +96,16 @@ setupzfs () {
         ec2backupjobname=`echo "${backup}/${pool}/${zfspath}" | sed s,/,%,g`
         echo "source_folder=\"${pool}/${zfspath}\"" > ${ec2backupjobdir}/${ec2backupjobname}
         echo "target_folder=\"${ec2_zfspool}/${pool}/${zfspath}\"" >> ${ec2backupjobdir}/${ec2backupjobname}
+    fi
+
+    # Setup Amazon Glacier backup
+
+    if [ "$glacier" != "" ]; then
+        glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | sed s,/,%,g`
+        #TODO: Add logic to make sure this zfs folder is not a decendant of another
+        #      that is already being backed up via glacier
+        echo "source_folder=\"${pool}/${zfspath}\"" > ${glacierjobdir}/${glacierjobname}
+        echo "glacier_vault=\"${glacier}\"" >> ${glacierjobdir}/${glacierjobname}
     fi
 
 
