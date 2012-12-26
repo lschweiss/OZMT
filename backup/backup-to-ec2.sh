@@ -152,7 +152,7 @@ for job in $backupjobs; do
                         echo -n "Importing staging file via zfs receive..."
                         time ssh root@${instance_dns} "openssl aes-256-cbc -d -pass file:$bbcp_key \
                             -in ${target_file} | \
-                            zfs receive -F -vu ${target_folder}"
+                            zfs receive -F -vu -o canmount=off ${target_folder}"
                         receive_result=$?
                         echo "Done."
 
@@ -197,7 +197,7 @@ for job in $backupjobs; do
                 ( ssh root@${instance_dns} "cat $pipe | \
                     openssl aes-256-cbc -d -pass file:$bbcp_key \
                     mbuffer -q -s 128k -m 128M 2>/dev/null | \
-                    zfs receive -F -vu ${target_folder} ; receive_result=$? )" ) & 
+                    zfs receive -F -vu -o canmount=off ${target_folder} ; receive_result=$? )" ) & 
                 time $bbcp -s $bbcp_streams -V -P 300 -e -E %md5=${csfile} -N io $pipe $pipe 
                 bbcp_result=$?
                 # Remove the pipe
@@ -221,7 +221,7 @@ for job in $backupjobs; do
                 fi
 
                 ssh root@${instance_dns} "zfs create -p ${target_folder}" && \
-                ssh root@${instance_dns} "zfs receive -F -vu ${target_folder} < ${target_file}"
+                ssh root@${instance_dns} "zfs receive -F -vu -o canmount=off ${target_folder} < ${target_file}"
                 result=$?
 
                 if [ $result -ne 0 ]; then
