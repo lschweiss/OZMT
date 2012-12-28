@@ -1,0 +1,198 @@
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+NOTICE: Successfully created snapshot: ctspool/root_home_backup@hourly_2012-12-28_11:00-0600
+NOTICE: Successfully created snapshot: ctspool/tools@hourly_2012-12-28_11:00-0600
+NOTICE: Successfully created snapshot: ctspool/vmstore@hourly_2012-12-28_11:00-0600
+NOTICE: Successfully created snapshot: ctspool/vmstore_dev@hourly_2012-12-28_11:00-0600
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/root_home_backup of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/root_home_backup@hourly_2012-12-28_03:00-0600
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/tools of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/tools@hourly_2012-12-28_03:00-0600
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/vmstore@hourly_2012-12-28_07:00-0600
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/vmstore_dev of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/vmstore_dev@hourly_2012-12-28_03:00-0600
+DEBUG: remove-old-snapshots: Keeping the 60 most recent snapshots from ctspool/diantu of snap type daily
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 15 most recent snapshots from ctspool/home of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/pgdata01 of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 14 most recent snapshots from ctspool/puppetmaster of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/root_home_backup of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/tools of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/vcenter of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/vmstore_dev of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 365 most recent snapshots from ctspool/db_backup of snap type daily-delayed
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu of snap type mid-day
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu/archive of snap type mid-day
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/home of snap type mid-day
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/pgdata01 of snap type mid-day
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/puppetmaster of snap type mid-day
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu/archive of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/home of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/root_home_backup of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/rpool_backup of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/tools of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu/archive of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/puppetmaster of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/root_home_backup of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/tools of snap type monthly
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type bi-annual
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/root_home_backup of snap type bi-annual
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/tools of snap type bi-annual
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/puppetmaster of snap type annual
+NOTICE: Successfully created snapshot: ctspool/root_home_backup@hourly_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/diantu@mid-day_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/tools@hourly_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/diantu/archive@mid-day_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/vmstore@hourly_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/home@mid-day_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/vmstore_dev@hourly_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/pgdata01@mid-day_2012-12-28_12:00-0600
+NOTICE: Successfully created snapshot: ctspool/puppetmaster@mid-day_2012-12-28_12:00-0600
+DEBUG: backup_to_glacier: Created new Glacier vault CTS-test01-100-ctspool.root_home_backup
+DEBUG: backup_to_glacier: new first job for ctspool/root_home_backup, job #1000
+DEBUG: backup_to_glacier: Created new Glacier vault CTS-test01-100-ctspool.root_home_backup
+DEBUG: backup_to_glacier: new first job for ctspool/root_home_backup, job #1000
+DEBUG: backup_to_glacier: succesfully created snapshot ctspool/root_home_backup@glacier-backup_1000 for job CTS-test01%ctspool%root_home_backup
+DEBUG: backup_to_glacier: launching newly created glacier job(s)
+DEBUG: launch_glacier_jobs: lauching job CTS-test01%ctspool%root_home_backup_100_1000
+DEBUG: glacier job: starting push to glacier for ctspool/root_home_backup@glacier-backup_1000
+NOTICE: glacier_job: successully submitted archive for job 
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/root_home_backup of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/root_home_backup@hourly_2012-12-28_04:00-0600
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/tools of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/tools@hourly_2012-12-28_04:00-0600
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/vmstore@hourly_2012-12-28_08:00-0600
+DEBUG: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/vmstore_dev of snap type hourly
+NOTICE: remove-old-snapshots: Destroying: ctspool/vmstore_dev@hourly_2012-12-28_04:00-0600
+DEBUG: remove-old-snapshots: Keeping the 60 most recent snapshots from ctspool/diantu of snap type daily
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 15 most recent snapshots from ctspool/home of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/pgdata01 of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 14 most recent snapshots from ctspool/puppetmaster of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/root_home_backup of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/tools of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/vcenter of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/vmstore_dev of snap type daily
+DEBUG: remove-old-snapshots: Keeping the 365 most recent snapshots from ctspool/db_backup of snap type daily-delayed
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu of snap type mid-day
+NOTICE: remove-old-snapshots: Destroying: ctspool/diantu@mid-day_2012-12-26_12:00-0600
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu/archive of snap type mid-day
+NOTICE: remove-old-snapshots: Destroying: ctspool/diantu/archive@mid-day_2012-12-26_12:00-0600
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/home of snap type mid-day
+NOTICE: remove-old-snapshots: Destroying: ctspool/home@mid-day_2012-12-26_12:00-0600
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/pgdata01 of snap type mid-day
+NOTICE: remove-old-snapshots: Destroying: ctspool/pgdata01@mid-day_2012-12-26_12:00-0600
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/puppetmaster of snap type mid-day
+NOTICE: remove-old-snapshots: Destroying: ctspool/puppetmaster@mid-day_2012-12-26_12:00-0600
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu/archive of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/home of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/root_home_backup of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/rpool_backup of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/tools of snap type weekly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu/archive of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/puppetmaster of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/root_home_backup of snap type monthly
+DEBUG: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/tools of snap type monthly
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type bi-annual
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/root_home_backup of snap type bi-annual
+DEBUG: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/tools of snap type bi-annual
+DEBUG: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/puppetmaster of snap type annual
+DEBUG: backup_to_glacier: new incremental job #1 for ctspool/root_home_backup
+DEBUG: backup_to_glacier: succesfully created snapshot ctspool/root_home_backup@glacier-backup_1 for job CTS-test01%ctspool%root_home_backup
+DEBUG: backup_to_glacier: launching newly created glacier job(s)
+DEBUG: launch_glacier_jobs: lauching job CTS-test01%ctspool%root_home_backup_100_1
+DEBUG: glacier job: starting incremental push to glacier for  to ctspool/root_home_backup@glacier-backup_1
+NOTICE: glacier_job: successully submitted archive for job CTS-test01%ctspool%root_home_backup_100_1
+DEBUG: backup_to_glacier: Created new Glacier vault CTS-test03-100-ctspool.tools
+DEBUG: backup_to_glacier: new first job for ctspool/tools, job #1000
+DEBUG: backup_to_glacier: succesfully created snapshot ctspool/tools@glacier-backup_1000 for job CTS-test03%ctspool%tools
+DEBUG: backup_to_glacier: launching newly created glacier job(s)
+DEBUG: launch_glacier_jobs: lauching job CTS-test03%ctspool%tools_100_1000
+DEBUG: glacier job: starting push to glacier for ctspool/tools@glacier-backup_1000
+NOTICE: glacier_job: successully submitted archive for job CTS-test03%ctspool%tools_100_1000
+NOTICE: 2012-12-28 01:00:00 PM CST Successfully created snapshot: ctspool/root_home_backup@hourly_2012-12-28_13:00-0600
+NOTICE: 2012-12-28 01:00:00 PM CST Successfully created snapshot: ctspool/tools@hourly_2012-12-28_13:00-0600
+NOTICE: 2012-12-28 01:00:00 PM CST Successfully created snapshot: ctspool/vmstore@hourly_2012-12-28_13:00-0600
+NOTICE: 2012-12-28 01:00:00 PM CST Successfully created snapshot: ctspool/vmstore_dev@hourly_2012-12-28_13:00-0600
+DEBUG: 2012-12-28 01:02:50 PM CST backup_to_glacier: Created new Glacier vault CTS-test03-100-ctspool.tools
+DEBUG: 2012-12-28 01:02:50 PM CST backup_to_glacier: new first job for ctspool/tools, job #1000
+DEBUG: 2012-12-28 01:02:50 PM CST backup_to_glacier: succesfully created snapshot ctspool/tools@glacier-backup_100_1000 for job CTS-test03%ctspool%tools
+DEBUG: 2012-12-28 01:02:50 PM CST backup_to_glacier: launching newly created glacier job(s)
+DEBUG: 2012-12-28 01:02:50 PM CST launch_glacier_jobs: lauching job CTS-test03%ctspool%tools_100_1000
+DEBUG: 2012-12-28 01:02:50 PM CST glacier job: starting push to glacier for ctspool/tools@glacier-backup_100_1000
+NOTICE: 2012-12-28 01:03:14 PM CST glacier_job: successully submitted archive for job CTS-test03%ctspool%tools_100_1000
+DEBUG: 2012-12-28 01:06:22 PM CST backup_to_glacier: new incremental job #1001 for ctspool/tools
+DEBUG: 2012-12-28 01:06:22 PM CST backup_to_glacier: succesfully created snapshot ctspool/tools@glacier-backup_100_1001 for job CTS-test03%ctspool%tools
+DEBUG: 2012-12-28 01:06:22 PM CST backup_to_glacier: launching newly created glacier job(s)
+DEBUG: 2012-12-28 01:06:22 PM CST launch_glacier_jobs: lauching job CTS-test03%ctspool%tools_100_1001
+DEBUG: 2012-12-28 01:06:22 PM CST glacier job: starting incremental push to glacier for ctspool/tools@glacier-backup_100_1000 to ctspool/tools@glacier-backup_100_1001
+DEBUG: 2012-12-28 01:06:24 PM CST +--------------------------+------------------------------------------------------------------+
+NOTICE: 2012-12-28 01:06:24 PM CST glacier_job: successully submitted archive for job CTS-test03%ctspool%tools_100_1001
+DEBUG: 2012-12-28 01:08:21 PM CST backup_to_glacier: new incremental job #1002 for ctspool/tools
+DEBUG: 2012-12-28 01:08:21 PM CST backup_to_glacier: succesfully created snapshot ctspool/tools@glacier-backup_100_1002 for job CTS-test03%ctspool%tools
+DEBUG: 2012-12-28 01:08:21 PM CST backup_to_glacier: launching newly created glacier job(s)
+DEBUG: 2012-12-28 01:08:21 PM CST launch_glacier_jobs: lauching job CTS-test03%ctspool%tools_100_1002
+DEBUG: 2012-12-28 01:08:22 PM CST glacier job: starting incremental push to glacier for ctspool/tools@glacier-backup_100_1001 to ctspool/tools@glacier-backup_100_1002
+DEBUG: 2012-12-28 01:08:23 PM CST +--------------------------+------------------------------------------------------------------+
+|          Header          |                              Value                               |
++--------------------------+------------------------------------------------------------------+
+| Archive SHA256 tree hash | 8f751f2aa26cf2a1d6f10960873e65aa5f45c385c459379a3d5e79e45911bde3 |
++--------------------------+------------------------------------------------------------------+
+NOTICE: 2012-12-28 01:08:24 PM CST glacier_job: successully submitted archive for job CTS-test03%ctspool%tools_100_1002
+DEBUG: 2012-12-28 01:30:00 PM CST: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/root_home_backup of snap type hourly
+NOTICE: 2012-12-28 01:30:00 PM CST: remove-old-snapshots: Destroying: ctspool/root_home_backup@hourly_2012-12-28_05:00-0600
+DEBUG: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/tools of snap type hourly
+NOTICE: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Destroying: ctspool/tools@hourly_2012-12-28_05:00-0600
+DEBUG: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type hourly
+NOTICE: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Destroying: ctspool/vmstore@hourly_2012-12-28_09:00-0600
+DEBUG: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Keeping the 8 most recent snapshots from ctspool/vmstore_dev of snap type hourly
+NOTICE: 2012-12-28 01:30:01 PM CST: remove-old-snapshots: Destroying: ctspool/vmstore_dev@hourly_2012-12-28_05:00-0600
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 60 most recent snapshots from ctspool/diantu of snap type daily
+DEBUG: 2012-12-28 01:30:02 PM CST: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 15 most recent snapshots from ctspool/home of snap type daily
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/pgdata01 of snap type daily
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 14 most recent snapshots from ctspool/puppetmaster of snap type daily
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/root_home_backup of snap type daily
+DEBUG: 2012-12-28 01:30:02 PM CST: remove-old-snapshots: Keeping the 30 most recent snapshots from ctspool/tools of snap type daily
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 7 most recent snapshots from ctspool/vcenter of snap type daily
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/vmstore of snap type daily
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/vmstore_dev of snap type daily
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 365 most recent snapshots from ctspool/db_backup of snap type daily-delayed
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu of snap type mid-day
+DEBUG: 2012-12-28 01:30:03 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/diantu/archive of snap type mid-day
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/home of snap type mid-day
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/pgdata01 of snap type mid-day
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/puppetmaster of snap type mid-day
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu of snap type weekly
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/diantu/archive of snap type weekly
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/home of snap type weekly
+DEBUG: 2012-12-28 01:30:04 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type weekly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/root_home_backup of snap type weekly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/rpool_backup of snap type weekly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/tools of snap type weekly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu of snap type monthly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/diantu/archive of snap type monthly
+DEBUG: 2012-12-28 01:30:05 PM CST: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/puppetmaster of snap type monthly
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/root_home_backup of snap type monthly
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 6 most recent snapshots from ctspool/tools of snap type monthly
+DEBUG: 2012-12-28 01:30:06 PM CST: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 4 most recent snapshots from ctspool/puppetmaster of snap type bi-annual
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/root_home_backup of snap type bi-annual
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 2 most recent snapshots from ctspool/tools of snap type bi-annual
+DEBUG: 2012-12-28 01:30:06 PM CST: clean-snapshots: Keeping all snapshots for ctspool/diantu/archive
+DEBUG: 2012-12-28 01:30:06 PM CST: remove-old-snapshots: Keeping the 1 most recent snapshots from ctspool/puppetmaster of snap type annual
