@@ -40,12 +40,12 @@ locate_snap () {
             snap=`ls -1 $path|grep $date`
         fi
     else
-        echo "Directory $path not found."
+        error "locate_snap: Directory $path not found."
         return 1
     fi
 
     if [ "${snap}" == "" ]; then
-        echo "Snapshot for $date on path $path not found."
+        error "locate_snap: Snapshot for $date on path $path not found."
         return 1
     fi
 

@@ -87,7 +87,7 @@ done
 progress=""
 if [ ! -z "$dflag" ]; then
     #echo "Option -d $dval specified"
-    echo "Attempting to use given days"
+    debug "remove-old-snapshots: Attempting to use given days"
     days=$dval
 fi
 
@@ -101,7 +101,7 @@ shift $(($OPTIND - 1))
 #echo "Remaining arguments are: $*"
 
 if [ "$zflag" == "0" ]; then
-    echo "ERROR: -z parameter must be specified"
+    error "remove-old-snapshots: -z parameter must be specified"
     exit 1
 fi
 
@@ -110,7 +110,7 @@ fi
 if [ -e "/$zval" ]; then
     zfs_folder="$zval"
 else
-    echo "ERROR: ZFS folder $zval does not exist!"
+    error "remove-old-snapshots: ZFS folder $zval does not exist!"
     exit 1
 fi
 
@@ -119,7 +119,7 @@ snap_prefix="$pval"
 
 
 if [ $days -ne 0 ]; then
-    echo "Removing snapshots older than ${days} from ${zfs_folder} of snap type ${snap_prefix}..."
+    debug "remove-old-snapshots: Removing snapshots older than ${days} from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
         grep "^${zfs_folder}@${snap_prefix}" | \
@@ -137,10 +137,10 @@ if [ $days -ne 0 ]; then
                 if [ "$tflag" == "1" ]; then
                     echo "zfs destroy ${snap}"
                 else
-                    echo "Destroying: ${snap}"
+                    notice "remove-old-snapshots: Destroying: ${snap}"
                     zfs destroy ${snap}; result=$?
                     if [ "$result" -ne "0" ]; then
-                        echo "ERROR: Failed to remove ${snap}"
+                        error "remove-old-snapshots: Failed to remove ${snap}"
                     fi
                 fi
             fi
@@ -150,7 +150,7 @@ if [ $days -ne 0 ]; then
 fi
 
 if [ $count -ne 0 ]; then
-    echo "Keeping the ${count} most recent snapshots from ${zfs_folder} of snap type ${snap_prefix}..."
+    debug "remove-old-snapshots: Keeping the ${count} most recent snapshots from ${zfs_folder} of snap type ${snap_prefix}"
     # Reverse the order of the snap list from the newest to the oldest
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
@@ -162,10 +162,10 @@ if [ $count -ne 0 ]; then
         if [ "$tflag" == "1" ]; then
             echo "zfs destroy ${snap}"
         else
-            echo "Destroying: ${snap}"
+            notice "remove-old-snapshots: Destroying: ${snap}"
             zfs destroy ${snap}; result=$?
             if [ "$result" -ne "0" ]; then
-                echo "ERROR: Failed to remove ${snap}"
+                error "remove-old-snapshots: Failed to remove ${snap}"
             fi
         fi
     done

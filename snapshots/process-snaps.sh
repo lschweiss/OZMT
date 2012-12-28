@@ -38,9 +38,10 @@ for job in $jobs; do
         echo -n "Creating snapshot ${zfsfolder}@${stamp}..."
         zfs snapshot ${zfsfolder}@${stamp} ; result=$?
         if [ "$result" -ne "0" ]; then
-            echo "ERROR: Failed to snapshot ${zfsfolder}@${stamp}"
+            error "Failed to create snapshot ${zfsfolder}@${stamp}"
+        else
+            notice "Successfully created snapshot: ${zfsfolder}@${stamp}"
         fi
-        echo "done."
     fi
     echo
 done

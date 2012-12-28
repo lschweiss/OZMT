@@ -24,28 +24,14 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 snapjobdir="$TOOLS_ROOT/snapshots/jobs"
 stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
-glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier"
-glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier_status"
+glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier/active"
+glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier/status"
 
-if [ ! -d $snapjobdir ]; then
     mkdir -p $snapjobdir
-fi
-
-if [ ! -d ${stagingjobdir} ]; then
     mkdir -p ${stagingjobdir}
-fi
-
-if [ ! -d ${ec2backupjobdir} ]; then
     mkdir -p ${ec2backupjobdir}
-fi
-
-if [ ! -d ${glacierjobdir} ]; then
     mkdir -p ${glacierjobdir}
-fi
-
-if [ ! -d ${glacierjobstatus} ]; then
     mkdir -p ${glacierjobstatus}
-fi
 
 setupzfs () {
 
@@ -104,8 +90,14 @@ setupzfs () {
         glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | sed s,/,%,g`
         #TODO: Add logic to make sure this zfs folder is not a decendant of another
         #      that is already being backed up via glacier
-        echo "source_folder=\"${pool}/${zfspath}\"" > ${glacierjobdir}/${glacierjobname}
+        echo "job_name=\"${pool}/${zfspath}\"" | sed s,/,%,g > ${glacierjobdir}/${glacierjobname}
+        echo "source_folder=\"${pool}/${zfspath}\"" >> ${glacierjobdir}/${glacierjobname}
         echo "glacier_vault=\"${glacier}\"" >> ${glacierjobdir}/${glacierjobname}
+        if [ "x$glacier_rotation" == "x" ]; then
+            echo "glacier_rotation=\"${glacier_rotation_days}\"" >> ${glacierjobdir}/${glacierjobname}
+        else
+            echo "glacier_rotation=\"${glacier_rotation}\"" >> ${glacierjobdir}/${glacierjobname}
+        fi
     fi
 
 
