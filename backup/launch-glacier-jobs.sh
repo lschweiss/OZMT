@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier_status"
+jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
 failedjobs=`ls -1 ${jobstatusdir}/failed|sort`
 pendingjobs=`ls -1 ${jobstatusdir}/pending|sort`
@@ -30,6 +30,7 @@ pendingjobs=`ls -1 ${jobstatusdir}/pending|sort`
 # Relaunch failed jobs
 for job in $failedjobs; do
 
+    debug "launch_glacier_jobs: relauching previous failed job $job"
     ./glacier-job.sh $job &
 
 done
@@ -37,6 +38,7 @@ done
 # Launch new pending jobs
 for job in $pendingjobs; do
 
+    debug "launch_glacier_jobs: lauching job $job"
     ./glacier-job.sh $job &
 
 done

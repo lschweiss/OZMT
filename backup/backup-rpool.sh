@@ -27,12 +27,15 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 echo "Generating rpool@backup snapshot..."
 zfs snapshot -r rpool@backup
+zfs snapshot -r syspool@backup
 
 
 # Copy the rpool to the backup folder
 echo "Copying rpool snapshot to $rpool_backup_folder"
 zfs send -Rv rpool@backup > ${rpool_backup_folder}/rpool.backup
+zfs send -Rv syspool@backup > ${rpool_backup_folder}/syspool.backup
 
 # remove the backup snapshot
 echo "Destroying snapshot rpool@backup"
 zfs destroy -r rpool@backup
+zfs destroy -r syspool@backup

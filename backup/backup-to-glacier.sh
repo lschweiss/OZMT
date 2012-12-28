@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -23,20 +23,17 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 now=`date +%F_%H:%M:%S%z`
 
-
 die () {
 
-    echo "$1" >&2
+    error "backup_to_glacier: $1"
     exit 1
 
 }
 
+backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
+jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
-backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/`
-
-jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier_status"
-
-# Keep track of the job number since each vault was created
+# Keep track of the job number and rotation since each vault was created
 mkdir -p $jobstatusdir/sequence
 # Each job difinition is archived so failed jobs can be resubmitted
 mkdir -p $jobstatusdir/definition
@@ -55,49 +52,82 @@ mkdir -p $jobstatusdir/complete
 # Create snapshots and initialize jobs
 for job in $backupjobs; do
 
-    source $TOOLS_ROOT/backup/jobs/glacier/${job}
+    source $TOOLS_ROOT/backup/jobs/glacier/active/${job}
 
-    snapname="${source_folder}@glacier-backup_${now}"
+    # Get or initialize the rotation number
 
-    # Perform local snapshots
+    if [ ! -f "${jobstatusdir}/sequence/${job}_rotation" ]; then
+        # Initialize the rotation
+        echo "$glacier_start_rotation" > "${jobstatusdir}/sequence/${job}_rotation"
+        rotation="$glacier_start_rotation"
+    else
+        rotation=`cat ${jobstatusdir}/sequence/${job}_rotation`
+    fi
 
-    zfs snapshot -r $snapname
+    jobfixup=`echo $job_name|sed s,%,.,g`
+    vault="${glacier_vault}-${rotation}-${jobfixup}"
 
 
     # Find sequence number
 
-    if [ ! -f "${jobstatusdir}/sequence/${job}" ]; then
+    if [ ! -f "${jobstatusdir}/sequence/${job}_${rotation}" ]; then
         # This is the first sync
 
         # Create the vault
-        vault=`echo $job|sed s,%,.,g`
-        glacier-cmd mkvault $vault
+        glacier-cmd mkvault $vault || die "Could not create vault $vault"
+        debug "backup_to_glacier: Created new Glacier vault $vault"
         # Initialized the job sequence
         # So that sorting works as expected and we don't anticipate ever have more than 1000 let 
-        # alone 10000 jobs per vault, we will start at 1000.  If 
-        echo "$glacier_start_sequence" > ${jobstatusdir}/sequence/${job}
+        # alone 10000 jobs per vault, we will start at 1000.   
+        echo "$glacier_start_sequence" > ${jobstatusdir}/sequence/${job}_${rotation}
         thisjob="$glacier_start_sequence"
+        lastjobsnapname=""
+
+        debug "backup_to_glacier: new first job for ${source_folder}, job #${thisjob}"
 
     else 
-
         # This is an incremental job
 
         # Increment the sequence
-        lastjob=`cat ${jobstatusdir}/sequence/${job}`
+        lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
         thisjob=$(( $lastjob + 1 ))
+  
+        debug "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
 
-        echo "$thisjob" > ${jobstatusdir}/sequence/${job}
+        # Update the sequence number
+        echo "$thisjob" > ${jobstatusdir}/sequence/${job}_${rotation}
+
+        # TODO: Check if we need to start a new rotation
+
+        lastjobsnapname="${source_folder}@glacier-backup_${rotation}_${lastjob}"
 
     fi
 
+    snapname="${source_folder}@glacier-backup_${rotation}_${thisjob}"
+
+
+    # Perform the snapshot
+    zfs snapshot -r $snapname || die "Could not create snapshot $snapname"
+    debug "backup_to_glacier: succesfully created snapshot $snapname for job $job"
+
     # Initialize the job      
     # Store the orginal job name, snapshot name, sequence number and the time of the snapshot
-    echo -e "${job}\t${snapname}\t${thisjob}\t${now}" > ${jobstatusdir}/definition/${job}_${thisjob}
-    cp ${jobstatusdir}/definition/${job}_${thisjob} ${jobstatusdir}/pending/${job}_${thisjob}
+    jobfile="${jobstatusdir}/definition/${job}_${rotation}_${thisjob}"
+    echo "jobroot=\"${job}\"" > $jobfile
+    echo "jobsnapname=\"${snapname}\"" >> $jobfile
+    echo "lastjobsnapname=\"${lastjobsnapname}\"" >> $jobfile
+    echo "thisjob=\"${thisjob}\"" >> $jobfile
+    echo "snaptime=\"${now}\"" >> $jobfile
+    echo "vault=\"${vault}\"" >> $jobfile
+
+    cp ${jobfile} ${jobstatusdir}/pending/
+
 
 done
 
 # Launch pending jobs
+
+debug "backup_to_glacier: launching newly created glacier job(s)"
 
 ./launch-glacier-jobs.sh
     
