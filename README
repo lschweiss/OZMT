@@ -98,18 +98,23 @@ encyption key and passes it to the receiving end via SSH and pipes data through
 openssl before passing to bbcp.   This had zero impact on our transfer rate. 
 
    Memory Requirements:
-   I hoped to make the receiving system to be a m1.micro instance.  It fell over after 
-only a small burst of data being sent to it.  m1.small survived a little longer, but 
-again fell over.  At this point I learned that ZoL needs at least 4GB ram.  I tried 
-adding swap space on the instance storage, but it did not help.   Then I move to using 
-m1.medium.  It has 3.75GB ram.  Seem to be working fine until I add bbcp to pipe and 
-it too fell over after several GB of data transfer.   I have not been able to get an 
-m1.large to fall over.   Unfortunately, just launching an m1.large cost 32 cents.   
+   I hoped to make the receiving system to be a m1.micro instance.  It fell over 
+after only a small burst of data being sent to it.  m1.small survived a little 
+longer, but again fell over.  At this point I learned that ZoL needs at least 4GB 
+ram.  I tried adding swap space on the instance storage, but it did not help.   Then 
+I moved to using m1.medium.  It has 3.75GB ram.  Seem to be working fine until I 
+add bbcp to pipe and it too fell over after several GB of data transfer.   I have 
+not been able to get an m1.large to fall over.   Unfortunately, just launching an 
+m1.large cost 32 cents.   
 
-   Enter spot instances. m1.large can be had for a fraction of the cost, typically 2.9 
-cents an hour in my zone.However, it needs to be able to launch from an AMI image 
-and must gracefully handle an unplanned termination.  These requirements currently 
-being worked out.
+   Enter spot instances. m1.large can be had for a fraction of the cost, typically 
+2.9 cents an hour in my zone.However, it needs to be able to launch from an AMI 
+image and must gracefully handle an unplanned termination.  These requirements 
+currently being worked out.
+
+   UPDATE 28/Dec/2012:  Turns out, large and even extra large instances will hang.
+This appears to be related to a recenly fixed bug in ZoL: 
+https://github/zfsonlinux/spl/issues/174  I have not had time to test this yet.  
 
     
 The zinger:
@@ -124,6 +129,9 @@ to start a new full set and incrementals.
    So long as you don't have a high data change rate this could be utilized at a 
 fraction of the cost.
 
+   Another approach that might be feasable is using a file level archiving and 
+sending increments by using 'zfs diff'.  
+
    I would like to build a solution around Clacier, but is not currently on my road 
 map.
 
@@ -135,7 +143,13 @@ attributed to a bug in ZoL.   In the mean time I discovered the glacier-cmd pyth
 script.   I have temporarily abandoned the EC2 instance and implemented scripts 
 to utilize Glacier.  
 
-Requirements:
+There are some quirks with glacier-cmd script, but for the most part it
+is getting the job done.  I'm closely following mt-aws-glacier at 
+https://github.com/vsespb/mt-aws-glacier.  It shows a lot of promise also.  Once
+it has support for STDIN, I'll probably make the used of the two scripts modular.  
+
+
+Requirements for EC2 backup:
 
  * m1.large or larger instance.   Using anything less that 4GB ram runs into vmap 
    allocation errors and kernel freezes when only a few GB have been inserted to 
@@ -193,8 +207,8 @@ Running from a remote system:
 These scripts are designed to run from outside the or inside the EC2 instance using 
 the Amazon EC2 API.   Everything that must be run locally on the EC2 instance will 
 be prepended with a variable called 'remote' that is set in the config file.  This is 
-meant to be something like 'ssh root@myec2host.afraid.org'.  Make sure you have public 
-key authentication setup to your EC2 instance.
+meant to be something like 'ssh root@myec2host.afraid.org'.  Make sure you have 
+public key authentication setup to your EC2 instance.
 
 The config script has other variables that must be set for this to work properly.  See 
 the config example for more information.
