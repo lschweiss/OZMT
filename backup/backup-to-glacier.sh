@@ -33,6 +33,12 @@ die () {
 backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
 jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
+if [ "x$glacier_logfile" != "x" ]; then
+    logfile="$glacier_logfile"
+else
+    logfile="$default_logfile"
+fi
+
 # Keep track of the job number and rotation since each vault was created
 mkdir -p $jobstatusdir/sequence
 # Each job difinition is archived so failed jobs can be resubmitted
@@ -74,7 +80,7 @@ for job in $backupjobs; do
         # This is the first sync
 
         # Create the vault
-        glacier-cmd mkvault $vault || die "Could not create vault $vault"
+        glacier-cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || warning "Could not create vault $vault" /tmp/glacier_mk_vault_$$ 
         debug "backup_to_glacier: Created new Glacier vault $vault"
         # Initialized the job sequence
         # So that sorting works as expected and we don't anticipate ever have more than 1000 let 
@@ -127,9 +133,9 @@ done
 
 # Launch pending jobs
 
-debug "backup_to_glacier: launching newly created glacier job(s)"
+#debug "backup_to_glacier: launching newly created glacier job(s)"
 
-./launch-glacier-jobs.sh
+#./launch-glacier-jobs.sh
     
 
 

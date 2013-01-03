@@ -23,17 +23,14 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
-failedjobs=`ls -1 ${jobstatusdir}/failed|sort`
 pendingjobs=`ls -1 ${jobstatusdir}/pending|sort`
 
+if [ "x$glacier_logfile" != "x" ]; then
+    logfile="$glacier_logfile"
+else
+    logfile="$default_logfile"
+fi
 
-# Relaunch failed jobs
-for job in $failedjobs; do
-
-    debug "launch_glacier_jobs: relauching previous failed job $job"
-    ./glacier-job.sh $job &
-
-done
 
 # Launch new pending jobs
 for job in $pendingjobs; do

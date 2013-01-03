@@ -25,6 +25,12 @@ jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
 job="$1"
 
+if [ "x$glacier_logfile" != "x" ]; then
+    logfile="$glacier_logfile"
+else
+    logfile="$default_logfile"
+fi
+
 die () {
 
     error "glacier_job: $1" 
@@ -45,77 +51,45 @@ source ${jobstatusdir}/definition/${job}
 if [ "$thisjob" -eq "$glacier_start_sequence" ]; then
 
     # This is the first job 
-
-    # TODO: Check if this is a failed or pending job.
-    # If it is a failed job make sure the previous job is cleaned up before starting again.
-
-    mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
-
-#    # Create the named pipe
-#    pipe="/tmp/zfs.glacier-backup_pipe_${job}"
-#    mkfifo $pipe
-
-    # Start the zfs send
-
-#    csfile="/tmp/zfs.glacier-backup_cksum_${job}"
-#    send_result=999
-#    result_file="/tmp/zfs.glacier-backup_send_result_${job}"
-
     debug "glacier job: starting push to glacier for ${jobsnapname}"
-    zfs send -R ${jobsnapname} | \
-    mbuffer -q -s 128k -m 16M | \
-    gzip | \
-#    mbuffer -q -s 128k -m 16M | \
-    gpg -r "CTS Admin" --encrypt | \
-#    mbuffer -q -s 128k -m 128M | \
-    glacier-cmd upload ${vault} \
-        --stdin \
-        --description "${jobroot}-${snaptime}" \
-        --name "${jobroot}-${thisjob}" \
-        --partsize 128 > /tmp/glacier-cmd-output_$$
-    result=$?
-
-#    rm -f $pipe
+    zfs_send="zfs send -R ${jobsnapname}"
 
 else
 
     # This is an incremental job
-
-    # TODO: Check if this is a failed or pending job.
-    # If it is a failed job make sure the previous job is cleaned up before starting again.
-
-    mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
-
-
-#    # Create the named pipe
-#    pipe="/tmp/zfs.glacier-backup_pipe_${job}"
-#    mkfifo $pipe
-
-    # Start the zfs send
-
-#    csfile="/tmp/zfs.glacier-backup_cksum_${job}"
-#    send_result=999
-#    result_file="/tmp/zfs.glacier-backup_send_result_${job}"
     debug "glacier job: starting incremental push to glacier for ${lastjobsnapname} to ${jobsnapname}"
-    zfs send -I ${lastjobsnapname} ${jobsnapname} | \
-    mbuffer -q -s 128k -m 16M | \
-    gzip | \
-#    mbuffer -q -s 128k -m 16M | \
-    gpg -r "CTS Admin" --encrypt | \
-#    mbuffer -m 128M | \
-    glacier-cmd upload ${vault} \
-        --stdin \
-        --description "${jobroot}-${snaptime}" \
-        --name "${jobroot}-${thisjob}" \
-        --partsize 128 > /tmp/glacier-cmd-output_$$
-    result=$?
+    zfs_send="zfs send -R -I ${lastjobsnapname} ${jobsnapname}"
 
-#    rm -f $pipe
-    
 fi
 
-output=`cat /tmp/glacier-cmd-output_$$`
-debug "$output"
+mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
+
+# Start the zfs send
+
+$zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
+    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
+    gzip 2> /tmp/glacier-cmd-zfs-send-error 2> /tmp/glacier-job-gzip-error_$$ | \
+#    mbuffer -q -s 128k -m 16M | \
+    gpg -r "CTS Admin" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
+#    mbuffer -q -s 128k -m 128M | \
+    glacier-cmd upload ${vault} \
+        --stdin \
+        --description "${jobroot}-${thisjob}" \
+        --name "${jobroot}-${thisjob}" \
+        --partsize 128 &> /tmp/glacier-cmd-output_$$
+
+result=$?
+
+debug "glacier_job: ${job} zfs send output: " /tmp/glacier-job-zfs-send-error_$$
+debug "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
+debug "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
+debug "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
+debug "glacier_job: ${job} glacier-cmd output:" /tmp/glacier-cmd-output_$$
+
+rm /tmp/glacier-job-zfs-send-error_$$
+rm /tmp/glacier-job-mbuffer-error_$$
+rm /tmp/glacier-job-gzip-error_$$
+rm /tmp/glacier-job-gpg-error_$$
 rm /tmp/glacier-cmd-output_$$
 
 # Handle job failures or success
@@ -136,15 +110,13 @@ if [ "$result" -ne "0" ]; then
 
 else
 
-
-
     # Move the job to archiving status
     mv ${jobstatusdir}/running/${job} ${jobstatusdir}/archiving/${job}
 
     # Collect information about the job
 
     glacier-cmd --output csv search ${vault} > /tmp/glacier-job-$$.search
-    jobstats=`cat /tmp/glacier-job-$$.search | grep -F "${jobroot}-${snaptime}"`
+    jobstats=`cat /tmp/glacier-job-$$.search | grep -F "${jobroot}-${thisjob}"`
 
     echo -n "archive_id=" >> ${jobstatusdir}/archiving/${job} 
     echo $jobstats|cut -d, -f1 >> ${jobstatusdir}/archiving/${job}
