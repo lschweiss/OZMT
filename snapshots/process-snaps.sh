@@ -25,6 +25,12 @@ jobfolder="$TOOLS_ROOT/snapshots/jobs"
 
 snaptype="$1"
 
+if [ "x$snapshot_logfile" != "x" ]; then
+    logfile="$snapshot_logfile"
+else
+    logfile="$default_logfile"
+fi
+
 # collect jobs
 
 jobs=`ls -1 $jobfolder/$snaptype`

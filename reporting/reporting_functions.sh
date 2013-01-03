@@ -22,7 +22,11 @@ debug() {
 
     local message="DEBUG: $(now): $1"
 
-    process_message "$message" 0 $email_debug 
+    if [ "$#" -eq "2" ]; then
+        process_message "$message" 0 $email_debug none $2
+    else
+        process_message "$message" 0 $email_debug none
+    fi
 
 }
 
@@ -30,7 +34,11 @@ notice() {
 
     local message="NOTICE: $(now): $1"
 
-    process_message "$message" 1 $email_notice
+    if [ "$#" -eq "2" ]; then
+        process_message "$message" 1 $email_notice none $2
+    else
+        process_message "$message" 1 $email_notice none
+    fi
 
 }
 
@@ -39,7 +47,11 @@ warning() {
 
     local message="WARNING: $(now): $1"
 
-    process_message "$message" 2 $email_warning high
+    if [ "$#" -eq "2" ]; then
+        process_message "$message" 2 $email_warning high $2
+    else
+        process_message "$message" 2 $email_warning high
+    fi
 
 }
 
@@ -48,23 +60,32 @@ error() {
 
     local message="ERROR: $(now): $1"
 
-    process_message "$message" 3 $email_error high
+    if [ "$#" -eq "2" ]; then
+        process_message "$message" 3 $email_error high $2
+    else
+        process_message "$message" 3 $email_error high
+    fi
 
 }
 
 
 process_message() {
 
+    local terminal=
+    local importance=
+    local messagefile=
+
     # Inputs:
     # $1 - The message.  Should be quoted.
     # $2 - Message level
     # $3 - Report level
-    # $4 - Importance level (optional)
+    # $4 - Importance level (set to 'none' if not used)
+    # $5 - Include contents of file $5.  (optional)
 
     if [[ "$debug_level" == "" || "$2" -ge "$debug_level" ]]; then
         # Determine if we are running on a terminal
         tty -s
-        local terminal=$?        
+        terminal=$?        
         if [ "$terminal" -eq "0" ]; then
             # Set the color
             case "$2" in 
@@ -78,9 +99,16 @@ process_message() {
         fi
     fi
 
+    if [ "$4" == "none" ]; then
+        importance=""
+    else
+        importance="$4"
+    fi
+        
+
     if [ "x$3" == "xnow" ]; then
         # Send the email report now
-        local message_file=/tmp/process_message_$$
+        message_file=/tmp/process_message_$$
         case "$2" in
             '0') echo "Subject: DEBUG: aws_zfs_tools $HOSTNAME" > $message_file ;;
             '1') echo "Subject: NOTICE: aws_zfs_tools $HOSTNAME" > $message_file ;;
@@ -90,6 +118,10 @@ process_message() {
 
         echo >> $message_file
         echo "$1" >> $message_file
+
+        if [[ "$#" -eq "5" && -f "$5" ]]; then
+            cat $5 >> $message_file
+        fi
 
         $TOOLS_ROOT/reporting/send_email.sh $message_file $4        
         if [ "$?" -eq "0" ]; then
@@ -109,8 +141,21 @@ process_message() {
             echo "report_level=\"$2\"" > $TOOLS_ROOT/reporting/report_level
         fi
 
-        echo "$1" >> $TOOLS_ROOT/reporting/report_pending             
+        echo "$1" >> $TOOLS_ROOT/reporting/report_pending
+        if [[ "$#" -eq "5" && -f "$5" ]]; then
+            cat $5 >> $TOOLS_ROOT/reporting/report_pending
+        fi
+                     
     fi
+
+    # If enable append to log file
+    if [[ "x$logfile" != "x" && "$2" -ge "$logging_level" ]]; then
+        echo $1 >> $logfile
+
+        if [[ "$#" -eq "5" && -f "$5" ]]; then
+            cat $5 >> $logfile
+        fi
+    fi        
 
 }
 

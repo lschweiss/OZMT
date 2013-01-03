@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash -x
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -19,8 +19,6 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
-
 
 die () {
 
@@ -31,7 +29,9 @@ die () {
 
 message_file="$1"
 
-message_importance="$2"
+message_subject="$2"
+
+message_importance="$3"
 
 
 if [ ! -f "$message_file" ]; then
@@ -61,7 +61,7 @@ for bcc in $email_bcc; do
     mutt_options="$mutt_options -c $bcc"
 done
     
-    
-mutt -H /tmp/mutt_message_$$ $mutt_options $email_to
+# Send the message    
+mutt -s "$message_subject" -H /tmp/mutt_message_$$ $mutt_options $email_to
 
 rm /tmp/mutt_message_$$

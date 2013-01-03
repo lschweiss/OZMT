@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash -x
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -21,32 +21,32 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-jobfolder="$TOOLS_ROOT/snapshots/jobs"
+source $TOOLS_ROOT/reporting/report_level
 
-if [ "x$snapshot_logfile" != "x" ]; then
-    logfile="$snapshot_logfile"
+report_pending="/tmp/send_report_$$"
+
+
+if [ -f "$TOOLS_ROOT/reporting/report_pending" ]; then
+
+    # Move the report to a temporary file to avoid race conditions
+
+    mv $TOOLS_ROOT/reporting/report_pending $report_pending
+
+    if [[ "x$report_level" != "x" && "$report_level" -ge 4 ]]; then
+        
+        ./send_email.sh $report_pending high
+
+    else 
+
+        ./send_email.sh $report_pending
+
+    fi
+
+#    rm $report_pending
+
 else
-    logfile="$default_logfile"
+
+    echo "No report file found: $TOOLS_ROOT/reporting/report_pending" >&2
+
 fi
-
-
-for snaptype in $snaptypes; do
-
-    # collect jobs
-    jobs=`ls -1 $jobfolder/$snaptype`
     
-    for job in $jobs; do
-        zfsfolder=`echo $job|sed 's,%,/,g'`
-        keepcount=`cat $jobfolder/$snaptype/$job`
-        if [ "${keepcount:0:1}" == "x" ]; then
-            keepcount="${keepcount:1}"
-        fi
-        if [ "$keepcount" -ne "0" ]; then
-            ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
-        else
-            debug "clean-snapshots: Keeping all snapshots for $zfsfolder"
-        fi
-        echo
-    done
-
-done

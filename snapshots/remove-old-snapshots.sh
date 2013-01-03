@@ -28,6 +28,12 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 return=0
 
+if [ "x$snapshot_logfile" != "x" ]; then
+    logfile="$snapshot_logfile"
+else
+    logfile="$default_logfile"
+fi
+
 # show program usage
 show_usage() {
     echo
@@ -122,7 +128,7 @@ if [ $days -ne 0 ]; then
     debug "remove-old-snapshots: Removing snapshots older than ${days} from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "^${zfs_folder}@${snap_prefix}" | \
+        grep "^${zfs_folder}@${snap_prefix}_" | \
         sort`
     # Extract the date from each one and see if we should destroy it.
     for snap in $snap_list; do
