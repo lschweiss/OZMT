@@ -121,19 +121,22 @@ else
 
     # Collect information about the job
 
-    glacier-cmd --output csv search ${vault} > /tmp/glacier-job-$$.search
+    glacier-cmd search ${vault} > /tmp/glacier-job-$$.search
     jobstats=`cat /tmp/glacier-job-$$.search | grep -F "${jobroot}-${thisjob}"`
 
     echo "archive_name=\"${jobroot}-${thisjob}\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_id=" >> ${jobstatusdir}/archiving/${job} 
-    echo $jobstats|cut -d, -f1 >> ${jobstatusdir}/archiving/${job}
+    archive_id=`echo -n $jobstats|cut -d "|" -f2|tr -d ' '`
+    echo "\"$archive_id\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_hash=" >> ${jobstatusdir}/archiving/${job}
-    echo $jobstats|cut -d, -f2 >> ${jobstatusdir}/archiving/${job}
+    archive_hash=`echo -n $jobstats|cut -d "|" -f3|tr -d ' '`
+    echo "\"$archive_hash\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_size=" >> ${jobstatusdir}/archiving/${job}
-    echo $jobstats|cut -d, -f9 >> ${jobstatusdir}/archiving/${job}
+    archive_size=`echo -n $jobstats|cut -d "|" -f10|tr -d ' '`
+    echo "\"$archive_size\"" >> ${jobstatusdir}/archiving/${job}
 
     rm /tmp/glacier-job-$$.search
 

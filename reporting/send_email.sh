@@ -19,6 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. ../zfs-tools-init.sh
 
 die () {
 
@@ -62,6 +63,6 @@ for bcc in $email_bcc; do
 done
     
 # Send the message    
-mutt -s "$message_subject" -H /tmp/mutt_message_$$ $mutt_options $email_to
+mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $email_to < /tmp/mutt_message_$$
 
 rm /tmp/mutt_message_$$

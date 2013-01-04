@@ -8,4 +8,5 @@ snapshots/jobs
 backup/jobs
 pools_filesystems/setup-filesystems.sh
 amazon-glacier-cmd-interface
-reporting/report_pending
+reporting/reports_pending
+reporting/reporting.muttrc

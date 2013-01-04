@@ -47,12 +47,12 @@ for job in $jobs; do
     now=`date +%F_%H:%M%z`
     stamp="${snaptype}_${now}"
     if [ "${keepcount:0:1}" != "x" ]; then
-        echo -n "Creating snapshot ${zfsfolder}@${stamp}..."
+        debug "Creating snapshot ${zfsfolder}@${stamp}..."
         zfs snapshot ${zfsfolder}@${stamp} ; result=$?
         if [ "$result" -ne "0" ]; then
             error "Failed to create snapshot ${zfsfolder}@${stamp}"
         else
-            notice "Successfully created snapshot: ${zfsfolder}@${stamp}"
+            notice "Created snapshot: ${zfsfolder}@${stamp}"
         fi
     fi
     echo

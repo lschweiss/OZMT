@@ -131,9 +131,14 @@ process_message() {
     fi
 
     if [[ "x$3" == "xreport" || "x$3" == "xnow" ]]; then
+
+        if [ "x$report_name" == "x" ]; then
+            report_name="$default_report_name"
+        fi
+
         # Add the message to the next email report
 
-        $report_path="$TOOLS_ROOT/reporting/reports_pending/$report_name"
+        report_path="$TOOLS_ROOT/reporting/reports_pending/$report_name"
 
         mkdir -p $report_path
 
