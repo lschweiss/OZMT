@@ -133,17 +133,21 @@ process_message() {
     if [[ "x$3" == "xreport" || "x$3" == "xnow" ]]; then
         # Add the message to the next email report
 
+        $report_path="$TOOLS_ROOT/reporting/reports_pending/$report_name"
+
+        mkdir -p $report_path
+
         # Raise the report level if necessary
-        if [ -f $TOOLS_ROOT/reporting/report_level ]; then
-            source $TOOLS_ROOT/reporting/report_level
+        if [ -f $report_path/report_level ]; then
+            source $report_path/report_level
         fi
         if [[ "$report_level" == "" || "$report_level" -le "$2" ]]; then
-            echo "report_level=\"$2\"" > $TOOLS_ROOT/reporting/report_level
+            echo "report_level=\"$2\"" > $report_path/report_level
         fi
 
-        echo "$1" >> $TOOLS_ROOT/reporting/report_pending
+        echo "$1" >> $report_path/report_pending
         if [[ "$#" -eq "5" && -f "$5" ]]; then
-            cat $5 >> $TOOLS_ROOT/reporting/report_pending
+            cat $5 >> $report_path/report_pending
         fi
                      
     fi

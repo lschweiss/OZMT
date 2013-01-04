@@ -31,6 +31,12 @@ else
     logfile="$default_logfile"
 fi
 
+if [ "x$snapshot_report" != "x" ]; then
+    report_name="$snapshot_report"
+else
+    report_name="$default_report_name"
+fi
+
 # collect jobs
 
 jobs=`ls -1 $jobfolder/$snaptype`

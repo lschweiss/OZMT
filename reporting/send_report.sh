@@ -21,16 +21,26 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-source $TOOLS_ROOT/reporting/report_level
 
-report_pending="/tmp/send_report_$$"
+if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
+    reports=`ls -1 $TOOLS_ROOT/reporting/reports_pending`
 
-if [ -f "$TOOLS_ROOT/reporting/report_pending" ]; then
+    for report in $reports; do
+
+    report_path="$TOOLS_ROOT/reporting/reports_pending/$report"
 
     # Move the report to a temporary file to avoid race conditions
 
-    mv $TOOLS_ROOT/reporting/report_pending $report_pending
+    report_pending="/tmp/send_report_$report_$$"
+
+    mv $report_path/report_pending $report_pending
+
+    source $report_path/report_level
+
+    rm $report_path/report_level
+
+    notice "send_report: Sending $report"
 
     if [[ "x$report_level" != "x" && "$report_level" -ge 4 ]]; then
         
@@ -42,11 +52,17 @@ if [ -f "$TOOLS_ROOT/reporting/report_pending" ]; then
 
     fi
 
-#    rm $report_pending
+    done
+    
+    if [ "$debug_level" -eq "0" ]; then
+        debug "send_report: report file left at $report_pending"
+    else
+        rm $report_pending
+    fi
 
 else
 
-    echo "No report file found: $TOOLS_ROOT/reporting/report_pending" >&2
+    warning "No report files found: $TOOLS_ROOT/reporting/reports_pending" >&2
 
 fi
     
