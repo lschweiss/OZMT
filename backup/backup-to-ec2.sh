@@ -25,6 +25,18 @@ now=`date +%F_%H:%M:%S%z`
 
 ec2started='false'
 
+if [ "x$ec2_logfile" != "x" ]; then
+    logfile="$ec2_logfile"
+else
+    logfile="$default_logfile"
+fi
+
+if [ "x$ec2_report" != "x" ]; then
+    report_name="$ec2_report"
+else
+    report_name="$default_report_name"
+fi
+
 die () {
 
     #$TOOLS_ROOT/backup/ec2_zfs_tools/stop-instance.sh

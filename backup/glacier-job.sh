@@ -31,6 +31,12 @@ else
     logfile="$default_logfile"
 fi
 
+if [ "x$glacier_report" != "x" ]; then
+    report_name="$glacier_report"
+else
+    report_name="$default_report_name"
+fi
+
 die () {
 
     error "glacier_job: $1" 
@@ -117,6 +123,8 @@ else
 
     glacier-cmd --output csv search ${vault} > /tmp/glacier-job-$$.search
     jobstats=`cat /tmp/glacier-job-$$.search | grep -F "${jobroot}-${thisjob}"`
+
+    echo "archive_name=\"${jobroot}-${thisjob}\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_id=" >> ${jobstatusdir}/archiving/${job} 
     echo $jobstats|cut -d, -f1 >> ${jobstatusdir}/archiving/${job}

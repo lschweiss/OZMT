@@ -24,6 +24,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. ../zfs-tools-init.sh
+
 # show program usage
 show_usage() {
     echo
@@ -43,6 +46,20 @@ if [ "$#" -lt "$MIN_ARGS" ]; then
     show_usage
     exit 1
 fi
+
+if [ "x$ec2_logfile" != "x" ]; then
+    logfile="$ec2_logfile"
+else
+    logfile="$default_logfile"
+fi
+
+if [ "x$ec2_report" != "x" ]; then
+    report_name="$ec2_report"
+else
+    report_name="$default_report_name"
+fi
+
+# TODO: update to use logging & reporting
 
 
 zflag=

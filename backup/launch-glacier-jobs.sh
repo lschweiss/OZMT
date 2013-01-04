@@ -31,6 +31,12 @@ else
     logfile="$default_logfile"
 fi
 
+if [ "x$glacier_report" != "x" ]; then
+    report_name="$glacier_report"
+else
+    report_name="$default_report_name"
+fi
+
 
 # Launch new pending jobs
 for job in $pendingjobs; do

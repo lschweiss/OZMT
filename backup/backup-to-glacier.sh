@@ -39,6 +39,12 @@ else
     logfile="$default_logfile"
 fi
 
+if [ "x$glacier_report" != "x" ]; then
+    report_name="$glacier_report"
+else
+    report_name="$default_report_name"
+fi
+
 # Keep track of the job number and rotation since each vault was created
 mkdir -p $jobstatusdir/sequence
 # Each job difinition is archived so failed jobs can be resubmitted
