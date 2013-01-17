@@ -95,7 +95,7 @@ for job in $backupjobs; do
         thisjob="$glacier_start_sequence"
         lastjobsnapname=""
 
-        debug "backup_to_glacier: new first job for ${source_folder}, job #${thisjob}"
+        notice "backup_to_glacier: new first job for ${source_folder}, job #${thisjob}"
 
     else 
         # This is an incremental job
@@ -104,7 +104,7 @@ for job in $backupjobs; do
         lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
         thisjob=$(( $lastjob + 1 ))
   
-        debug "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
+        notice "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
 
         # Update the sequence number
         echo "$thisjob" > ${jobstatusdir}/sequence/${job}_${rotation}
@@ -120,7 +120,7 @@ for job in $backupjobs; do
 
     # Perform the snapshot
     zfs snapshot -r $snapname || die "Could not create snapshot $snapname"
-    debug "backup_to_glacier: succesfully created snapshot $snapname for job $job"
+    debug "backup_to_glacier: created snapshot $snapname for job $job"
 
     # Initialize the job      
     # Store the orginal job name, snapshot name, sequence number and the time of the snapshot

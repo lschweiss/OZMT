@@ -1,4 +1,4 @@
-#! /bin/bash -x
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -42,27 +42,23 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
         email_subject="aws_zfs_tools $report report"
     
-        notice "send_report: Sending $report"
+        debug "send_report: Sending $report"
     
         if [[ "x$report_level" != "x" && "$report_level" -ge 4 ]]; then
-
             email_subject="ERROR: $email_subject"
-            
             ./send_email.sh $report_pending "$email_subject" high
-    
         else 
-    
             ./send_email.sh $report_pending "$email_subject"
-    
+        fi
+
+        if [ "$debug_level" -eq "0" ]; then
+            debug "send_report: report file left at $report_pending"
+        else
+            rm $report_pending
         fi
 
     done
     
-    if [ "$debug_level" -eq "0" ]; then
-        debug "send_report: report file left at $report_pending"
-    else
-        rm $report_pending
-    fi
 
 else
 
