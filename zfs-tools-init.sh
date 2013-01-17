@@ -20,7 +20,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-if [ -f /etc/sysconfig/zfs-config ]; then 
+if [ -f /etc/sysconfig/zfs-tools-config ]; then
+    . /etc/sysconfig/zfs-tools-config
+else if [ -f /etc/sysconfig/zfs-config ]; then 
     . /etc/sysconfig/zfs-config
 else if [ -f /root/zfs-config.sh ]; then
     . /root/zfs-config.sh 
@@ -28,6 +30,7 @@ else if [ -f ./zfs-config.sh ]; then
     . ./zfs-config.sh 
 fi 
 fi 
+fi
 fi
 
 . $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
