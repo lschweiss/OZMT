@@ -63,7 +63,7 @@ for bcc in $email_bcc; do
 done
     
 # Send the message    
-/opt/csw/bin/mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
+$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
     && rm /tmp/mutt_message_$$ \
     || error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
 

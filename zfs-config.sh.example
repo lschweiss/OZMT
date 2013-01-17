@@ -146,6 +146,9 @@ debug_level="0"
 
     # When to send error level messages (now,report,never)
     email_errors="now"
+
+    # Path to mutt binary
+    mutt="/opt/csw/bin/mutt"
     
 # Snapshot type to be handled
 
