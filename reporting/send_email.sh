@@ -1,4 +1,4 @@
-#! /bin/bash -x
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
