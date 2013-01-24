@@ -71,68 +71,79 @@ for job in $backupjobs; do
     if [ ! -f "${jobstatusdir}/sequence/${job}_rotation" ]; then
         # Initialize the rotation
         echo "$glacier_start_rotation" > "${jobstatusdir}/sequence/${job}_rotation"
-        rotation="$glacier_start_rotation"
+        rotations="$glacier_start_rotation"
     else
-        rotation=`cat ${jobstatusdir}/sequence/${job}_rotation`
+        rotations=`cat ${jobstatusdir}/sequence/${job}_rotation`
     fi
 
     jobfixup=`echo $job_name|sed s,%,.,g`
     vault="${glacier_vault}-${rotation}-${jobfixup}"
 
+    for rotation in $rotations; do
+        # A job may have more than one rotation active.  It is the job
+        # of the archive confirmation script to stop a previous rotation after
+        # it can be confirmed that the first cycle has been archived on
+        # glacier.  
 
-    # Find sequence number
+        # Find sequence number
+    
+        if [ ! -f "${jobstatusdir}/sequence/${job}_${rotation}" ]; then
+            # This is the first sync
 
-    if [ ! -f "${jobstatusdir}/sequence/${job}_${rotation}" ]; then
-        # This is the first sync
+            rotation_glaciertool="$glacier_tool"
+    
+            # Create the vault (must use glacier-cmd as mt-aws-glacier does not
+            # support creating vaults at the time this code was written.
+            glacier-cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || \
+                warning "Could not create vault $vault" /tmp/glacier_mk_vault_$$ 
+            debug "backup_to_glacier: Created new Glacier vault $vault"
+            # Initialized the job sequence
+            # So that sorting works as expected and we don't anticipate ever have more than 1000 let 
+            # alone 10000 jobs per vault, we will start at 1000.   
+            echo "$glacier_start_sequence" > ${jobstatusdir}/sequence/${job}_${rotation}
+            thisjob="$glacier_start_sequence"
+            lastjobsnapname=""
+    
+            notice "backup_to_glacier: new first job for ${source_folder}, job #${thisjob}"
+    
+        else 
+            # This is an incremental job
+    
+            # Increment the sequence
+            lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
+            thisjob=$(( $lastjob + 1 ))
+      
+            notice "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
+    
+            # Update the sequence number
+            echo "$thisjob" > ${jobstatusdir}/sequence/${job}_${rotation}
+    
+            # TODO: Check if we need to start a new rotation
+    
+            lastjobsnapname="${source_folder}@glacier-backup_${rotation}_${lastjob}"
+    
+        fi
+    
+        snapname="${source_folder}@glacier-backup_${rotation}_${thisjob}"
+    
+    
+        # Perform the snapshot
+        zfs snapshot -r $snapname || die "Could not create snapshot $snapname"
+        debug "backup_to_glacier: created snapshot $snapname for job $job"
+    
+        # Initialize the job      
+        # Store the orginal job name, snapshot name, sequence number and the time of the snapshot
+        jobfile="${jobstatusdir}/definition/${job}_${rotation}_${thisjob}"
+        echo "jobroot=\"${job}\"" > $jobfile
+        echo "jobsnapname=\"${snapname}\"" >> $jobfile
+        echo "lastjobsnapname=\"${lastjobsnapname}\"" >> $jobfile
+        echo "thisjob=\"${thisjob}\"" >> $jobfile
+        echo "snaptime=\"${now}\"" >> $jobfile
+        echo "vault=\"${vault}\"" >> $jobfile
+    
+        cp ${jobfile} ${jobstatusdir}/pending/
 
-        # Create the vault
-        glacier-cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || warning "Could not create vault $vault" /tmp/glacier_mk_vault_$$ 
-        debug "backup_to_glacier: Created new Glacier vault $vault"
-        # Initialized the job sequence
-        # So that sorting works as expected and we don't anticipate ever have more than 1000 let 
-        # alone 10000 jobs per vault, we will start at 1000.   
-        echo "$glacier_start_sequence" > ${jobstatusdir}/sequence/${job}_${rotation}
-        thisjob="$glacier_start_sequence"
-        lastjobsnapname=""
-
-        notice "backup_to_glacier: new first job for ${source_folder}, job #${thisjob}"
-
-    else 
-        # This is an incremental job
-
-        # Increment the sequence
-        lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
-        thisjob=$(( $lastjob + 1 ))
-  
-        notice "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
-
-        # Update the sequence number
-        echo "$thisjob" > ${jobstatusdir}/sequence/${job}_${rotation}
-
-        # TODO: Check if we need to start a new rotation
-
-        lastjobsnapname="${source_folder}@glacier-backup_${rotation}_${lastjob}"
-
-    fi
-
-    snapname="${source_folder}@glacier-backup_${rotation}_${thisjob}"
-
-
-    # Perform the snapshot
-    zfs snapshot -r $snapname || die "Could not create snapshot $snapname"
-    debug "backup_to_glacier: created snapshot $snapname for job $job"
-
-    # Initialize the job      
-    # Store the orginal job name, snapshot name, sequence number and the time of the snapshot
-    jobfile="${jobstatusdir}/definition/${job}_${rotation}_${thisjob}"
-    echo "jobroot=\"${job}\"" > $jobfile
-    echo "jobsnapname=\"${snapname}\"" >> $jobfile
-    echo "lastjobsnapname=\"${lastjobsnapname}\"" >> $jobfile
-    echo "thisjob=\"${thisjob}\"" >> $jobfile
-    echo "snaptime=\"${now}\"" >> $jobfile
-    echo "vault=\"${vault}\"" >> $jobfile
-
-    cp ${jobfile} ${jobstatusdir}/pending/
+    done 
 
 
 done

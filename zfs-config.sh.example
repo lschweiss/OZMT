@@ -114,6 +114,14 @@ debug_level="0"
 
 # Alternate backup to Glacier
 
+    # Which glacier tool to use for backup
+    # Currently support glacier-cmd and mt-aws-glacier
+    
+    glacier_tool="mt-aws-glacier"
+
+    # Sequence number we start on.  1000 is chosen to simplify sorting and script math.  This way
+    # all sequences will have a 4 digit number.
+
     glacier_start_sequence="1000"
 
     # Default days to rotate glacier vaults.  Can over ride in setup-filesystems.sh
@@ -123,6 +131,10 @@ debug_level="0"
     # Default rotation number.  
 
     glacier_start_rotation="100"
+
+    # Seconds between launching backup jobs
+
+    glacier_job_stagger="600"
 
 # Email reporting: Requires mutt to be installed and configured
 
@@ -161,6 +173,8 @@ EC2_CERT=/root/cert-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
 
 # EC2 API tools must be in the path and its location defined in the EC2_HOME environment variable
 # Some instances from Amazon already have these installed and in the path.
+# It is recommended that once you have your jobs fully running from a terminal, to put the PATH you 
+# have in the terminal here before creating cron jobs.
 
 PATH=$PATH:/root/tools/ec2-api-tools-1.5.5.0/bin
 EC2_HOME=/root/tools/ec2-api-tools-1.5.5.0
