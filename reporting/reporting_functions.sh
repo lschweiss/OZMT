@@ -82,11 +82,11 @@ process_message() {
     # $4 - Importance level (set to 'none' if not used)
     # $5 - Include contents of file $5.  (optional)
 
-    if [[ "$debug_level" == "" || "$2" -ge "$debug_level" ]]; then
+    if [[ "$debug_level" == "" || "$2" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
         # Determine if we are running on a terminal
         tty -s
         terminal=$?        
-        if [ "$terminal" -eq "0" ]; then
+        if [[ "$terminal" -eq "0" || "$DEBUG" == "true" ]]; then
             # Set the color
             case "$2" in 
                 '0') echo -n "$(color bd white)" ;;
@@ -123,7 +123,13 @@ process_message() {
             cat $5 >> $message_file
         fi
 
-        $TOOLS_ROOT/reporting/send_email.sh $message_file $4        
+        if [ "$DEBUG" == "true" ]; then
+            # We are debuging on the console don't send email
+            echo "$(color bd red)DEBUG: Not sending email $message_file"
+        else
+            $TOOLS_ROOT/reporting/send_email.sh $message_file $4
+        fi
+
         if [ "$?" -eq "0" ]; then
             rm $message_file
         fi 
@@ -150,9 +156,14 @@ process_message() {
             echo "report_level=\"$2\"" > $report_path/report_level
         fi
 
-        echo "$1" >> $report_path/report_pending
-        if [[ "$#" -eq "5" && -f "$5" ]]; then
-            cat $5 >> $report_path/report_pending
+        if [ "$DEBUG" == "true" ]; then
+            # We are debuging on the console don't report
+            echo "$(color bd red)DEBUG: not reporting $1"
+        else            
+            echo "$1" >> $report_path/report_pending
+            if [[ "$#" -eq "5" && -f "$5" ]]; then
+                cat $5 >> $report_path/report_pending
+            fi
         fi
                      
     fi
