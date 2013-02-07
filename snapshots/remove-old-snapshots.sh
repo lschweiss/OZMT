@@ -132,7 +132,7 @@ snap_prefix="$pval"
 
 
 if [ $days -ne 0 ]; then
-    notice "remove-old-snapshots: Removing snapshots older than ${days} days from ${zfs_folder} of snap type ${snap_prefix}"
+    debug "remove-old-snapshots: Removing snapshots older than ${days} days from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
         grep "^${zfs_folder}@${snap_prefix}_" | \
@@ -163,7 +163,7 @@ if [ $days -ne 0 ]; then
 fi
 
 if [ $count -ne 0 ]; then
-    notice "remove-old-snapshots: Keeping the ${count} most recent snapshots from ${zfs_folder} of snap type ${snap_prefix}"
+    debug "remove-old-snapshots: Keeping the ${count} most recent snapshots from ${zfs_folder} of snap type ${snap_prefix}"
     # Reverse the order of the snap list from the newest to the oldest
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
@@ -175,7 +175,7 @@ if [ $count -ne 0 ]; then
         if [ "$tflag" == "1" ]; then
             echo "zfs destroy ${snap}"
         else
-            debug "remove-old-snapshots: Destroying: ${snap}"
+            notice "remove-old-snapshots: Destroying: ${snap}"
             zfs destroy ${snap}; result=$?
             if [ "$result" -ne "0" ]; then
                 error "remove-old-snapshots: Failed to remove ${snap}"

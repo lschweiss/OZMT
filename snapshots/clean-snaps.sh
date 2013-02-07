@@ -50,7 +50,7 @@ for snaptype in $snaptypes; do
         if [ "$keepcount" -ne "0" ]; then
             ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
         else
-            notice "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
+            debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
         fi
         echo
     done
