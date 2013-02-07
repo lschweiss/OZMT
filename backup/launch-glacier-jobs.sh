@@ -43,9 +43,9 @@ for job in $pendingjobs; do
 
     debug "launch_glacier_jobs: lauching job $job"
 
-    sleep $glacier_job_stagger
-
     ./glacier-job.sh $job &
+
+    sleep $glacier_job_stagger
 
 done
 
