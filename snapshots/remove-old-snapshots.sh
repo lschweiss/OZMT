@@ -175,7 +175,7 @@ if [ $count -ne 0 ]; then
         if [ "$tflag" == "1" ]; then
             echo "zfs destroy ${snap}"
         else
-            notice "remove-old-snapshots: Destroying: ${snap}"
+            notice "remove-old-snapshots: Destroying: ${snap}, keeping ${count} of type ${snap_prefix}"
             zfs destroy ${snap}; result=$?
             if [ "$result" -ne "0" ]; then
                 error "remove-old-snapshots: Failed to remove ${snap}"
