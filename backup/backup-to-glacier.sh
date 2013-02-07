@@ -59,7 +59,8 @@ mkdir -p $jobstatusdir/failed
 mkdir -p $jobstatusdir/archiving
 # Jobs that have been confirmed to be archived and their predecessor snapshots deleted
 mkdir -p $jobstatusdir/complete
-
+# Vault inventory as retrieved from Glacier
+mkdir -p $jobstatusdir/inventory
 
 # Create snapshots and initialize jobs
 for job in $backupjobs; do
@@ -77,9 +78,11 @@ for job in $backupjobs; do
     fi
 
     jobfixup=`echo $job_name|sed s,%,.,g`
-    vault="${glacier_vault}-${rotation}-${jobfixup}"
 
     for rotation in $rotations; do
+
+        vault="${glacier_vault}-${rotation}-${jobfixup}"
+
         # A job may have more than one rotation active.  It is the job
         # of the archive confirmation script to stop a previous rotation after
         # it can be confirmed that the first cycle has been archived on
