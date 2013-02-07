@@ -73,8 +73,8 @@ mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
 # Start the zfs send
 
 $zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
-    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
-    gzip 2> /tmp/glacier-cmd-zfs-send-error 2> /tmp/glacier-job-gzip-error_$$ | \
+#    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
+    gzip 2> /tmp/glacier-job-gzip-error_$$ | \
 #    mbuffer -q -s 128k -m 16M | \
     gpg -r "CTS Admin" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
 #    mbuffer -q -s 128k -m 128M | \
@@ -87,16 +87,11 @@ $zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
 result=$?
 
 debug "glacier_job: ${job} zfs send output: " /tmp/glacier-job-zfs-send-error_$$
-debug "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
+#debug "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
 debug "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
 debug "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
 debug "glacier_job: ${job} glacier-cmd output:" /tmp/glacier-cmd-output_$$
 
-rm /tmp/glacier-job-zfs-send-error_$$
-rm /tmp/glacier-job-mbuffer-error_$$
-rm /tmp/glacier-job-gzip-error_$$
-rm /tmp/glacier-job-gpg-error_$$
-rm /tmp/glacier-cmd-output_$$
 
 # Handle job failures or success
 
@@ -106,13 +101,17 @@ if [ "$result" -ne "0" ]; then
 
     # Collect the archive ID
 
-    # Delete the archive
-
     # Move the job to failed status
     mv ${jobstatusdir}/running/${job} ${jobstatusdir}/failed/${job}
 
     # submit results
     warning "glacier_job: job ${job} failed will retry"
+    # Report output
+    notice "glacier_job: ${job} zfs send output: " /tmp/glacier-job-zfs-send-error_$$
+    #notice "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
+    notice "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
+    notice "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
+    notice "glacier_job: ${job} glacier-cmd output:" /tmp/glacier-cmd-output_$$
 
 else
 
@@ -144,3 +143,9 @@ else
     notice "glacier_job: successully submitted archive for job ${job}"
 
 fi
+
+rm /tmp/glacier-job-zfs-send-error_$$
+#rm /tmp/glacier-job-mbuffer-error_$$
+rm /tmp/glacier-job-gzip-error_$$
+rm /tmp/glacier-job-gpg-error_$$
+rm /tmp/glacier-cmd-output_$$
