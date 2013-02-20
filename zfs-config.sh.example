@@ -34,6 +34,22 @@ TOOLS_ROOT="/mypool/tools"
 
 debug_level="0"
 
+# Set the logging level
+# 0 - Debug
+# 1 - Notice
+# 2 - Warning
+# 3 - Error
+
+logging_level="1"
+
+default_logfile="/var/log/aws-zfs-tools.log"
+
+default_report_name="aws-zfs-tools"
+
+# GPG key ring
+
+gpg_user="zfs-tools"
+
 # Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
 # keep them as they are, otherwise change to the instance-id.
 

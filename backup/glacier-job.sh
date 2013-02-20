@@ -76,7 +76,7 @@ $zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
 #    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
     gzip 2> /tmp/glacier-job-gzip-error_$$ | \
 #    mbuffer -q -s 128k -m 16M | \
-    gpg -r "CTS Admin" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
+    gpg -r "$gpg_user" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
 #    mbuffer -q -s 128k -m 128M | \
     glacier-cmd upload ${vault} \
         --stdin \

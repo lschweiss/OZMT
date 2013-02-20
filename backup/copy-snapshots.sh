@@ -273,7 +273,7 @@ copy_file () {
                     if [ -e "$cryptdest" ]; then
                         rm -f "$cryptdest"
                     fi
-                    gpg -r "CTS Admin" --compress-algo bzip2 --output "$cryptdest" --encrypt "$file"
+                    gpg -r "$gpg_user" --compress-algo bzip2 --output "$cryptdest" --encrypt "$file"
                     sha256sum "$file" > "${filedest}.sha256"
                     filedest="$cryptdest"
                     ;;
@@ -284,7 +284,7 @@ copy_file () {
                     filedest="${filedest:0:$namelen}"
                     namelen=$(( ${#file} - 4 ))
                     sigfile="${file:0:$namelen}.sha256"
-                    gpg -r "CTS Admin" --output "$filedest" --decrypt "$file"
+                    gpg -r "$gpg_user" --output "$filedest" --decrypt "$file"
                     sourcesha256=`cat ${sigfile}.sha256|cut -f 1`
                     destsha256=`sha256sum "$filedest"|cut -f 1`
                     if [ "$sourcesha256" != "$destsha256" ]; then
