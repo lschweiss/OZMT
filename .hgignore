@@ -10,3 +10,5 @@ pools_filesystems/setup-filesystems.sh
 amazon-glacier-cmd-interface
 reporting/reports_pending
 reporting/reporting.muttrc
+root.save
+etc.save

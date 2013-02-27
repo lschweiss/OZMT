@@ -195,7 +195,7 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
     # Locate archiveID
     archiveID=`cat $inventory_file|grep $thisjob|awk -F '","' {print $1}|sed 's/^@//'`
 
-    cmd_result=`glacier-cmd --output csv getarchive $full_vault_name $archiveID`
+    cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name $archiveID`
 
     echo $cmd_result|grep -q "RequestId" ; result=$?
 
@@ -220,7 +220,7 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
 
     while [ "$request_status" != "Succeeded" ]; do
 
-        cmd_result=`glacier-cmd --output csv getarchive $full_vault_name $archiveID`
+        cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name $archiveID`
 
         echo $cmd_result|grep -q "RequestId" ; result=$?
 
@@ -242,7 +242,7 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
     # Job is ready for download
     ##############################################
 
-    
+        
 
 
 

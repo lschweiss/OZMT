@@ -97,7 +97,7 @@ for job in $backupjobs; do
     
             # Create the vault (must use glacier-cmd as mt-aws-glacier does not
             # support creating vaults at the time this code was written.
-            glacier-cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || \
+            $glacier_cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || \
                 warning "Could not create vault $vault" /tmp/glacier_mk_vault_$$ 
             debug "backup_to_glacier: Created new Glacier vault $vault"
             # Initialized the job sequence

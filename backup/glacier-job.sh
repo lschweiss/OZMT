@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -78,7 +78,7 @@ $zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
 #    mbuffer -q -s 128k -m 16M | \
     gpg -r "$gpg_user" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
 #    mbuffer -q -s 128k -m 128M | \
-    glacier-cmd upload ${vault} \
+    $glacier_cmd upload ${vault} \
         --stdin \
         --description "${jobroot}-${thisjob}" \
         --name "${jobroot}-${thisjob}" \
@@ -120,7 +120,7 @@ else
 
     # Collect information about the job
 
-    glacier-cmd search ${vault} > /tmp/glacier-job-$$.search
+    $glacier_cmd search ${vault} > /tmp/glacier-job-$$.search
     jobstats=`cat /tmp/glacier-job-$$.search | grep -F "${jobroot}-${thisjob}"`
 
     echo "archive_name=\"${jobroot}-${thisjob}\"" >> ${jobstatusdir}/archiving/${job}
@@ -144,8 +144,10 @@ else
 
 fi
 
-rm /tmp/glacier-job-zfs-send-error_$$
-#rm /tmp/glacier-job-mbuffer-error_$$
-rm /tmp/glacier-job-gzip-error_$$
-rm /tmp/glacier-job-gpg-error_$$
-rm /tmp/glacier-cmd-output_$$
+if [ "$DEBUG" != "true" ]; then
+    rm /tmp/glacier-job-zfs-send-error_$$
+    #rm /tmp/glacier-job-mbuffer-error_$$
+    rm /tmp/glacier-job-gzip-error_$$
+    rm /tmp/glacier-job-gpg-error_$$
+    rm /tmp/glacier-cmd-output_$$
+fi

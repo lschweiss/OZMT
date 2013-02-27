@@ -48,7 +48,7 @@ fi
 
 # Collect vaults
 
-glacier-cmd --output csv lsvault | awk -F '","' '{print $4}' > /tmp/glacier_vaults
+$glacier_cmd --output csv lsvault | awk -F '","' '{print $4}' > /tmp/glacier_vaults
 
 
 cat /tmp/glacier_vaults |
@@ -56,7 +56,7 @@ while read vault
 do
 if [ "$vault" != "VaultName" ]; then
     temp="/tmp/${vault}_inventory_$$"
-    glacier-cmd --output csv inventory ${vault} &> $temp 
+    $glacier_cmd --output csv inventory ${vault} &> $temp 
         result=$?
     if [ "$result" -ne "0" ]; then
         error "Could not request inventory for ${vault}" $temp

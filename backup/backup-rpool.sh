@@ -24,21 +24,15 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
 
-# TODO: Collect all pools associated with the rpool
-
 # Generate a snapshot to backup from:
 
-debug "Generating rpool@backup snapshot..."
-zfs snapshot -r rpool@backup
-zfs snapshot -r syspool@backup
-
+debug "Generating ${rpool}@backup snapshot..."
+zfs snapshot -r ${rpool}@backup
 
 # Copy the rpool to the backup folder
-debug "Copying rpool snapshot to $rpool_backup_folder"
-zfs send -Rv rpool@backup > ${rpool_backup_folder}/rpool.backup
-zfs send -Rv syspool@backup > ${rpool_backup_folder}/syspool.backup
+debug "Copying ${rpool} snapshot to $rpool_backup_folder"
+zfs send -Rv ${rpool}@backup > ${rpool_backup_folder}/rpool.backup
 
 # remove the backup snapshot
-debug "Destroying snapshot rpool@backup"
-zfs destroy -r rpool@backup
-zfs destroy -r syspool@backup
+debug "Destroying snapshot ${rpool}@backup"
+zfs destroy -r ${rpool}@backup
