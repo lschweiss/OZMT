@@ -177,6 +177,10 @@ process_message() {
         fi
     fi        
 
+    if [ "$DEBUG" == "true" ]; then
+        echo "$(color)"
+    fi
+
 }
 
 
