@@ -40,15 +40,15 @@ recollect () {
 
 
     echo -n "archive_id=" >> $archiving_file
-    archive_id=`echo -n $jobstats|cut -d "|" -f2|tr -d ' '`
+    archive_id=`echo -n $jobstats|awk -F "|" '{print $2}'|tr -d ' '`
     echo "\"$archive_id\"" >> $archiving_file
 
     echo -n "archive_hash=" >> $archiving_file
-    archive_hash=`echo -n $jobstats|cut -d "|" -f3|tr -d ' '`
+    archive_hash=`echo -n $jobstats|awk -F "|" '{print $3}'|tr -d ' '`
     echo "\"$archive_hash\"" >> $archiving_file
 
     echo -n "archive_size=" >> $archiving_file
-    archive_size=`echo -n $jobstats|cut -d "|" -f10|tr -d ' '`
+    archive_size=`echo -n $jobstats|awk -F "|" '{print $8}'|tr -d ' '`
     echo "\"$archive_size\"" >> $archiving_file
 
 }
@@ -162,21 +162,23 @@ for job in $backupjobs; do
                             errors=$(( errors + 1 ))
                         fi
 
-                        if [ "$errors" -ne "0" ]; then
-                            if [ "$checks" -ne "2" ]; then
+                        if [ "$errors" -ne "0" ] && [ "$checks" -ne "2" ]; then
+                                notice "Attepting to recollect data for ${jobfilename}"
                                 recollect "${vault}" "${archive_description}" \
                                     "${jobstatusdir}/archiving/${jobfilename}"
                                 errors=0
-                            fi
-                        if
+                        fi
+
 
                         checks=$(( checks + 1 ))
 
-                    done
+
+                    done # while checks
 
                     if [ "$errors" -ne "0" ]; then
                         error "Unresolvable archive error in ${achive_id}"
                         break
+                        
                     fi
                     
 
@@ -192,11 +194,13 @@ for job in $backupjobs; do
                     notice "Moving $jobfilename to complete status"
                     mv ${jobstatusdir}/archiving/${jobfilename} ${jobstatusdir}/complete/${jobfilename}
 
-                fi
+                fi # not complete
     
                 jobnum=$(( $jobnum + 1 ))
-            done
-        fi
+
+            done # while jobnum
+
+        fi # sequence number
     
     done # for rotation
 
