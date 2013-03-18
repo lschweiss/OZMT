@@ -82,6 +82,12 @@ process_message() {
     # $4 - Importance level (set to 'none' if not used)
     # $5 - Include contents of file $5.  (optional)
 
+    if [ "$DEBUG" == "true" ]; then
+        noreport="$(color red)DEBUG: Not reporting: "
+    else
+        noreport=""
+    fi
+
     if [[ "$debug_level" == "" || "$2" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
         # Determine if we are running on a terminal
         tty -s
@@ -89,10 +95,10 @@ process_message() {
         if [[ "$terminal" -eq "0" || "$DEBUG" == "true" ]]; then
             # Set the color
             case "$2" in 
-                '0') echo -n "$(color bd white)" ;;
-                '1') echo -n "$(color bd blue)" ;;
-                '2') echo -n "$(color bd yellow)" ;;
-                '3') echo -n "$(color bd red)" ;;
+                '0') echo -n "${noreport}$(color bd white)" ;;
+                '1') echo -n "${noreport}$(color bd blue)" ;;
+                '2') echo -n "${noreport}$(color bd yellow)" ;;
+                '3') echo -n "${noreport}$(color bd red)" ;;
             esac 
             # Display the message
             echo "$1$(color off)"
@@ -123,10 +129,7 @@ process_message() {
             cat $5 >> $message_file
         fi
 
-        if [ "$DEBUG" == "true" ]; then
-            # We are debuging on the console don't send email
-            echo "$(color bd red)DEBUG: Not sending email $message_file"
-        else
+        if [ "$DEBUG" != "true" ]; then
             $TOOLS_ROOT/reporting/send_email.sh $message_file $4
         fi
 
@@ -156,10 +159,7 @@ process_message() {
             echo "report_level=\"$2\"" > $report_path/report_level
         fi
 
-        if [ "$DEBUG" == "true" ]; then
-            # We are debuging on the console don't report
-            echo "$(color bd red)DEBUG: not reporting $1"
-        else            
+        if [ "$DEBUG" != "true" ]; then
             echo "$1" >> $report_path/report_pending
             if [[ "$#" -eq "5" && -f "$5" ]]; then
                 cat $5 >> $report_path/report_pending
@@ -176,10 +176,6 @@ process_message() {
             cat $5 >> $logfile
         fi
     fi        
-
-    if [ "$DEBUG" == "true" ]; then
-        echo "$(color)"
-    fi
 
 }
 
