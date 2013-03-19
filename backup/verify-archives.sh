@@ -53,8 +53,6 @@ recollect () {
 
 }
 
-DEBUG="true"
-
 backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
 jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
