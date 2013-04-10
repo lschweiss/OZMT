@@ -25,6 +25,9 @@
 
 TOOLS_ROOT="/mypool/tools"
 
+# Some jobs will use temp space.  In the case of restore for Glacier this may need to be large.
+TMP=/mypool/temp
+
 # Set the debug level
 
 # 0 - Debug
