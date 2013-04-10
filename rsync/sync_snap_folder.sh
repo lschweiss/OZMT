@@ -1,5 +1,7 @@
 #! /bin/bash 
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
 . ./functions.sh
 
 #export PATH=/usr/gnu/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/bin
