@@ -1,4 +1,4 @@
-#! /bin/bash -x
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -28,7 +28,7 @@ DEBUG="true"
 die () {
 
     error "restore_from_glacier: $1"
-    umount -f /tmp/gpgtemp
+    umount -f /${TMP}/gpgtemp
     ramdiskadm -d gpgtemp0
     exit 1
 
@@ -36,7 +36,7 @@ die () {
 
 abort () {
     debug "execution aborted"
-    umount -f /tmp/gpgtemp
+    umount -f /${TMP}/gpgtemp
     ramdiskadm -d gpgtemp0
     exit 1
 }
@@ -65,6 +65,10 @@ else
     report_name="$default_report_name"
 fi
 
+if [ ! -d $TMP ]; then
+    die "\"$TMP\" is not a directory.  TMP must be defined to an existing directory in zfs-config."
+fi
+
 
 case $# in
     '0') 
@@ -89,8 +93,6 @@ esac
 
 destinationfixup=`echo $destinationfs|sed s,/,%,g`
 
-pause
-
 # locate job definiton
 for job in $backupjobs; do
 
@@ -103,7 +105,6 @@ for job in $backupjobs; do
 
 done
 
-pause
 
 # Check that we have a jobname
 if [ "x$jobname" == "x" ]; then
@@ -158,7 +159,6 @@ if [ "${#lastcycle}" -ne 4 ]; then
     die "Could not determing the last cycle to restore"
 fi
 
-pause
 
 # Determine if we are resuming or continuing a restore
 restore_record="${jobstatusdir}/restore/${vault}%${jobname}_to_${destinationfixup}"
@@ -174,7 +174,6 @@ else
     debug "Starting restore from initial sequence: $glacier_start_sequence"
 fi
 
-pause
 ###################################################################################
 # Prompt for GPG private key and password
 # Store it on a temporary ramdisk
@@ -182,26 +181,26 @@ pause
 
 ramdiskadm -a gpgtemp0 10m || die "could not create ramdisk for gpg keys"
 echo "y" |newfs -b 4096 /dev/ramdisk/gpgtemp0
-mkdir -p /tmp/gpgtemp
-mount /dev/ramdisk/gpgtemp0 /tmp/gpgtemp || die "could not mount /tmp/gpgtemp to ramdisk"
+mkdir -p /${TMP}/gpgtemp
+mount /dev/ramdisk/gpgtemp0 /${TMP}/gpgtemp || die "could not mount /${TMP}/gpgtemp to ramdisk"
 
 # TODO: Get private key and password
 
-echo "Remove this text and save GPG private key to this file." >/tmp/gpgtemp/private.gpg
+echo "Remove this text and save GPG private key to this file." >/${TMP}/gpgtemp/private.gpg
 
-vim /tmp/gpgtemp/private.gpg
+vim /${TMP}/gpgtemp/private.gpg
 
 echo
 echo -n "Enter GPG private key password: "
 
 read -s gpg_password
 
-touch /tmp/gpgtemp/keyring.gpg
-gpg --no-default-keyring --keyring /tmp/gpgtemp/keyring.gpg --import /tmp/gpgtemp/private.gpg
+touch /${TMP}/gpgtemp/keyring.gpg
+gpg --no-default-keyring --keyring /${TMP}/gpgtemp/keyring.gpg --import /${TMP}/gpgtemp/private.gpg
 
-touch /tmp/gpgtemp/passphrase
-chmod 600 /tmp/gpgtemp/passphrase
-echo $gpg_password > /tmp/gpgtemp/passphrase
+touch /${TMP}/gpgtemp/passphrase
+chmod 600 /${TMP}/gpgtemp/passphrase
+echo $gpg_password > /${TMP}/gpgtemp/passphrase
 
 
 
@@ -235,8 +234,6 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
 
     working_cycle=$(( working_cycle + 1 ))
 
-    pause
-
 done
 
 ###################################################################################
@@ -247,16 +244,18 @@ zfs list $destinationfs &> /dev/null
 result=$?
 
 if [ "$result" -ne "0" ]; then
+    debug "Destination file system does not exist.  Creating it."
     zfs create $destinationfs || die "could not create destination file system $destinationfs"
 else
-    debug "Destination file system $destinationfs already exists.  Will overwrite"
+    debug "Destination file system $destinationfs already exists. "
 fi
 
-pause
 
 ###################################################################################
 # Download and restore one cycle at a time
 ###################################################################################
+
+debug "Starting download phase."
 
 working_cycle=$(( $last_complete_cycle + 1 ))
 
@@ -266,15 +265,26 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
 
     while [ "$request_status" != "Succeeded" ]; do
 
-        $glacier_cmd --output csv getarchive $full_vault_name -- $archiveID > /tmp/glacier_cmd_getarchive_$$ || \
+        thisjob="${job_prefix}${working_cycle}"
+
+        # Locate archiveID
+        archiveID=`cat $inventory_file|grep $thisjob|awk -F '","' '{print $1}'|awk -F '"' '{print $2}'`
+        cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
+
+        debug "Checking status."
+        debug "  This job: ${thisjob}"
+        debug "  vault name: ${full_vault_name}"
+        debug "  archiveID: ${archiveID}"
+
+        $glacier_cmd --output csv getarchive $full_vault_name -- $archiveID > /${TMP}/glacier_cmd_getarchive_$$ || \
             die "glacier-cmd failed to execute getarchive $full_vault_name $archiveID"
 
-        cat /tmp/glacier_cmd_getarchive_$$|grep -q "RequestId" ; result=$?
+        cat /${TMP}/glacier_cmd_getarchive_$$|grep -q "RequestId" ; result=$?
 
         if [ "$result" -eq "0" ]; then
             debug "Submitted request for $thisjob"
         else
-            request_status=`cat /tmp/glacier_cmd_getarchive_$$|grep StatusCode|awk -F '","' '{print $2}'|sed s'/..$//'`
+            request_status=`cat /${TMP}/glacier_cmd_getarchive_$$|grep StatusCode|awk -F '","' '{print $2}'|sed s'/..$//'`
             debug "Job status for ${thisjob}: $request_status"
         fi
     
@@ -289,19 +299,58 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
     # Job is ready for download
     ##############################################
 
-    $glacier_cmd download --outfile /tmp/glacier-cmd-download_$$_.gz.gpg $full_vault_name -- $archiveID || \
-        die "Failed to download $full_vault_name $archiveID"
+
+    debug "Job, ${thisjob}, cycle ${working_cycle}, is ready for download"
+    restore_status=1
+    restore_count=0
  
+    while [ "$restore_status" -ne 0 ]  && [ "$restore_count" -lt 3 ]; do  
+
+        download_status=1
+        try_count=0
+        
+        while [ "$download_status" -ne 0 ]  && [ "$try_count" -lt 3 ]; do
     
-    gpg --batch --passphrase-file /tmp/gpgtemp/passphrase \
-        --secret-keyring /tmp/gpgtemp/keyring.gpg \
-        --decrypt /tmp/glacier-cmd-download_$$_.gz.gpg | \
-    gunzip | \
-    zfs receive -F -vu $destinationfs || die "Failed to receive archive #${working_cycle} for $restorefs" || \
-        die "Failed to decrypt, uncompress and zfs receive /tmp/glacier-cmd-download_$$_gpg.gz"
+            $glacier_cmd download --outfile /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg \
+                $full_vault_name -- $archiveID 
+            download_status=$?
+            
+            # Check the return status
+            if [ "$download_status" -ne 0 ]; then
+                notice "Download attempt failed.  Will try again."
+                try_count=$(( try_count + 1 ))
+            fi
 
+        done
+    
+        if [ "$download_status" -ne 0 ]; then
+            die "Failed to download $full_vault_name $archiveID"
+        fi
+    
+        stat /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg
+    
+        gpg --batch --passphrase-file /${TMP}/gpgtemp/passphrase \
+            --secret-keyring /${TMP}/gpgtemp/keyring.gpg \
+            --decrypt /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg | \
+        gunzip | tee /${TMP}/zfstest_${working_cycle} | \
+        zfs receive -F -v $destinationfs || die "Failed to receive archive #${working_cycle} for $restorefs" 
+        restore_status=$?
 
+        # Check the exit status
+        if [ "$restore_status" -ne 0 ]; then
+            notice "Restore attempt failed.  Will try downloading and restoring again."
+            restore_count=$(( restore_count + 1 ))
+            rm /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg    
+        fi
+        
+
+    done
+
+    if [ "$restore_status" -ne 0 ]; then
+        die "Failed to decrypt, uncompress and zfs receive /${TMP}/glacier-cmd-download_$$_gpg.gz"
+    fi
+
+    echo "last_complete_cycle=\"${working_cycle}\"" > $restore_record
     working_cycle=$(( working_cycle + 1 ))
 
-    pause
 done
