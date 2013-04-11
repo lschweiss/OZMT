@@ -53,26 +53,38 @@ fi
 # Collect job information
 source ${jobstatusdir}/definition/${job}
 
-
-if [ "$thisjob" -eq "$glacier_start_sequence" ]; then
-
-    # This is the first job 
-    debug "glacier job: starting push to glacier for ${jobsnapname}"
-    zfs_send="zfs send -R ${jobsnapname}"
-
+if [ "${job_name:0:5}" == "FILES" ]; then
+    filesjob="true"
+    backuptype="tar"
 else
+    filesjob="false"
+    backuptype="zfs send"
+fi
 
-    # This is an incremental job
-    debug "glacier job: starting incremental push to glacier for ${lastjobsnapname} to ${jobsnapname}"
-    zfs_send="zfs send -R -I ${lastjobsnapname} ${jobsnapname}"
 
+# Build backup_cmd
+
+if [ "$filesjob" == "true" ]; then
+    # Backup only the current files via tar_gz
+    backup_cmd="tar cz --sparse --directory=\"${jobsnapname}\""
+else
+    # Use zfs send
+    if [ "$thisjob" -eq "$glacier_start_sequence" ]; then
+        # This is the first job 
+        debug "glacier job: starting push to glacier for ${jobsnapname}"
+        backup_cmd="zfs send -R ${jobsnapname}"
+    else
+        # This is an incremental job
+        debug "glacier job: starting incremental push to glacier for ${lastjobsnapname} to ${jobsnapname}"
+        backup_cmd="zfs send -R -I ${lastjobsnapname} ${jobsnapname}"
+    fi
 fi
 
 mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
 
-# Start the zfs send
+# Start the tar/zfs send
 
-$zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
+$backup_cmd  2> /tmp/glacier-job-backup-error_$$ | \
 #    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
     gzip 2> /tmp/glacier-job-gzip-error_$$ | \
 #    mbuffer -q -s 128k -m 16M | \
@@ -86,7 +98,7 @@ $zfs_send  2> /tmp/glacier-job-zfs-send-error_$$ | \
 
 result=$?
 
-debug "glacier_job: ${job} zfs send output: " /tmp/glacier-job-zfs-send-error_$$
+debug "glacier_job: ${job} ${backuptype} output: " /tmp/glacier-job-backup-error_$$
 #debug "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
 debug "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
 debug "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
@@ -107,7 +119,7 @@ if [ "$result" -ne "0" ]; then
     # submit results
     warning "glacier_job: job ${job} failed will retry"
     # Report output
-    notice "glacier_job: ${job} zfs send output: " /tmp/glacier-job-zfs-send-error_$$
+    notice "glacier_job: ${job} ${backuptype} output: " /tmp/glacier-job-backup-error_$$
     #notice "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
     notice "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
     notice "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
@@ -145,9 +157,11 @@ else
 fi
 
 if [ "$DEBUG" != "true" ]; then
-    rm /tmp/glacier-job-zfs-send-error_$$
+    rm /tmp/glacier-job-backup-error_$$
     #rm /tmp/glacier-job-mbuffer-error_$$
     rm /tmp/glacier-job-gzip-error_$$
     rm /tmp/glacier-job-gpg-error_$$
     rm /tmp/glacier-cmd-output_$$
 fi
+
+

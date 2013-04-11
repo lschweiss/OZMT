@@ -53,7 +53,7 @@ setupzfs () {
         setzfs "${pool}/${zfspath}" "$options"
     fi
 
-    if [ "$staging" != "" ]; then
+    if [ "x$staging" != "x" ]; then
         if [ ! -e "/$staging" ]; then
             echo "ERROR: ZFS Folder for staging backup must be created first!"
             exit 1
@@ -78,7 +78,7 @@ setupzfs () {
 
     # Setup EC2 backup
 
-    if [ "$backup" != "" ]; then
+    if [ "x$backup" != "x" ]; then
         ec2backupjobname=`echo "${backup}/${pool}/${zfspath}" | sed s,/,%,g`
         echo "source_folder=\"${pool}/${zfspath}\"" > ${ec2backupjobdir}/${ec2backupjobname}
         echo "target_folder=\"${ec2_zfspool}/${pool}/${zfspath}\"" >> ${ec2backupjobdir}/${ec2backupjobname}
@@ -86,13 +86,27 @@ setupzfs () {
 
     # Setup Amazon Glacier backup
 
-    if [ "$glacier" != "" ]; then
+    if [ "x$glacier" != "x" ]; then
         glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | sed s,/,%,g`
         #TODO: Add logic to make sure this zfs folder is not a decendant of another
         #      that is already being backed up via glacier
         echo "job_name=\"${pool}/${zfspath}\"" | sed s,/,%,g > ${glacierjobdir}/${glacierjobname}
         echo "source_folder=\"${pool}/${zfspath}\"" >> ${glacierjobdir}/${glacierjobname}
         echo "glacier_vault=\"${glacier}\"" >> ${glacierjobdir}/${glacierjobname}
+        if [ "x$glacier_rotation" == "x" ]; then
+            echo "glacier_rotation=\"${glacier_rotation_days}\"" >> ${glacierjobdir}/${glacierjobname}
+        else
+            echo "glacier_rotation=\"${glacier_rotation}\"" >> ${glacierjobdir}/${glacierjobname}
+        fi
+    fi
+
+    # Setup Amazon Glacier file level backup
+
+    if [ "x$glacier_files" != "x" ]; then
+        glacierjobname=`echo "FILES%${glacier_files}/${pool}/${zfspath}" | sed s,/,%,g`
+        echo "job_name=\"FILES/${pool}/${zfspath}\"" | sed s,/,%,g > ${glacierjobdir}/${glacierjobname}
+        echo "source_folder=\"${pool}/${zfspath}\"" >> ${glacierjobdir}/${glacierjobname}
+        echo "glacier_vault=\"${glacier_files}\"" >> ${glacierjobdir}/${glacierjobname}
         if [ "x$glacier_rotation" == "x" ]; then
             echo "glacier_rotation=\"${glacier_rotation_days}\"" >> ${glacierjobdir}/${glacierjobname}
         else

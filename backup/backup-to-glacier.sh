@@ -128,7 +128,12 @@ for job in $backupjobs; do
         fi
     
         snapname="${source_folder}@glacier-backup_${rotation}_${thisjob}"
-    
+
+        if [ "${job_name:0:5}" == "FILES" ]; then
+            snapname="${source_folder}@glacier-backup-files_${rotation}_${thisjob}"
+        else 
+            snapname="${source_folder}@glacier-backup_${rotation}_${thisjob}"
+        fi    
     
         # Perform the snapshot
         zfs snapshot -r $snapname || die "Could not create snapshot $snapname"
