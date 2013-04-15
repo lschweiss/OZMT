@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -98,11 +98,12 @@ for job in $backupjobs; do
     
             while [ "$jobnum" -lt "$lastjob" ]; do
 
-                jobfilename="${glacier_vault}%${job_name}_${rotation}_${jobnum}"
+                #jobfilename="${glacier_vault}%${job_name}_${rotation}_${jobnum}"
+                jobfilename="${job}_${rotation}_${jobnum}"
 
                 # Collect the definition
             
-                source ${jobstatusdir}/definition/${glacier_vault}%${job_name}_${rotation}_${jobnum}
+                source ${jobstatusdir}/definition/${jobfilename}
 
                 if [ ! -f ${jobstatusdir}/complete/${jobfilename} ]; then
 
@@ -118,7 +119,7 @@ for job in $backupjobs; do
     
                     # Collect the inventory record
                     if [ -f ${jobstatusdir}/inventory/${vault} ]; then
-                        archive_description="${glacier_vault}%${job_name}-${jobnum}"
+                        archive_description="${jobroot}-${jobnum}"
                         inventory_record=`cat ${jobstatusdir}/inventory/${vault}|grep "$archive_description"`
                         if [ "x${inventory_record}" == "x" ]; then
                             notice "Job $jobfilename not yet inventoried."
