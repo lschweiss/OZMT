@@ -174,7 +174,7 @@ if [ $count -ne 0 ]; then
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "${snao_grep}" | \
+        grep "${snap_grep}" | \
         sort -r | \
         tail -n +$(( $count + 1 ))`
     for snap in $delete_list; do
