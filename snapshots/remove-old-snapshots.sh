@@ -64,7 +64,7 @@ dflag=
 cflag=
 tflag=
 zflag=
-pflag=
+pflag=0
 
 days=0
 count=0
@@ -127,7 +127,13 @@ else
     exit 1
 fi
 
-snap_prefix="$pval"
+if [ "$pflag" -eq 1 ]; then
+    snap_prefix="$pval"
+    snap_grep="^${zfs_folder}@${pval}_"
+else 
+    snap_prefix="ANY"
+    snap_grep="^${zfs_folder}@"
+fi
 
 
 
@@ -135,7 +141,7 @@ if [ $days -ne 0 ]; then
     debug "remove-old-snapshots: Removing snapshots older than ${days} days from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "^${zfs_folder}@${snap_prefix}_" | \
+        grep "${snap_grep}" | \
         sort`
     # Extract the date from each one and see if we should destroy it.
     for snap in $snap_list; do
@@ -168,7 +174,7 @@ if [ $count -ne 0 ]; then
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
         /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "^${zfs_folder}@${snap_prefix}_" | \
+        grep "${snao_grep}" | \
         sort -r | \
         tail -n +$(( $count + 1 ))`
     for snap in $delete_list; do

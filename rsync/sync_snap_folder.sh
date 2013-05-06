@@ -2,6 +2,8 @@
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
+. $HOME/.profile
+
 . ./functions.sh
 
 #export PATH=/usr/gnu/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/bin
@@ -244,7 +246,13 @@ else
     for folder in $subfolders; do
     if [ "$cflag" == "1" ]; then
         cat $cval | grep -q -x "$folder" 
-        exclude_folder=$?
+        if [ "$?" -eq "0" ]; then
+            echo "Skiping CNS folder $folder"
+            exclude_folder=0
+        else
+            echo "Syncing CNS folder $folder"
+            exclude_folder=1
+        fi
     else
         # We are not excluding CNS folders
         exclude_folder=1
