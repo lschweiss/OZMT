@@ -71,6 +71,10 @@ if [ "$ec2_backup" == "true" ]; then
 
 fi
 
+if [ "x$default_report_name" == "x" ]; then
+    default_report_name="default"
+fi
+
 . $TOOLS_ROOT/reporting/reporting_functions.sh
 
 now() {
