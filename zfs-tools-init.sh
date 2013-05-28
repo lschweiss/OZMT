@@ -33,6 +33,12 @@ fi
 fi
 fi
 
+_DEBUG="on"
+function DEBUG()
+{
+ [ "$_DEBUG" == "on" ] &&  $@
+}
+
 . $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
 
 if [ "$ec2_backup" == "true" ]; then
