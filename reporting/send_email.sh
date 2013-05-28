@@ -61,6 +61,10 @@ done
 for bcc in $email_bcc; do
     mutt_options="$mutt_options -c $bcc"
 done
+
+if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
+    error "$TOOLS_ROOT/reporting/reporting.muttrc does not exist.  Please create this file to enable email reporting."
+fi
     
 # Send the message    
 $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \

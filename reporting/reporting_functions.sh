@@ -83,7 +83,7 @@ process_message() {
     # $5 - Include contents of file $5.  (optional)
 
     if [ "$DEBUG" == "true" ]; then
-        noreport="$(color red)DEBUG: Not reporting: "
+        noreport="$(color red)Not reporting: "
     else
         noreport=""
     fi
@@ -101,7 +101,12 @@ process_message() {
                 '3') echo -n "${noreport}$(color bd red)" ;;
             esac 
             # Display the message
-            echo "$1$(color off)"
+            if [ "$2" -gt 1 ]; then
+                echo "$1$(color off)" 1>&2
+            else
+                echo "$1$(color off)"
+            fi
+
         fi
     fi
 
@@ -149,7 +154,7 @@ process_message() {
 
         report_path="$TOOLS_ROOT/reporting/reports_pending/$report_name"
 
-        mkdir -p $report_path
+        mkdir -p $report_path/attach
 
         # Raise the report level if necessary
         if [ -f $report_path/report_level ]; then
