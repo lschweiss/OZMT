@@ -39,22 +39,28 @@ fi
 
 # collect jobs
 
-jobs=`ls -1 $jobfolder/$snaptype`
+if [ -d $jobfolder/$snaptype ]; then
 
-for job in $jobs; do
-    zfsfolder=`echo $job|sed 's,%,/,g'`
-    keepcount=`cat $jobfolder/$snaptype/$job`
-    now=`date +%F_%H:%M%z`
-    stamp="${snaptype}_${now}"
-    if [ "${keepcount:0:1}" != "x" ]; then
-        zfs snapshot ${zfsfolder}@${stamp} ; result=$?
-        if [ "$result" -ne "0" ]; then
-            error "Failed to create snapshot ${zfsfolder}@${stamp}"
-        else
-            notice "Created snapshot: ${zfsfolder}@${stamp}"
+    jobs=`ls -1 $jobfolder/$snaptype`
+    
+    for job in $jobs; do
+        zfsfolder=`echo $job|sed 's,%,/,g'`
+        keepcount=`cat $jobfolder/$snaptype/$job`
+        now=`date +%F_%H:%M%z`
+        stamp="${snaptype}_${now}"
+        if [ "${keepcount:0:1}" != "x" ]; then
+            zfs snapshot ${zfsfolder}@${stamp} 2> /tmp/process_snap_$$ ; result=$?
+            if [ "$result" -ne "0" ]; then
+                error "Failed to create snapshot ${zfsfolder}@${stamp}" /tmp/process_snap_$$
+                rm /tmp/process_snap_$$
+            else
+                notice "Created snapshot: ${zfsfolder}@${stamp}"
+            fi
         fi
-    fi
-    echo
-done
+        echo
+    done
 
+else 
+    warning "process-snap: No snap type(s) $snaptype defined."
+fi
 

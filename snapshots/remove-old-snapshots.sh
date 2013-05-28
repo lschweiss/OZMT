@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
@@ -86,6 +86,7 @@ while getopts tz:p:d:c: opt; do
             pval="$OPTARG";;
         t)  # Trial mode
             echo "Using trial mode"
+            DEBUG='true'
             tflag=1;;
         ?)  # Show program usage and exit
             show_usage
@@ -147,20 +148,27 @@ if [ $days -ne 0 ]; then
     for snap in $snap_list; do
     
             snap_date=`echo ${snap}|grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
-            snap_seconds=`date --date $snap_date +%s`
-            now_seconds=`date +%s`
-            elapsed=$((${now_seconds}-${snap_seconds}))
-            days_elapsed=$((elapsed/86400))
-            if [ "$days_elapsed" -gt "$days" ]; then
+            if [ "x$snap_date" == "x" ]; then
+                debug "Skipping ${snap}, cannot decipher date."
+            else
+                snap_seconds=`date --date $snap_date +%s`
+                now_seconds=`date +%s`
+                elapsed=$(( ${now_seconds} - ${snap_seconds} ))
+                days_elapsed=$((elapsed/86400))
+                if [ "$days_elapsed" -gt "$days" ]; then
                     # Time to delete the snapshot
-                if [ "$tflag" == "1" ]; then
-                    echo "zfs destroy ${snap}"
-                else
-                    debug "remove-old-snapshots: Destroying: ${snap}"
-                    zfs destroy ${snap}; result=$?
-                    if [ "$result" -ne "0" ]; then
-                        error "remove-old-snapshots: Failed to remove ${snap}"
+                    if [ "$tflag" == "1" ]; then
+                        echo "WOULD DO: zfs destroy ${snap}"
+                    else
+                        notice "remove-old-snapshots: Destroying: ${snap}"
+                        zfs destroy ${snap} 2> /tmp/remove_old_snap_$$; result=$?
+                        if [ "$result" -ne "0" ]; then
+                            error "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                            rm /tmp/remove_old_snap_$$
+                        fi
                     fi
+                else
+                    debug "Not destroying ${snap} it is only ${days_elapsed} days old."
                 fi
             fi
     
@@ -179,12 +187,13 @@ if [ $count -ne 0 ]; then
         tail -n +$(( $count + 1 ))`
     for snap in $delete_list; do
         if [ "$tflag" == "1" ]; then
-            echo "zfs destroy ${snap}"
+            echo "WOULD DO: zfs destroy ${snap}"
         else
             notice "remove-old-snapshots: Destroying: ${snap}, keeping ${count} of type ${snap_prefix}"
-            zfs destroy ${snap}; result=$?
+            zfs destroy ${snap} 2> /tmp/remove_old_snap_$$; result=$?
             if [ "$result" -ne "0" ]; then
-                error "remove-old-snapshots: Failed to remove ${snap}"
+                error "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                rm /tmp/remove_old_snap_$$
             fi
         fi
     done
