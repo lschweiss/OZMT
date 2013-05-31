@@ -43,12 +43,13 @@ sflag=
 rflag=
 pflag=
 eflag=
+lflag=
 zflag=
 zval=1
 
 progress=""
 
-while getopts prtc:x:d:s:e:z: opt; do
+while getopts prtc:x:d:s:e:z:l: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -77,6 +78,8 @@ while getopts prtc:x:d:s:e:z: opt; do
         e)  # Use remote shell
             eflag=1
             eval="$OPTARG";;
+        l)  # Dereference symlinks
+            lflag=1;;
         ?)  # Show program usage and exit
             show_usage
             exit 1;;
@@ -163,6 +166,11 @@ if [ ! -z "$eflag" ]; then
     extra_options="${extra_options} -e ${eval}"
 fi
 
+if [ ! -z "$lflag" ]; then
+    echo "Dereferencing symlinks"
+    extra_options="${extra_options} --copy-links"
+fi
+
 if [ -d "${source_folder}/.snapshot" ]; then
     echo "${source_folder}/.snapshot found."
     snapdir="${source_folder}/.snapshot"
@@ -190,12 +198,14 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Split rsync
 
         # Collect lists
-        find $basedir -mindepth $zval -maxdepth $zval -type d | \
+        echo "Collecting lists.  Part 1:"
+        /usr/bin/time find $basedir -mindepth $zval -maxdepth $zval -type d | \
             grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > /tmp/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
         cat /tmp/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > /tmp/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
-        find $basedir -maxdepth $zval -type f | \
+        echo "Collecting lists.  Part 2:"
+        /usr/bin/time find $basedir -maxdepth $zval -type f | \
             sed "s,${basedir},,"  >> /tmp/sync_folder_list_$$_trim
         
        
