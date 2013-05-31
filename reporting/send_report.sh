@@ -29,32 +29,35 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
     for report in $reports; do
 
         report_path="$TOOLS_ROOT/reporting/reports_pending/$report"
-    
-        # Move the report to a temporary file to avoid race conditions
-    
-        report_pending="/tmp/send_report_$report_$$"
-    
-        mv $report_path/report_pending $report_pending
-    
-        source $report_path/report_level
-    
-        rm $report_path/report_level
 
-        email_subject="aws_zfs_tools $report report"
-    
-        debug "send_report: Sending $report"
-    
-        if [[ "x$report_level" != "x" && "$report_level" -ge 4 ]]; then
-            email_subject="ERROR: $email_subject"
-            ./send_email.sh $report_pending "$email_subject" high
-        else 
-            ./send_email.sh $report_pending "$email_subject"
-        fi
+        if [ -f $report_path/report_pending ]; then
+            report_pending="/tmp/send_report_$report_$$"
 
-        if [ "$debug_level" -eq "0" ]; then
-            debug "send_report: report file left at $report_pending"
+            # Move the report to a temporary file to avoid race conditions
+            mv $report_path/report_pending $report_pending
+        
+            source $report_path/report_level
+        
+            rm $report_path/report_level
+    
+            email_subject="aws_zfs_tools $report report"
+        
+            debug "send_report: Sending $report"
+        
+            if [[ "x$report_level" != "x" && "$report_level" -ge 4 ]]; then
+                email_subject="ERROR: $email_subject"
+                ./send_email.sh $report_pending "$email_subject" high
+            else 
+                ./send_email.sh $report_pending "$email_subject"
+            fi
+    
+            if [ "$debug_level" -eq "0" ]; then
+                debug "send_report: report file left at $report_pending"
+            else
+                rm $report_pending
+            fi
         else
-            rm $report_pending
+            debug "No report present for $report"
         fi
 
     done
