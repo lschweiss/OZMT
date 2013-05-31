@@ -190,12 +190,12 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Split rsync
 
         # Collect lists
-        find $basedir -mindepth $zval -maxdepth $zval -type d | \
+        /usr/bin/time find $basedir -mindepth $zval -maxdepth $zval -type d | \
             grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > /tmp/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
         cat /tmp/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > /tmp/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
-        find $basedir -maxdepth $zval -type f | \
+        /usr/bin/time find $basedir -maxdepth $zval -type f | \
             sed "s,${basedir},,"  >> /tmp/sync_folder_list_$$_trim
         
        
@@ -298,9 +298,11 @@ fi
 # Capture snapshot
 if [ -z "$eval" ]; then
     #We are not pushing to remote host assume zfs snapshot to be taken here
-    echo "zfs snapshot ${target_folder:1}@${snap_label}"
+    # Find the zfs folder in case we are not mounted to the same path
+        zfsfolder=`mount|grep "$target_folder on"|awk -F " " '{print $3}'`
+    echo "zfs snapshot ${zfsfolder}@${snap_label}"
     if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
-        zfs snapshot ${target_folder:1}@${snap_label}
+        zfs snapshot ${zfsfolder}@${snap_label}
         return=$?
     fi
     
