@@ -146,9 +146,13 @@ fi
 
 split_rsync () {
     # Function used to run a parallel rsync job
-    echo "time rsync -a --delete --relative -r -h --stats $extra_options --files-from=${1} $basedir/ $target_folder"
+    echo "time rsync -aS --delete --relative -r -h \
+            --stats $extra_options --exclude=.history --exclude=.snapshot \
+            --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
-        /usr/bin/time -p rsync -a --delete --relative -r -h --stats $extra_options --exclude=.history --exclude=.snapshot --files-from=${1} $basedir/ $target_folder 2> ${1}.time | tee ${1}.log | sed "s,^,${1}: ," 
+        /usr/bin/time -p rsync -aS --delete --relative -r -h \
+            --stats $extra_options --exclude=.history --exclude=.snapshot \
+            --files-from=${1} $basedir/ $target_folder 2> ${1}.time | tee ${1}.log | sed "s,^,${1}: ," 
         cat ${1}.time | sed "s,^,${1}: ,"
     fi
 
@@ -190,9 +194,9 @@ if [ -d "${source_folder}/.snapshot" ]; then
     
     if [ "$sflag" != "1" ]; then
         # Run rsync
-        echo "time rsync -a -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
+        echo "time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
-            /usr/bin/time rsync -a -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder
+            /usr/bin/time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder
         fi
     else
         # Split rsync
@@ -207,6 +211,10 @@ if [ -d "${source_folder}/.snapshot" ]; then
         echo "Collecting lists.  Part 2:"
         /usr/bin/time find $basedir -maxdepth $zval -type f | \
             sed "s,${basedir},,"  >> /tmp/sync_folder_list_$$_trim
+            
+        # Randomize the list to spread across jobs better
+
+        cat /tmp/sync_folder_list_$$_trim | sort -R > /tmp/sync_folder_list_$$_rand
         
        
         # TODO: Remove excluded folders/files  Note: move the .histroy exclusion from above. 
@@ -215,7 +223,7 @@ if [ -d "${source_folder}/.snapshot" ]; then
 #        read pause
 
         x=0
-        lines=`cat /tmp/sync_folder_list_$$_trim|wc -l`
+        lines=`cat /tmp/sync_folder_list_$$_rand|wc -l`
         remainder=$(( $lines % $sval ))
         if [ $remainder -eq 0 ]; then
             linesperjob=$(( $lines / $sval ))
@@ -225,7 +233,7 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
         while [ $x -lt $sval ]; do
             skip=$(( $x * $linesperjob ))
-            cat /tmp/sync_folder_list_$$_trim | tail -n +${skip} | head -n ${linesperjob} > /tmp/sync_folder_list_$$_${x}
+            cat /tmp/sync_folder_list_$$_rand | tail -n +${skip} | head -n ${linesperjob} > /tmp/sync_folder_list_$$_${x}
                 # sed "s,^,/," > /tmp/sync_folder_list_$$_${x}
             split_rsync "/tmp/sync_folder_list_$$_${x}" &
             if [ $sval -gt 5 ]; then
@@ -242,9 +250,9 @@ if [ -d "${source_folder}/.snapshot" ]; then
             sleep 2
         done
 
-#        if [ "$tflag" != "1" ]; then
-#            rm -f /tmp/sync_folder_list_$$_*
-#        fi
+        if [ "$tflag" != "1" ]; then
+            rm -f /tmp/sync_folder_list_$$_*
+        fi
 
     fi # [ "$sflag" != 1 ]
 
