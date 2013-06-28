@@ -17,6 +17,8 @@ show_usage() {
     echo "  [-x exclude_file] Exclude File should contain one folder/file/pattern per line."
     echo "  [-d date] Date must be of the same format as in snapshot folder name"
     echo "  [-c cns_folder_exclude_file] Exclude file listing CNS folders to exclude from this job"
+    echo "  [-k compare based on checKsum not metadata]"
+    echo "  [-y drYrun]"
     echo "  [-t] trial mode.  Only output what would happen"
     echo "  [-p] Turn on --progress and --verbose for rsync."
     echo "  [-s n] Split in to n rsync jobs. Incompatitble with CNS root folders."
@@ -39,6 +41,8 @@ xflag=
 dflag=
 tflag=
 cflag=
+kflag=
+yflag=
 sflag=
 rflag=
 pflag=
@@ -49,7 +53,7 @@ zval=1
 
 progress=""
 
-while getopts prtc:x:d:s:e:z:l: opt; do
+while getopts pkyrtc:x:d:s:e:z:l: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -60,6 +64,10 @@ while getopts prtc:x:d:s:e:z:l: opt; do
         c)  # CNS Exclude File Specified
             cflag=1
             cval="$OPTARG";;
+        k)  # Use checksum comparison
+            kflag=1;;
+        y)  # Do a dry run
+            yflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
         t)  # Trial mode
@@ -145,15 +153,34 @@ else
 fi
 
 split_rsync () {
+
+    local rsync_result=-1
+    local try=0
+
     # Function used to run a parallel rsync job
     echo "time rsync -aS --delete --relative -r -h \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
-        /usr/bin/time -p rsync -aS --delete --relative -r -h \
-            --stats $extra_options --exclude=.history --exclude=.snapshot \
-            --files-from=${1} $basedir/ $target_folder 2> ${1}.time | tee ${1}.log | sed "s,^,${1}: ," 
-        cat ${1}.time | sed "s,^,${1}: ,"
+        while [ $rsync_result -ne 0 ]; do
+            ( /usr/bin/time -p rsync -aS --delete --relative -r -h \
+                --stats $extra_options --exclude=.history --exclude=.snapshot \
+                --files-from=${1} $basedir/ $target_folder ; rsync_result=$? ) 2> ${1}.time | \
+                tee -a ${1}.log | sed "s,^,${1}: ," 
+            cat ${1}.time | sed "s,^,${1}: ,"
+            try=$(( try + 1 ))
+            if [ $rsync_result -ne 0 ]; then
+                echo "Job failed with error code $rsync_result"
+                if [ $try -eq 3 ]; then
+                    echo "Job for $1 failed 3 times. Giving up.  List saved as in /tmp/failed_$$ "
+                    cat $1 >> /tmp/failed_$$
+                    break;
+                else
+                    echo "Job for $1 failed.  Will try up to 3 times."
+                fi
+            fi
+
+        done
     fi
 
     touch ${1}.complete
@@ -173,6 +200,16 @@ fi
 if [ ! -z "$lflag" ]; then
     echo "Dereferencing symlinks"
     extra_options="${extra_options} --copy-links"
+fi
+
+if [ ! -z "$kflag" ]; then
+    echo "Using checksum file comparison"
+    extra_options="${extra_options} --checksum"
+fi
+
+if [ ! -z "$yflag" ]; then
+    echo "Doing a dry run"
+    extra_options="${extra_options} --dry-run"
 fi
 
 if [ -d "${source_folder}/.snapshot" ]; then
