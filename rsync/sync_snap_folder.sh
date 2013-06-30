@@ -163,10 +163,11 @@ split_rsync () {
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
-            ( /usr/bin/time -p rsync -aS --delete --relative -r -h \
+            /usr/bin/time -v -o ${1}.time rsync -aS --delete --relative -r -h \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
-                --files-from=${1} $basedir/ $target_folder ; rsync_result=$? ) 2> ${1}.time | \
-                tee -a ${1}.log | sed "s,^,${1}: ," 
+                --files-from=${1} $basedir/ $target_folder &> ${1}.log 
+	    rsync_result=$? 
+            cat ${1}.log | sed "s,^,${1}: ," 
             cat ${1}.time | sed "s,^,${1}: ,"
             try=$(( try + 1 ))
             if [ $rsync_result -ne 0 ]; then
