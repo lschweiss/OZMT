@@ -20,18 +20,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+if [ -f /etc/zfs-tools-config ]; then
+    . /etc/zfs-tools-config
+fi
+
 if [ -f /etc/sysconfig/zfs-tools-config ]; then
     . /etc/sysconfig/zfs-tools-config
-else if [ -f /etc/sysconfig/zfs-config ]; then 
-    . /etc/sysconfig/zfs-config
-else if [ -f /root/zfs-config.sh ]; then
+else 
+    if [ -f /etc/sysconfig/zfs-config ]; then 
+        . /etc/sysconfig/zfs-config
+    fi
+fi
+
+if [ -f /root/zfs-config.sh ]; then
     . /root/zfs-config.sh 
-else if [ -f ./zfs-config.sh ]; then
-    . ./zfs-config.sh 
+else 
+    if [ -f ./zfs-config.sh ]; then
+        . ./zfs-config.sh 
+    fi 
 fi 
-fi 
-fi
-fi
 
 _DEBUG="on"
 function DEBUG()
