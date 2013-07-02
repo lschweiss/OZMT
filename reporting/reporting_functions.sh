@@ -88,6 +88,10 @@ process_message() {
         noreport=""
     fi
 
+    if [ "x$default_report_title" == "x" ]; then
+        default_report_title="zfs_tools"
+    fi
+
     if [[ "$debug_level" == "" || "$2" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
         # Determine if we are running on a terminal
         tty -s
@@ -121,10 +125,10 @@ process_message() {
         # Send the email report now
         message_file=/tmp/process_message_$$
         case "$2" in
-            '0') echo "Subject: DEBUG: aws_zfs_tools $HOSTNAME" > $message_file ;;
-            '1') echo "Subject: NOTICE: aws_zfs_tools $HOSTNAME" > $message_file ;;
-            '2') echo "Subject: WARNING: aws_zfs_tools $HOSTNAME" > $message_file ;;
-            '3') echo "Subject: ERROR: aws_zfs_tools $HOSTNAME" > $message_file ;;
+            '0') echo "Subject: DEBUG: ${default_report_title} $HOSTNAME" > $message_file ;;
+            '1') echo "Subject: NOTICE: ${default_report_title} $HOSTNAME" > $message_file ;;
+            '2') echo "Subject: WARNING: ${default_report_title} $HOSTNAME" > $message_file ;;
+            '3') echo "Subject: ERROR: ${default_report_title} $HOSTNAME" > $message_file ;;
         esac
 
         echo >> $message_file

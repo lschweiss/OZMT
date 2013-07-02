@@ -21,6 +21,10 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
+if [ "x$default_report_title" == "x" ]; then
+    default_report_title="zfs_tools"
+fi
+
 
 if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
@@ -40,7 +44,7 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
         
             rm $report_path/report_level
     
-            email_subject="aws_zfs_tools $report report"
+            email_subject="${default_report_title} $report report"
         
             debug "send_report: Sending $report"
         
