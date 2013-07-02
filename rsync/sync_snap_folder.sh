@@ -1,8 +1,18 @@
 #! /bin/bash 
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. ../zfs-tools-init.sh
 
-. $HOME/.profile
+# catch the PATH on Solaris
+if [ -f $HOME/.profile ]; then
+    . $HOME/.profile
+fi
+
+if [ "x$rsync_report" != "x" ]; then
+    report_name="$rsync_report"
+else
+    report_name="$default_report_name"
+fi
 
 . ./functions.sh
 
@@ -18,7 +28,6 @@ show_usage() {
     echo "  [-d date] Date must be of the same format as in snapshot folder name"
     echo "  [-c cns_folder_exclude_file] Exclude file listing CNS folders to exclude from this job"
     echo "  [-k compare based on checKsum not metadata]"
-    echo "  [-y drYrun]"
     echo "  [-t] trial mode.  Only output what would happen"
     echo "  [-p] Turn on --progress and --verbose for rsync."
     echo "  [-s n] Split in to n rsync jobs. Incompatitble with CNS root folders."
@@ -27,6 +36,12 @@ show_usage() {
     echo "  [-r] dry Run."
     echo
     exit 1
+}
+
+_DEBUG="on"
+function DEBUG()
+{
+ [ "$_DEBUG" == "on" ] &&  $@
 }
 
 # Minimum number of arguments needed by this program
@@ -53,7 +68,7 @@ zval=1
 
 progress=""
 
-while getopts pkyrtc:x:d:s:e:z:l: opt; do
+while getopts pkrtc:x:d:s:e:z:l: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -66,20 +81,18 @@ while getopts pkyrtc:x:d:s:e:z:l: opt; do
             cval="$OPTARG";;
         k)  # Use checksum comparison
             kflag=1;;
-        y)  # Do a dry run
-            yflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
         t)  # Trial mode
-            echo "Using trial mode"
+            debug "Using trial mode"
             tflag=1;;
         r)  # Dry Run
-            echo "Doing a dry run of rsync"
+            debug "Doing a dry run of rsync"
             rflag=1;;
         s)  # Split rsync jobs
             sflag=1
             sval="$OPTARG"
-            echo "Splitting into $sval jobs";;
+            debug "Splitting into $sval jobs";;
         z)  # Scan depth for split jobs
             zflag=1
             zval="$OPTARG";;
@@ -100,28 +113,28 @@ done
 # Exclude file parameter
 if [ ! -z "$xflag" ]; then
     #echo "Option -x $xval specified"
-    echo "Attempting to use given Exclude File"
+    debug "Attempting to use given Exclude File"
     if [ -f $xval ]; then
         exclude_file="--exclude-from=${xval}"
-        echo "Using Exclude File: $xval"
+        debug "Using Exclude File: $xval"
     else
-        echo "Exclude file $xval not found!"
+        debug "Exclude file $xval not found!"
         exit 1
     fi
 fi
 # Date parameter
 if [ ! -z "$dflag" ]; then
     #echo "Option -d $dval specified"
-    echo "Attempting to use given snapshot date"
+    debug "Attempting to use given snapshot date"
     date=$dval
     # Assume we are running interactively if a date is specified
     #pflag=1
 else
     # Default to today's date
-    echo "Defaulting to today's date"
+    debug "Defaulting to today's date"
     date=`date +%F`
 fi
-echo "Using Date: $date"
+debug "Using Date: $date"
 
 if [ ! -z "$pflag" ]; then
     progress="--verbose --progress"
@@ -135,7 +148,7 @@ shift $(($OPTIND - 1))
 if [ -d $1 ]; then
     source_folder=$1
 else
-    echo "Source folder $1 does not exist!"
+    error "Source folder $1 does not exist!"
     exit 1
 fi
 
@@ -144,13 +157,42 @@ if [ -d $2 ]; then
     target_folder=$2
 else
     if [ ! -z "$eflag" ]; then
-        echo "Assuming remote target folder $2 exists.  Cannot check from here."
+        debug "Assuming remote target folder $2 exists.  Cannot check from here."
         target_folder=$2
     else
-        echo "Target folder $2 does not exist!"
+        error "Target folder $2 does not exist!"
         exit 1
     fi
 fi
+
+if [ "$rflag" == "1" ]; then
+    extra_options="--dry-run"
+else
+    extra_options="$progress"
+fi
+
+if [ ! -z "$eflag" ]; then
+    debug "Using remote shell: $eval"
+    extra_options="${extra_options} -e ${eval}"
+fi
+
+if [ ! -z "$lflag" ]; then
+    debug "Dereferencing symlinks"
+    extra_options="${extra_options} --copy-links"
+fi
+
+if [ ! -z "$kflag" ]; then
+    debug "Using checksum file comparison"
+    extra_options="${extra_options} --checksum"
+fi
+
+
+####
+#
+# Split rsync function
+#
+###
+
 
 split_rsync () {
 
@@ -158,26 +200,27 @@ split_rsync () {
     local try=0
 
     # Function used to run a parallel rsync job
-    echo "time rsync -aS --delete --relative -r -h \
+    debug "time rsync -arS --delete --relative \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
-            /usr/bin/time -v -o ${1}.time rsync -aS --delete --relative -r -h \
+            /usr/bin/time -v -o ${1}.time rsync -arS --delete --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
                 --files-from=${1} $basedir/ $target_folder &> ${1}.log 
 	    rsync_result=$? 
-            cat ${1}.log | sed "s,^,${1}: ," 
-            cat ${1}.time | sed "s,^,${1}: ,"
+            
+            # cat ${1}.log | sed "s,^,${1}: ," 
+            # cat ${1}.time | sed "s,^,${1}: ,"
             try=$(( try + 1 ))
             if [ $rsync_result -ne 0 ]; then
-                echo "Job failed with error code $rsync_result"
+                notice "${source_folder} Job failed with error code $rsync_result"
                 if [ $try -eq 3 ]; then
-                    echo "Job for $1 failed 3 times. Giving up.  List saved as in /tmp/failed_$$ "
+                    error "${source_folder} Job for $1 failed 3 times. Giving up.  List saved as in /tmp/failed_$$ "
                     cat $1 >> /tmp/failed_$$
                     break;
                 else
-                    echo "Job for $1 failed.  Will try up to 3 times."
+                    notice "${source_folder} Job for $1 failed.  Will try up to 3 times."
                 fi
             fi
 
@@ -187,52 +230,31 @@ split_rsync () {
     touch ${1}.complete
 }
 
-if [ "$rflag" == "1" ]; then
-    extra_options="--verbose --progress --dry-run"
-else
-    extra_options="$progress"
-fi
 
-if [ ! -z "$eflag" ]; then
-    echo "Using remote shell: $eval"
-    extra_options="${extra_options} -e ${eval}"
-fi
 
-if [ ! -z "$lflag" ]; then
-    echo "Dereferencing symlinks"
-    extra_options="${extra_options} --copy-links"
-fi
-
-if [ ! -z "$kflag" ]; then
-    echo "Using checksum file comparison"
-    extra_options="${extra_options} --checksum"
-fi
-
-if [ ! -z "$yflag" ]; then
-    echo "Doing a dry run"
-    extra_options="${extra_options} --dry-run"
-fi
 
 if [ -d "${source_folder}/.snapshot" ]; then
-    echo "${source_folder}/.snapshot found."
+    debug "${source_folder}/.snapshot found."
     snapdir="${source_folder}/.snapshot"
     # Below syntax captures output of 'locate_snap' function
     snap=`locate_snap "$snapdir" "$date"`
     # Check the return status of 'locate_snap'
     if [ $? -eq 0 ] ; then
-        echo "Snapshot folder located: $snap"
+        debug "Snapshot folder located: $snap"
         snap_label="snap-daily_${snap}"
     else
         # If snapshot was not located, output the error message and exit
-        echo $snap
+        error $snap
         exit 1
     fi
+
+    notice "${source_folder} Starting rsync job(s)"
 
     basedir="${snapdir}/${snap}"
     
     if [ "$sflag" != "1" ]; then
         # Run rsync
-        echo "time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
+        debug "time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
             /usr/bin/time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder
         fi
@@ -240,14 +262,14 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Split rsync
 
         # Collect lists
-        echo "Collecting lists.  Part 1:"
-        /usr/bin/time find $basedir -mindepth $zval -maxdepth $zval -type d | \
+        debug "Collecting lists.  Part 1:"
+        find $basedir -mindepth $zval -maxdepth $zval -type d | \
             grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > /tmp/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
         cat /tmp/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > /tmp/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
-        echo "Collecting lists.  Part 2:"
-        /usr/bin/time find $basedir -maxdepth $zval -type f | \
+        debug "Collecting lists.  Part 2:"
+        find $basedir -maxdepth $zval -type f | \
             sed "s,${basedir},,"  >> /tmp/sync_folder_list_$$_trim
             
         # Randomize the list to spread across jobs better
@@ -276,7 +298,7 @@ if [ -d "${source_folder}/.snapshot" ]; then
             split_rsync "/tmp/sync_folder_list_$$_${x}" &
             if [ $sval -gt 5 ]; then
                 # Stagger startup
-                sleep 5
+                sleep 1
             fi
             x=$(( $x + 1 ))
         done
@@ -288,6 +310,79 @@ if [ -d "${source_folder}/.snapshot" ]; then
             sleep 2
         done
 
+        # Collect stats
+
+        tobytes () {
+            awk '{ ex = index("KMG", substr($1, length($1)))
+                   val = substr($1, 0, length($1))
+                   prod = val * 10^(ex * 3)
+                   sum += prod
+                 }   
+                 END {print sum}'
+        }
+
+        bytestohuman () {
+            if [ $1 -gt 1099511627776 ]; then
+                echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
+                return 
+            fi
+
+            if [ $1 -gt 1073741824 ]; then
+                echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
+                return
+            fi
+
+            if [ $1 -gt 1048576 ]; then
+                echo -n $(echo "scale=3;$1/1048576"|bc)MiB
+                return
+            fi
+
+            if [ $1 -gt 1024 ]; then
+                echo -n $(echo "scale=3;$1/1024"|bc)KiB
+                return
+            fi
+
+            echo "$1 bytes"
+                
+        }
+
+        # DEBUG set -x
+    
+        x=0
+        num_files=0
+        num_files_trans=0
+        total_file_size=0
+        total_transfered_size=0
+
+
+        while [ $x -lt $sval ]; do
+            log="/tmp/sync_folder_list_$$_${x}.log"
+            this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
+            this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
+            this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
+            this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
+            # Add to totals
+            let "num_files = $num_files + $this_num_files"
+            let "num_files_trans = $num_files_trans + $this_num_files_trans"
+            let "total_file_size = $total_file_size + $this_total_file_size"
+            let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
+            x=$(( $x + 1 ))
+        done
+
+       
+        # Output totals
+
+        notice "${source_folder} ****************************************"
+        notice "${source_folder} ** Rsync Totals                       **"
+        notice "${source_folder} ****************************************"
+        notice "${source_folder} Number of files: $num_files"
+        notice "${source_folder} Number of files transfered: $num_files_trans"
+        notice "${source_folder} Total_file_size: $(bytestohuman $total_file_size)"
+        notice "${source_folder} Total Transfered size: $(bytestohuman $total_transfered_size)"
+        
+        # DEBUG set +x
+        
+
         if [ "$tflag" != "1" ]; then
             rm -f /tmp/sync_folder_list_$$_*
         fi
@@ -296,17 +391,17 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
 else
     # We will assume there is a .snapshot folder in each subdir of the CNS tree
-    echo "${source_folder}/.snapshot not found, assuming CNS root"
+    notice "${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
     
     for folder in $subfolders; do
     if [ "$cflag" == "1" ]; then
         cat $cval | grep -q -x "$folder" 
         if [ "$?" -eq "0" ]; then
-            echo "Skiping CNS folder $folder"
+            notice "${source_folder} Skiping CNS folder $folder"
             exclude_folder=0
         else
-            echo "Syncing CNS folder $folder"
+            notice "${source_folder} Syncing CNS folder $folder"
             exclude_folder=1
         fi
     else
@@ -320,22 +415,22 @@ else
         snap=`locate_snap "$snapdir" "$date"`
         # Check the return status of 'locate_snap'
         if [ $? -eq 0 ] ; then
-            echo "Snapshot folder located: ${snapdir}/${snap}"
+            debug "Snapshot folder located: ${snapdir}/${snap}"
             snap_label="snap-daily_${snap}"
             basedir="${snapdir}/${snap}"
             # Run rsync
-            echo "time rsync -a -h --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
+            debug "time rsync -a -h --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
         if [ "$tflag" != "1" ]; then
             /usr/bin/time rsync -a -h --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ $target_folder/${folder}
             if [ -d ${target_folder}/${folder}/.zfs/snapshot ]; then
                 # This is a ZFS folder also and needs a snapshot
-                echo zfs snapshot ${target_folder:1}/${folder}@${snap_label}
+                debug "zfs snapshot ${target_folder:1}/${folder}@${snap_label}"
                 zfs snapshot ${target_folder:1}/${folder}@${snap_label}
                 return=$?
                 if [ $return -ne 0 ]; then
-                    echo "ZFS Snapshot failed: $return"
+                    error "${source_folder} ZFS Snapshot failed for ${target_folder:1}/${folder}@${snap_label} Error level: $return"
                 else
-                    echo "ZFS Snapshot succeed."
+                    debug "ZFS Snapshot succeed."
                 fi
             fi
         fi
@@ -345,8 +440,8 @@ else
         fi
     
     fi
-    echo "==========================================="
-    echo
+    notice "${source_folder} ===== Rsync ocmplete for $basedir ====="
+    
     done    
 
 fi
@@ -356,18 +451,18 @@ if [ -z "$eval" ]; then
     #We are not pushing to remote host assume zfs snapshot to be taken here
     # Find the zfs folder in case we are not mounted to the same path
         zfsfolder=`mount|grep "$target_folder on"|awk -F " " '{print $3}'`
-    echo "zfs snapshot ${zfsfolder}@${snap_label}"
+    debug "zfs snapshot ${zfsfolder}@${snap_label}"
     if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
         zfs snapshot ${zfsfolder}@${snap_label}
         return=$?
     fi
     
     if [ $return -ne 0 ]; then
-        echo "ZFS Snapshot failed: $return"
+        error "${source_folder} ZFS Snapshot failed for ${zfsfolder}@${snap_label} Error level: $return"
     else
-        echo "ZFS Snapshot succeed."
+        debug "ZFS Snapshot succeed."
     fi
 fi
 
-echo "==========================================="
+debug "=== Job Complete ==="
 exit 0
