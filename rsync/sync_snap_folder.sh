@@ -186,6 +186,47 @@ if [ ! -z "$kflag" ]; then
     extra_options="${extra_options} --checksum"
 fi
 
+####
+#
+# Conversions
+#
+####
+
+tobytes () {
+    awk '{ ex = index("KMG", substr($1, length($1)))
+           val = substr($1, 0, length($1))
+           prod = val * 10^(ex * 3)
+           sum += prod
+         }   
+         END {print sum}'
+}
+
+bytestohuman () {
+    if [ $1 -gt 1099511627776 ]; then
+        echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
+        return 
+    fi
+
+    if [ $1 -gt 1073741824 ]; then
+        echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
+        return
+    fi
+
+    if [ $1 -gt 1048576 ]; then
+        echo -n $(echo "scale=3;$1/1048576"|bc)MiB
+        return
+    fi
+
+    if [ $1 -gt 1024 ]; then
+        echo -n $(echo "scale=3;$1/1024"|bc)KiB
+        return
+    fi
+
+    echo "$1 bytes"
+        
+}
+
+
 
 ####
 #
@@ -230,6 +271,55 @@ split_rsync () {
     touch ${1}.complete
 }
 
+####
+#
+# Output stats
+#
+####
+
+output_stats () {
+
+        # Collect stats
+
+        # DEBUG set -x
+    
+        local x=0
+        local num_files=0
+        local num_files_trans=0
+        local total_file_size=0
+        local total_transfered_size=0
+
+        local log_name="$1"
+        local log_prefix="$2"
+
+
+        for log in ${log_name}*.log ; do
+            this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
+            this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
+            this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
+            this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
+            # Add to totals
+            let "num_files = $num_files + $this_num_files"
+            let "num_files_trans = $num_files_trans + $this_num_files_trans"
+            let "total_file_size = $total_file_size + $this_total_file_size"
+            let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
+            x=$(( $x + 1 ))
+        done
+
+       
+        # Output totals
+
+        notice "${log_prefix} ****************************************"
+        notice "${log_prefix} ** Rsync Totals                       **"
+        notice "${log_prefix} ****************************************"
+        notice "${log_prefix} Number of files: $num_files"
+        notice "${log_prefix} Number of files transfered: $num_files_trans"
+        notice "${log_prefix} Total_file_size: $(bytestohuman $total_file_size)"
+        notice "${log_prefix} Total Transfered size: $(bytestohuman $total_transfered_size)"
+        
+        # DEBUG set +x
+        
+} # output_stats
 
 
 
@@ -251,12 +341,20 @@ if [ -d "${source_folder}/.snapshot" ]; then
     notice "${source_folder} Starting rsync job(s)"
 
     basedir="${snapdir}/${snap}"
+
+    joblog="/tmp/sync_folder_$$.log"
     
     if [ "$sflag" != "1" ]; then
         # Run rsync
-        debug "time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
+        debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
-            /usr/bin/time rsync -aS -h --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder
+            rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
+                $basedir/ $target_folder &> /temp/sync_snap_folder_$$.log
+            rsync_result=$?
+            if [ $rsync_result -ne 0 ]; then
+                error "${basedir} Job failed with error code $rsync_result"
+            fi
+            output_stats "/temp/sync_snap_folder_$$" "$source_folder"
         fi
     else
         # Split rsync
@@ -310,78 +408,11 @@ if [ -d "${source_folder}/.snapshot" ]; then
             sleep 2
         done
 
-        # Collect stats
+        # output stats
 
-        tobytes () {
-            awk '{ ex = index("KMG", substr($1, length($1)))
-                   val = substr($1, 0, length($1))
-                   prod = val * 10^(ex * 3)
-                   sum += prod
-                 }   
-                 END {print sum}'
-        }
+        output_stats "/tmp/sync_folder_list_$$_" "$source_folder"
 
-        bytestohuman () {
-            if [ $1 -gt 1099511627776 ]; then
-                echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
-                return 
-            fi
-
-            if [ $1 -gt 1073741824 ]; then
-                echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
-                return
-            fi
-
-            if [ $1 -gt 1048576 ]; then
-                echo -n $(echo "scale=3;$1/1048576"|bc)MiB
-                return
-            fi
-
-            if [ $1 -gt 1024 ]; then
-                echo -n $(echo "scale=3;$1/1024"|bc)KiB
-                return
-            fi
-
-            echo "$1 bytes"
-                
-        }
-
-        # DEBUG set -x
-    
-        x=0
-        num_files=0
-        num_files_trans=0
-        total_file_size=0
-        total_transfered_size=0
-
-
-        while [ $x -lt $sval ]; do
-            log="/tmp/sync_folder_list_$$_${x}.log"
-            this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
-            this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
-            this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
-            this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
-            # Add to totals
-            let "num_files = $num_files + $this_num_files"
-            let "num_files_trans = $num_files_trans + $this_num_files_trans"
-            let "total_file_size = $total_file_size + $this_total_file_size"
-            let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
-            x=$(( $x + 1 ))
-        done
-
-       
-        # Output totals
-
-        notice "${source_folder} ****************************************"
-        notice "${source_folder} ** Rsync Totals                       **"
-        notice "${source_folder} ****************************************"
-        notice "${source_folder} Number of files: $num_files"
-        notice "${source_folder} Number of files transfered: $num_files_trans"
-        notice "${source_folder} Total_file_size: $(bytestohuman $total_file_size)"
-        notice "${source_folder} Total Transfered size: $(bytestohuman $total_transfered_size)"
-        
-        # DEBUG set +x
-        
+        # clean up temp files
 
         if [ "$tflag" != "1" ]; then
             rm -f /tmp/sync_folder_list_$$_*
@@ -393,56 +424,70 @@ else
     # We will assume there is a .snapshot folder in each subdir of the CNS tree
     notice "${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
+
+    joblog="/tmp/sync_folder_$$_"
     
     for folder in $subfolders; do
-    if [ "$cflag" == "1" ]; then
-        cat $cval | grep -q -x "$folder" 
-        if [ "$?" -eq "0" ]; then
-            notice "${source_folder} Skiping CNS folder $folder"
-            exclude_folder=0
+        if [ "$cflag" == "1" ]; then
+            cat $cval | grep -q -x "$folder" 
+            if [ "$?" -eq "0" ]; then
+                notice "${source_folder} Skiping CNS folder $folder"
+                exclude_folder=0
+            else
+                notice "${source_folder} Syncing CNS folder $folder"
+                exclude_folder=1
+            fi
         else
-            notice "${source_folder} Syncing CNS folder $folder"
+            # We are not excluding CNS folders
             exclude_folder=1
         fi
-    else
-        # We are not excluding CNS folders
-        exclude_folder=1
-    fi
+    
+        if [ -d ${source_folder}/$folder ] && [ $exclude_folder -ne 0 ]; then
+            snapdir="${source_folder}/${folder}/.snapshot"
+            # Below syntax captures output of 'locate_snap' function
+            snap=`locate_snap "$snapdir" "$date"`
+            # Check the return status of 'locate_snap'
+            if [ $? -eq 0 ] ; then
+                debug "Snapshot folder located: ${snapdir}/${snap}"
+                snap_label="snap-daily_${snap}"
+                basedir="${snapdir}/${snap}"
+                # Run rsync
+                debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
+                if [ "$tflag" != "1" ]; then
+                    rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
+                        $basedir/ $target_folder/${folder} &> /temp/sync_snap_folder_$$_${folder}.log
 
-    if [ -d ${source_folder}/$folder ] && [ $exclude_folder -ne 0 ]; then
-        snapdir="${source_folder}/${folder}/.snapshot"
-        # Below syntax captures output of 'locate_snap' function
-        snap=`locate_snap "$snapdir" "$date"`
-        # Check the return status of 'locate_snap'
-        if [ $? -eq 0 ] ; then
-            debug "Snapshot folder located: ${snapdir}/${snap}"
-            snap_label="snap-daily_${snap}"
-            basedir="${snapdir}/${snap}"
-            # Run rsync
-            debug "time rsync -a -h --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
-        if [ "$tflag" != "1" ]; then
-            /usr/bin/time rsync -a -h --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ $target_folder/${folder}
-            if [ -d ${target_folder}/${folder}/.zfs/snapshot ]; then
-                # This is a ZFS folder also and needs a snapshot
-                debug "zfs snapshot ${target_folder:1}/${folder}@${snap_label}"
-                zfs snapshot ${target_folder:1}/${folder}@${snap_label}
-                return=$?
-                if [ $return -ne 0 ]; then
-                    error "${source_folder} ZFS Snapshot failed for ${target_folder:1}/${folder}@${snap_label} Error level: $return"
-                else
-                    debug "ZFS Snapshot succeed."
+                    rsync_result=$?
+                    if [ $rsync_result -ne 0 ]; then
+                        error "${basedir} Job failed with error code $rsync_result"
+                    else
+                        notice "${source_folder} Finished syncing CNS folder $folder"
+                        if [ -d ${target_folder}/${folder}/.zfs/snapshot ]; then
+                            # This is a ZFS folder also and needs a snapshot
+                            debug "zfs snapshot ${target_folder:1}/${folder}@${snap_label}"
+                            zfs snapshot ${target_folder:1}/${folder}@${snap_label}
+                            return=$?
+                            if [ $return -ne 0 ]; then
+                                error "${source_folder} ZFS Snapshot failed for ${target_folder:1}/${folder}@${snap_label} Error level: $return"
+                            else
+                                debug "ZFS Snapshot succeed."
+                            fi
+                        fi
+                    fi
                 fi
+            else
+                # If snapshot was not located, output the error message 
+                warning "Snapshot not located: $snap"
             fi
+        
         fi
-        else
-            # If snapshot was not located, output the error message 
-            echo $snap
-        fi
-    
-    fi
-    notice "${source_folder} ===== Rsync ocmplete for $basedir ====="
-    
+        notice "${source_folder} ===== Rsync complete for $basedir ====="
+        
     done    
+
+    # output stats
+
+    output_stats "/temp/sync_snap_folder_$$_" "$source_folder"
 
 fi
 
