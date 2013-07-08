@@ -359,6 +359,8 @@ if [ -d "${source_folder}/.snapshot" ]; then
     else
         # Split rsync
 
+        notice "${source_folder} Splitting into $sval rsync job(s)"
+
         # Collect lists
         debug "Collecting lists.  Part 1:"
         find $basedir -mindepth $zval -maxdepth $zval -type d | \
@@ -422,7 +424,7 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
 else
     # We will assume there is a .snapshot folder in each subdir of the CNS tree
-    notice "${source_folder}/.snapshot not found, assuming CNS root"
+    debug "${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
 
     joblog="/tmp/sync_folder_$$_"
@@ -455,7 +457,7 @@ else
                 debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
                 if [ "$tflag" != "1" ]; then
                     rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
-                        $basedir/ $target_folder/${folder} &> /temp/sync_snap_folder_$$_${folder}.log
+                        $basedir/ $target_folder/${folder} &> /tmp/sync_snap_folder_$$_${folder}.log
 
                     rsync_result=$?
                     if [ $rsync_result -ne 0 ]; then
@@ -479,15 +481,16 @@ else
                 # If snapshot was not located, output the error message 
                 warning "Snapshot not located: $snap"
             fi
+
+            notice "${source_folder} ===== Rsync complete for $basedir ====="
         
         fi
-        notice "${source_folder} ===== Rsync complete for $basedir ====="
         
     done    
 
     # output stats
 
-    output_stats "/temp/sync_snap_folder_$$_" "$source_folder"
+    output_stats "/tmp/sync_snap_folder_$$_" "$source_folder"
 
 fi
 
