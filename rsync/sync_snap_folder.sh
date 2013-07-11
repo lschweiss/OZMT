@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
@@ -241,12 +241,12 @@ split_rsync () {
     local try=0
 
     # Function used to run a parallel rsync job
-    debug "time rsync -arS --delete --relative \
+    debug "rsync -arS --delete --relative \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
-            /usr/bin/time -v -o ${1}.time rsync -arS --delete --relative  \
+            rsync -arS --delete --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
                 --files-from=${1} $basedir/ $target_folder &> ${1}.log 
 	    rsync_result=$? 
@@ -255,10 +255,9 @@ split_rsync () {
             # cat ${1}.time | sed "s,^,${1}: ,"
             try=$(( try + 1 ))
             if [ $rsync_result -ne 0 ]; then
-                notice "${source_folder} Job failed with error code $rsync_result"
+                warning "${source_folder} Job failed with error code $rsync_result" ${1}.log
                 if [ $try -eq 3 ]; then
-                    error "${source_folder} Job for $1 failed 3 times. Giving up.  List saved as in /tmp/failed_$$ "
-                    cat $1 >> /tmp/failed_$$
+                    error "${source_folder} Job for $1 failed 3 times. Giving up. " ${1}.log
                     break;
                 else
                     notice "${source_folder} Job for $1 failed.  Will try up to 3 times."
@@ -266,6 +265,14 @@ split_rsync () {
             fi
 
         done
+
+        # clean up temp files
+
+        if [ $rsync_result -eq 0 ]; then
+            rm -f ${1}
+        fi
+
+        
     fi
 
     touch ${1}.complete
@@ -414,12 +421,6 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
         output_stats "/tmp/sync_folder_list_$$_" "$source_folder"
 
-        # clean up temp files
-
-        if [ "$tflag" != "1" ]; then
-            rm -f /tmp/sync_folder_list_$$_*
-        fi
-
     fi # [ "$sflag" != 1 ]
 
 else
@@ -486,11 +487,17 @@ else
         
         fi
         
-    done    
+    done 
+
+ 
 
     # output stats
 
     output_stats "/tmp/sync_snap_folder_$$_" "$source_folder"
+
+    # clean up
+
+    rm /tmp/sync_folder_list_$$ /tmp/sync_folder_list_$$_trim /tmp/sync_folder_list_$$_rand
 
 fi
 
