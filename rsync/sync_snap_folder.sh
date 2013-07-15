@@ -356,12 +356,12 @@ if [ -d "${source_folder}/.snapshot" ]; then
         debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
             rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
-                $basedir/ $target_folder &> /temp/sync_snap_folder_$$.log
+                $basedir/ $target_folder &> /tmp/sync_snap_folder_$$.log
             rsync_result=$?
             if [ $rsync_result -ne 0 ]; then
                 error "${basedir} Job failed with error code $rsync_result"
             fi
-            output_stats "/temp/sync_snap_folder_$$" "$source_folder"
+            output_stats "/tmp/sync_snap_folder_$$" "$source_folder"
         fi
     else
         # Split rsync
