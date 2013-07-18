@@ -39,6 +39,10 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
             # Move the report to a temporary file to avoid race conditions
             mv $report_path/report_pending $report_pending
+
+            if [ -f $report_path/report_attachments ]; then
+                mv $report_path/report_attachments ${report_pending}_attachments
+            fi
         
             source $report_path/report_level
         

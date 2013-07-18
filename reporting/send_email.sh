@@ -34,6 +34,8 @@ message_subject="$2"
 
 message_importance="$3"
 
+attach_cmd=
+
 
 if [ ! -f "$message_file" ]; then
     die "Specified message \"${message_file}\" does not exist"
@@ -49,6 +51,22 @@ else
 fi
 
 cat $message_file >> /tmp/mutt_message_$$
+
+# Gather attachment list
+
+if [ -f ${message_file}_attachments ]; then
+
+    attachements=`cat ${message_file}_attachments`
+
+    for attach in $attachments; do
+        attach_cmd="-a $attach $attach_cmd"
+    done
+
+    # add require separator for email address on mutt command line
+    attach_cmd="$attach_cmd --"
+
+fi
+
 
 # Build cc and bcc list
 
@@ -67,7 +85,19 @@ if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
 fi
     
 # Send the message    
-$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
+$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $attach_cmd $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
     && rm /tmp/mutt_message_$$ \
     || error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
 
+if [ ! -f /tmp/mutt_message_$$ ]; then
+    # Message was sent clean up attachements
+    if [ -f ${message_file}_attachments ]; then
+        attachements=`cat ${message_file}_attachments`
+
+        for attach in $attachments; do
+            rm -f $attach
+        done
+
+        rm -f ${message_file}_attachments
+    fi
+fi

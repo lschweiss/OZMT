@@ -30,6 +30,7 @@ show_usage() {
     echo "  [-k compare based on checKsum not metadata]"
     echo "  [-t] trial mode.  Only output what would happen"
     echo "  [-p] Turn on --progress and --verbose for rsync."
+    echo "  [-a] Turn on verbose and attach output to logs."
     echo "  [-s n] Split in to n rsync jobs. Incompatitble with CNS root folders."
     echo "  [-z n] scan n folders deep for split jobs"
     echo "  [-e options] remote shell program.  Passed directly as -e 'options' to rsync"
@@ -61,6 +62,7 @@ yflag=
 sflag=
 rflag=
 pflag=
+aflag=
 eflag=
 lflag=
 zflag=
@@ -68,7 +70,7 @@ zval=1
 
 progress=""
 
-while getopts pkrtc:x:d:s:e:z:l: opt; do
+while getopts apkrtc:x:d:s:e:z:l: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -81,6 +83,8 @@ while getopts pkrtc:x:d:s:e:z:l: opt; do
             cval="$OPTARG";;
         k)  # Use checksum comparison
             kflag=1;;
+        a)  # Turn on attachements
+            aflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
         t)  # Trial mode
@@ -169,6 +173,11 @@ if [ "$rflag" == "1" ]; then
     extra_options="--dry-run"
 else
     extra_options="$progress"
+fi
+
+if [ "$aflag" == "1" ]; then
+    debug "Using verbose and attaching logs"
+    extra_options="${extra_options} -v"
 fi
 
 if [ ! -z "$eflag" ]; then
@@ -355,11 +364,16 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Run rsync
         debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
+            echo "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
+                $basedir/ $target_folder" > /tmp/sync_snap_folder_$$.log
             rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
-                $basedir/ $target_folder &> /tmp/sync_snap_folder_$$.log
+                $basedir/ $target_folder &>> /tmp/sync_snap_folder_$$.log
             rsync_result=$?
             if [ $rsync_result -ne 0 ]; then
                 error "${basedir} Job failed with error code $rsync_result"
+            fi
+            if [ "$aflag" == "1" ]; then
+                notice "$basedir complete logs attached." /tmp/sync_snap_folder_$$.log
             fi
             output_stats "/tmp/sync_snap_folder_$$" "$source_folder"
         fi
