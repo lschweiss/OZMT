@@ -100,9 +100,7 @@ process_message() {
 
     if [[ "$debug_level" == "" || "${this_message_level}" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
         # Determine if we are running on a terminal
-        tty -s
-        terminal=$?        
-        if [[ "$terminal" -eq "0" || "$DEBUG" == "true" ]]; then
+        if [[ -t 1 || "$DEBUG" == "true" ]]; then
             # Set the color
             case "$2" in 
                 '0') echo -n "${noreport}$(color bd white)" ;;
@@ -144,7 +142,7 @@ process_message() {
         echo >> $message_file
         echo "${this_message}" >> $message_file
 
-        if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
+        if [[ "$#" -eq "5" && -f ${this_include_file} ]]; then
             echo ${this_include_file} > ${message_file}_attachments
         fi
 
@@ -182,7 +180,6 @@ process_message() {
                 echo $report_path/attach/report_file_$$ >> $report_path/report_attachments
             fi
         fi
-                     
     fi
 
     # If enable append to log file

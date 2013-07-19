@@ -62,8 +62,17 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
             if [ "$debug_level" -eq "0" ]; then
                 debug "send_report: report file left at $report_pending"
             else
-                rm $report_pending
+                rm -f $report_pending
             fi
+    
+            if [ -f ${report_pending}_attachments ]; then
+                attachments=`cat ${report_pending}_attachments`
+                for attach in $attachments; do
+                    rm -f $attach
+                done
+                rm -f ${report_pending}_attachments
+            fi
+
         else
             debug "No report present for $report"
         fi
@@ -73,7 +82,7 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
 else
 
-    warning "No report files found: $TOOLS_ROOT/reporting/reports_pending" >&2
+    warning "No report files found: $TOOLS_ROOT/reporting/reports_pending" 
 
 fi
     
