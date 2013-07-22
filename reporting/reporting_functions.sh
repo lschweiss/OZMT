@@ -176,8 +176,8 @@ process_message() {
             echo "${this_message}" >> $report_path/report_pending
             if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
                 this_file=$(basename ${this_include_file})
-                cp ${this_include_file} $report_path/attach/report_file_$$
-                echo $report_path/attach/report_file_$$ >> $report_path/report_attachments
+                cp ${this_include_file} $report_path/attach/report_file_$$.txt
+                echo "$report_path/attach/report_file_$$.txt" >> $report_path/report_attachments
             fi
         fi
     fi
