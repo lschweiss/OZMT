@@ -472,11 +472,11 @@ else
                 debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
                 if [ "$tflag" != "1" ]; then
                     rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
-                        $basedir/ $target_folder/${folder} &> /tmp/sync_snap_folder_$$_${folder}.log
+                        $basedir/ $target_folder/${folder} &> /tmp/sync_folder_$$_${folder}.log
 
                     rsync_result=$?
                     if [ $rsync_result -ne 0 ]; then
-                        error "${basedir} Job failed with error code $rsync_result"
+                        error "${basedir} Job failed with error code $rsync_result" /tmp/sync_folder_$$_${folder}.log
                     else
                         notice "${source_folder} Finished syncing CNS folder $folder"
                         if [ -d ${target_folder}/${folder}/.zfs/snapshot ]; then
@@ -511,7 +511,10 @@ else
 
     # clean up
 
-    rm -f /tmp/sync_folder_list_$$ /tmp/sync_folder_list_$$_trim /tmp/sync_folder_list_$$_rand &>/dev/null
+    rm -f /tmp/sync_folder_list_$$ \
+          /tmp/sync_folder_list_$$_trim \
+          /tmp/sync_folder_list_$$_rand \
+          /tmp/sync_folder_$$_*.log &>/dev/null
 
 fi
 
