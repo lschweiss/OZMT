@@ -59,11 +59,11 @@ if [ -f ${message_file}_attachments ]; then
     attachments=`cat ${message_file}_attachments`
 
     for attach in $attachments; do
-        attach_cmd="-a $attach $attach_cmd"
+        attach_cmd="$attach $attach_cmd"
     done
 
-    # add require separator for email address on mutt command line
-    attach_cmd="$attach_cmd --"
+    # add '-a' parameter and required separator for email address on mutt command line
+    attach_cmd="-a $attach_cmd --"
 
 fi
 
