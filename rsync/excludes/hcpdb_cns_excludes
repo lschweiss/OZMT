@@ -6,6 +6,8 @@ build
 build1
 build2
 build3
+build_chpc
 ftp
 cache
 tmp
+packages

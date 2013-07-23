@@ -273,14 +273,14 @@ split_rsync () {
                 fi
             fi
 
+            if [ "$aflag" == "1" ]; then
+                notice "${source_folder} split job ${1} logs attached" ${1}.log
+            fi
+
         done
 
         # clean up temp files
-
-        if [ $rsync_result -eq 0 ]; then
-            rm -f ${1}
-        fi
-
+        rm -f ${1} &>/dev/null
         
     fi
 
@@ -370,7 +370,7 @@ if [ -d "${source_folder}/.snapshot" ]; then
                 $basedir/ $target_folder &>> /tmp/sync_snap_folder_$$.log
             rsync_result=$?
             if [ $rsync_result -ne 0 ]; then
-                error "${basedir} Job failed with error code $rsync_result"
+                error "${basedir} Job failed with error code $rsync_result" /tmp/sync_snap_folder_$$.log
             fi
             if [ "$aflag" == "1" ]; then
                 notice "$basedir complete logs attached." /tmp/sync_snap_folder_$$.log
@@ -511,7 +511,7 @@ else
 
     # clean up
 
-    rm /tmp/sync_folder_list_$$ /tmp/sync_folder_list_$$_trim /tmp/sync_folder_list_$$_rand
+    rm -f /tmp/sync_folder_list_$$ /tmp/sync_folder_list_$$_trim /tmp/sync_folder_list_$$_rand &>/dev/null
 
 fi
 
