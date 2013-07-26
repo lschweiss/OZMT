@@ -56,7 +56,11 @@ cat $message_file >> /tmp/mutt_message_$$
 
 if [ -f ${message_file}_attachments ]; then
 
-    attachments=`cat ${message_file}_attachments`
+    attachments_file="/tmp/report_attachements_$$"
+    mv ${message_file}_attachments $attachments_file 
+
+
+    attachments=`cat $attachments_file`
 
     for attach in $attachments; do
         attach_cmd="$attach $attach_cmd"
@@ -86,18 +90,17 @@ fi
     
 # Send the message    
 $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $attach_cmd $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
-    && rm /tmp/mutt_message_$$ \
+#    && rm /tmp/mutt_message_$$ \
     || error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
 
 if [ ! -f /tmp/mutt_message_$$ ]; then
     # Message was sent clean up attachments
-    if [ -f ${message_file}_attachments ]; then
-        attachments=`cat ${message_file}_attachments`
+    if [ -f $attachments_file ]; then
 
         for attach in $attachments; do
             rm -f $attach
         done
 
-        rm -f ${message_file}_attachments
+        rm -f $attachments_file
     fi
 fi

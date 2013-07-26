@@ -310,16 +310,18 @@ output_stats () {
 
 
         for log in ${log_name}*.log ; do
-            this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
-            this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
-            this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
-            this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
-            # Add to totals
-            let "num_files = $num_files + $this_num_files"
-            let "num_files_trans = $num_files_trans + $this_num_files_trans"
-            let "total_file_size = $total_file_size + $this_total_file_size"
-            let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
-            x=$(( $x + 1 ))
+            if [ -f $log ]; then
+                this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
+                this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
+                this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
+                this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
+                # Add to totals
+                let "num_files = $num_files + $this_num_files"
+                let "num_files_trans = $num_files_trans + $this_num_files_trans"
+                let "total_file_size = $total_file_size + $this_total_file_size"
+                let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
+                x=$(( $x + 1 ))
+            fi
         done
 
        
@@ -328,6 +330,7 @@ output_stats () {
         notice "${log_prefix} ****************************************"
         notice "${log_prefix} ** Rsync Totals                       **"
         notice "${log_prefix} ****************************************"
+        notice "${log_prefix} Number of jobs: $x"
         notice "${log_prefix} Number of files: $num_files"
         notice "${log_prefix} Number of files transfered: $num_files_trans"
         notice "${log_prefix} Total_file_size: $(bytestohuman $total_file_size)"
