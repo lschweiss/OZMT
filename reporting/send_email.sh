@@ -89,9 +89,14 @@ if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
 fi
     
 # Send the message    
-$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" $mutt_options $attach_cmd $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ \
-#    && rm /tmp/mutt_message_$$ \
-    || error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
+$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+    $mutt_options $attach_cmd $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ 
+
+result=$?
+
+if [ $result -ne 0 ]; then 
+   error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
+fi
 
 if [ ! -f /tmp/mutt_message_$$ ]; then
     # Message was sent clean up attachments
