@@ -25,6 +25,8 @@ if [ "x$default_report_title" == "x" ]; then
     default_report_title="zfs_tools"
 fi
 
+report_name="default"
+
 
 if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 

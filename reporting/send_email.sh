@@ -63,6 +63,12 @@ if [ -f ${message_file}_attachments ]; then
     attachments=`cat $attachments_file`
 
     for attach in $attachments; do
+        # If the file is over 100K, compress it
+        attach_size=`stat --format=%s $attach`
+        if [ $attach_size -ge 100000 ]; then
+            gzip $attach
+            attach="${attach}.gz"
+        fi
         attach_cmd="$attach $attach_cmd"
     done
 
