@@ -258,10 +258,13 @@ split_rsync () {
             rsync -arS --delete --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
                 --files-from=${1} $basedir/ $target_folder &> ${1}.log 
-	    rsync_result=$? 
+    	    rsync_result=$? 
+
+            if [ $rsync_result -eq 23 ]; then
+                # Check if rsync failed to delete empty directories
+                remove_empty_dirs ${1}.log $target_folder
+            fi
             
-            # cat ${1}.log | sed "s,^,${1}: ," 
-            # cat ${1}.time | sed "s,^,${1}: ,"
             try=$(( try + 1 ))
             if [ $rsync_result -ne 0 ]; then
                 warning "${source_folder} Job failed with error code $rsync_result" ${1}.log
@@ -286,6 +289,43 @@ split_rsync () {
 
     touch ${1}.complete
 }
+
+####
+#
+# Remove empty folders on destination
+#
+####
+
+# When using --delete option on rsync, if a source folder is deleted, rsync sometimes
+# fails to delete the target because it doesn't empty the directory first.
+
+# This function will parse the output log and remove directories on the target 
+
+remove_empty_dirs () {
+
+    local logfile="$1"
+    local target="$2"
+
+    # Can't do this when using a remote connection
+    if [ -z "$eflag" ]; then
+        cat $logfile | grep -q "cannot delete non-empty directory: "
+        has_empties=$?
+
+        if [ $has_empties -eq 0 ]; then
+            empties=`cat $logfile | \
+                     grep "cannot delete non-empty directory: " | \
+                     awk -F "cannot delete non-empty directory: " '{print $2}'`
+
+            for empty in $empties; do
+                warning "removing empty directory $target/$empty which rsync failed to remove"
+                notice "would run: rm -rf \"$target/$empty\""
+            done
+        fi
+
+    fi
+    
+}
+    
 
 ####
 #
@@ -372,6 +412,12 @@ if [ -d "${source_folder}/.snapshot" ]; then
             rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
                 $basedir/ $target_folder &>> /tmp/sync_snap_folder_$$.log
             rsync_result=$?
+
+            if [ $rsync_result -eq 23 ]; then
+                # Check if rsync failed to delete empty directories
+                remove_empty_dirs /tmp/sync_snap_folder_$$.log $target_folder
+            fi
+
             if [ $rsync_result -ne 0 ]; then
                 error "${basedir} Job failed with error code $rsync_result" /tmp/sync_snap_folder_$$.log
             fi
