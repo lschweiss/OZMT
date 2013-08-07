@@ -157,8 +157,21 @@ setzfs () {
     fi
 
     for option in $options; do
-        eval zfs set $option $zfsfolder
+
+        thisoption=`echo $option | awk -F "=" '{print $1}'`
+        newvalue=`echo $option | awk -F "${thisoption}=" '{print $2}'`
+        currentvalue=`zfs get -H $thisoption $zfsfolder|cut -f3`
+        
+        if [ "$currentvalue" != "$newvalue" ]; then
+            echo "Resetting $thisoption from"
+            echo "$currentvalue to $newvalue"
+            eval zfs set $option $zfsfolder
+        else
+            echo "Keeping $thisoption set to $currentvalue"
+        fi
+
     done
+
 }
 
 
