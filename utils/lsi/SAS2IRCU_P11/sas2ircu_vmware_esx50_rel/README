@@ -1,0 +1,20 @@
+This is a Userworld Tool (SAS2IRCU) for RAID configuration on LSI SAS2
+Controllers that is designed to run from an ESXi host (either from
+the shell or via ssh). Running this tool requires manual intervention
+by the ESXi administrator, because both the ESXi Shell and ssh are
+disabled on ESXi hosts by default.
+
+The Userworld Tool in VIB format can be installed using the
+following esxcli command on the ESXi host.
+
+esxcli software vib install --force --vib /tmp/vmware-esx-sas2ircu.vib
+
+Note: Because the vib produced carries no digital signature,
+      it must be installed with the "--force" option.
+
+Once installed, the UW Tool can be invoked from the host's ESX Shell by
+logging in and issuing the command:
+
+/opt/lsi/bin/sas2ircu
+
+

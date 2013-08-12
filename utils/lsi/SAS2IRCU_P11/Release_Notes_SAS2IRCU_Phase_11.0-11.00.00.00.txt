@@ -1,0 +1,19 @@
+Release Date : 8/11/11
+
+SCG Engineering Release Notice
+Phase11 GCA Release Version 11.00.00.00 - SAS2IRCU_Phase_11.0 (SCGCQ00210457)
+
+Phase11 Beta Release Version 10.250.03.00 - SAS2IRCU_Phase_11.0 (SCGCQ00206894)
+Change Summary ( Defects=1)
+SCGCQ00204146 (DFCT) - The freeBSD version of sas2ircu hits segmentation fault after connecting 128 and more number of drives to Thunderbolt.
+
+Phase11 Alpha Release Version 10.250.02.00 - SAS2IRCU_Phase_11.0 (SCGCQ00204162)
+Change Summary ( Defects=1)
+SCGCQ00203390 (DFCT) - Invader A0 : SAS2IRCU create option fails while creating RAID volume
+
+Phase11 Alpha Release Version 10.250.01.00 - SAS2IRCU_Phase_11.0 (SCGCQ00200807)
+Change Summary ( Defects=1 Enhancements=3)
+SCGCQ00194858 (CSET) - Under EFI attempt to list controllers using sas2ircu Utility having Two Controllers Connected to the System results to RSOD
+SCGCQ00182284 (ENHREQ) - SAS2IRCU enhancements to support Channel use of the utility
+SCGCQ00200616 (ENHREQ) - SAS2IRCU: Display correctly size of 4K drive in Physical Disk Information
+SCGCQ00201514 (ENHREQ) - Request to have sas2ircu work in Solaris 'miniroot'

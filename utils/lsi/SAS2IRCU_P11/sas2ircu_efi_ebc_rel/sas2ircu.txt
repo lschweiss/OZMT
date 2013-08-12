@@ -1,0 +1,5 @@
+﻿FILE QUARANTINED
+
+Microsoft Forefront Protection for SharePoint removed a file since it was found to be infected.
+File name: "SAS2IRCU_P11.zip->sas2ircu.efi"
+Malware name: "Suspicious!SA"
