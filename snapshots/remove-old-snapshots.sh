@@ -163,7 +163,7 @@ if [ $days -ne 0 ]; then
                         notice "remove-old-snapshots: Destroying: ${snap}"
                         zfs destroy ${snap} &> /tmp/remove_old_snap_$$; result=$?
                         if [ "$result" -ne "0" ]; then
-                            error "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                            warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
                         fi
                         rm -f /tmp/remove_old_snap_$$
                     fi
@@ -192,7 +192,7 @@ if [ $count -ne 0 ]; then
             notice "remove-old-snapshots: Destroying: ${snap}, keeping ${count} of type ${snap_prefix}"
             zfs destroy ${snap} 2> /tmp/remove_old_snap_$$; result=$?
             if [ "$result" -ne "0" ]; then
-                error "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
             fi
             rm /tmp/remove_old_snap_$$
         fi
