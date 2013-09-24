@@ -161,11 +161,11 @@ if [ $days -ne 0 ]; then
                         debug "WOULD DO: zfs destroy ${snap}"
                     else
                         notice "remove-old-snapshots: Destroying: ${snap}"
-                        zfs destroy ${snap} &> /tmp/remove_old_snap_$$; result=$?
+                        zfs destroy ${snap} &> /tmp/remove_old_snap_$$.txt; result=$?
                         if [ "$result" -ne "0" ]; then
-                            warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                            warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$.txt
                         fi
-                        rm -f /tmp/remove_old_snap_$$
+                        rm -f /tmp/remove_old_snap_$$.txt
                     fi
                 else
                     debug "Not destroying ${snap} it is only ${days_elapsed} days old."
@@ -190,11 +190,11 @@ if [ $count -ne 0 ]; then
             debug "WOULD DO: zfs destroy ${snap}"
         else
             notice "remove-old-snapshots: Destroying: ${snap}, keeping ${count} of type ${snap_prefix}"
-            zfs destroy ${snap} 2> /tmp/remove_old_snap_$$; result=$?
+            zfs destroy ${snap} &> /tmp/remove_old_snap_$$.txt; result=$?
             if [ "$result" -ne "0" ]; then
-                warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$
+                warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$.txt
             fi
-            rm /tmp/remove_old_snap_$$
+            rm /tmp/remove_old_snap_$$.txt
         fi
     done
 fi
