@@ -163,8 +163,10 @@ setzfs () {
         currentvalue=`zfs get -H $thisoption $zfsfolder|cut -f3`
         
         if [ "$currentvalue" != "$newvalue" ]; then
-            echo "Resetting $thisoption from"
-            echo "$currentvalue to $newvalue"
+            echo "$(color cyan)Resetting $(color red)$thisoption $(color cyan)from"
+            echo "$(color red)$currentvalue"
+            echo "$(color cyan)to"
+            echo "$(color red)$newvalue$(color)"
             eval zfs set $option $zfsfolder
         else
             echo "Keeping $thisoption set to $currentvalue"
