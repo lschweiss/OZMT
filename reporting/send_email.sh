@@ -91,7 +91,7 @@ for bcc in $email_bcc; do
 done
 
 if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
-    error "$TOOLS_ROOT/reporting/reporting.muttrc does not exist.  Please create this file to enable email reporting."
+    echo "$TOOLS_ROOT/reporting/reporting.muttrc does not exist.  Please create this file to enable email reporting."
 fi
     
 # Send the message    
@@ -101,7 +101,7 @@ $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
 result=$?
 
 if [ $result -ne 0 ]; then 
-   error "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
+   echo "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
 fi
 
 if [ ! -f /tmp/mutt_message_$$ ]; then
