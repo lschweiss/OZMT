@@ -337,8 +337,6 @@ output_stats () {
 
         # Collect stats
 
-        # DEBUG set -x
-    
         local x=0
         local num_files=0
         local num_files_trans=0
@@ -348,13 +346,15 @@ output_stats () {
         local log_name="$1"
         local log_prefix="$2"
 
+        logs=`ls -1 ${TMP}|grep ${log_name}|grep ".log"`
 
-        for log in ${log_name}*.log ; do
-            if [ -f $log ]; then
-                this_num_files=`cat $log | grep "Number of files:" | awk -F ": " '{print $2}'`
-                this_num_files_trans=`cat $log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
-                this_total_file_size=`cat $log | grep "Total file size:" | awk -F " " '{print $4}'` 
-                this_total_transfered_size=`cat $log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
+        for log in ${logs} ; do
+            if [ -f ${TMP}/$log ]; then
+                debug "Adding totals for ${TMP}/$log"
+                this_num_files=`cat ${TMP}/$log | grep "Number of files:" | awk -F ": " '{print $2}'`
+                this_num_files_trans=`cat ${TMP}/$log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
+                this_total_file_size=`cat ${TMP}/$log | grep "Total file size:" | awk -F " " '{print $4}'` 
+                this_total_transfered_size=`cat ${TMP}/$log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
                 # Add to totals
                 let "num_files = $num_files + $this_num_files"
                 let "num_files_trans = $num_files_trans + $this_num_files_trans"
@@ -364,7 +364,6 @@ output_stats () {
             fi
         done
 
-       
         # Output totals
 
         notice "${log_prefix} ****************************************"
@@ -401,30 +400,30 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
     basedir="${snapdir}/${snap}"
 
-    joblog="/tmp/sync_folder_$$.log"
+    joblog="${TMP}/sync_folder_$$.log"
     
     if [ "$sflag" != "1" ]; then
         # Run rsync
         debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
             echo "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
-                $basedir/ $target_folder" > /tmp/sync_snap_folder_$$.log
+                $basedir/ $target_folder" > ${TMP}/sync_snap_folder_$$.log
             rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
-                $basedir/ $target_folder &>> /tmp/sync_snap_folder_$$.log
+                $basedir/ $target_folder &>> ${TMP}/sync_snap_folder_$$.log
             rsync_result=$?
 
             if [ $rsync_result -eq 23 ]; then
                 # Check if rsync failed to delete empty directories
-                remove_empty_dirs /tmp/sync_snap_folder_$$.log $target_folder
+                remove_empty_dirs ${TMP}/sync_snap_folder_$$.log $target_folder
             fi
 
             if [ $rsync_result -ne 0 ]; then
-                error "${basedir} Job failed with error code $rsync_result" /tmp/sync_snap_folder_$$.log
+                error "${basedir} Job failed with error code $rsync_result" ${TMP}/sync_snap_folder_$$.log
             fi
             if [ "$aflag" == "1" ]; then
-                notice "$basedir complete logs attached." /tmp/sync_snap_folder_$$.log
+                notice "$basedir complete logs attached." ${TMP}/sync_snap_folder_$$.log
             fi
-            output_stats "/tmp/sync_snap_folder_$$" "$source_folder"
+            output_stats "sync_snap_folder_$$" "$source_folder"
         fi
     else
         # Split rsync
@@ -434,26 +433,26 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Collect lists
         debug "Collecting lists.  Part 1:"
         find $basedir -mindepth $zval -maxdepth $zval -type d | \
-            grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > /tmp/sync_folder_list_$$
+            grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > ${TMP}/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
-        cat /tmp/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > /tmp/sync_folder_list_$$_trim
+        cat ${TMP}/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
         debug "Collecting lists.  Part 2:"
         find $basedir -maxdepth $zval -type f | \
-            sed "s,${basedir},,"  >> /tmp/sync_folder_list_$$_trim
+            sed "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
             
         # Randomize the list to spread across jobs better
 
-        cat /tmp/sync_folder_list_$$_trim | sort -R > /tmp/sync_folder_list_$$_rand
+        cat ${TMP}/sync_folder_list_$$_trim | sort -R > ${TMP}/sync_folder_list_$$_rand
         
        
         # TODO: Remove excluded folders/files  Note: move the .histroy exclusion from above. 
         
-#        echo "Check the folder list: /tmp/sync_folder_list_$$_trim"
+#        echo "Check the folder list: ${TMP}/sync_folder_list_$$_trim"
 #        read pause
 
         x=0
-        lines=`cat /tmp/sync_folder_list_$$_rand|wc -l`
+        lines=`cat ${TMP}/sync_folder_list_$$_rand|wc -l`
         remainder=$(( $lines % $sval ))
         if [ $remainder -eq 0 ]; then
             linesperjob=$(( $lines / $sval ))
@@ -463,9 +462,9 @@ if [ -d "${source_folder}/.snapshot" ]; then
 
         while [ $x -lt $sval ]; do
             skip=$(( $x * $linesperjob ))
-            cat /tmp/sync_folder_list_$$_rand | tail -n +${skip} | head -n ${linesperjob} > /tmp/sync_folder_list_$$_${x}
-                # sed "s,^,/," > /tmp/sync_folder_list_$$_${x}
-            split_rsync "/tmp/sync_folder_list_$$_${x}" &
+            cat ${TMP}/sync_folder_list_$$_rand | tail -n +${skip} | head -n ${linesperjob} > ${TMP}/sync_folder_list_$$_${x}
+                # sed "s,^,/," > ${TMP}/sync_folder_list_$$_${x}
+            split_rsync "${TMP}/sync_folder_list_$$_${x}" &
             if [ $sval -gt 5 ]; then
                 # Stagger startup
                 sleep 1
@@ -476,13 +475,13 @@ if [ -d "${source_folder}/.snapshot" ]; then
         # Wait for all jobs to complete
         complete=0
         while [ $complete -lt $sval ]; do
-            complete=`ls -1 /tmp/sync_folder_list_$$_*.complete 2>/dev/null|wc -l`
+            complete=`ls -1 ${TMP}/sync_folder_list_$$_*.complete 2>/dev/null|wc -l`
             sleep 2
         done
 
         # output stats
 
-        output_stats "/tmp/sync_folder_list_$$_" "$source_folder"
+        output_stats "sync_folder_list_$$_" "$source_folder"
 
     fi # [ "$sflag" != 1 ]
 
@@ -491,7 +490,7 @@ else
     debug "${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
 
-    joblog="/tmp/sync_folder_$$_"
+    joblog="${TMP}/sync_folder_$$_"
     
     for folder in $subfolders; do
         if [ "$cflag" == "1" ]; then
@@ -521,11 +520,11 @@ else
                 debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
                 if [ "$tflag" != "1" ]; then
                     rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
-                        $basedir/ $target_folder/${folder} &> /tmp/sync_folder_$$_${folder}.log
+                        $basedir/ $target_folder/${folder} &> ${TMP}/sync_folder_$$_${folder}.log
 
                     rsync_result=$?
                     if [ $rsync_result -ne 0 ]; then
-                        error "${basedir} Job failed with error code $rsync_result" /tmp/sync_folder_$$_${folder}.log
+                        error "${basedir} Job failed with error code $rsync_result" ${TMP}/sync_folder_$$_${folder}.log
                     else
                         notice "${source_folder} Finished syncing CNS folder $folder"
                         if [ -d ${target_folder}/${folder}/.zfs/snapshot ]; then
@@ -556,14 +555,15 @@ else
 
     # output stats
 
-    output_stats "/tmp/sync_snap_folder_$$_" "$source_folder"
+    output_stats "sync_folder_$$_" "$source_folder"
 
     # clean up
 
-    rm -f /tmp/sync_folder_list_$$ \
-          /tmp/sync_folder_list_$$_trim \
-          /tmp/sync_folder_list_$$_rand \
-          /tmp/sync_folder_$$_*.log &>/dev/null
+    rm -f ${TMP}/sync_folder_list_$$ \
+          ${TMP}/sync_folder_list_$$_trim \
+          ${TMP}/sync_folder_list_$$_rand \
+          ${TMP}/sync_folder_$$_*.log \
+          ${TMP}/sync_folder_$$_*.complete &>/dev/null
 
 fi
 
