@@ -26,6 +26,7 @@ stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
 glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier/active"
 glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier/status"
+blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
 
     mkdir -p $snapjobdir
     mkdir -p ${stagingjobdir}
@@ -114,10 +115,34 @@ setupzfs () {
         fi
     fi
 
+    # Setup blind backups
+
+    if [ "x$blind_backup" != "x" ]; then
+        if [ "x$target_folder" == "x" ]; then
+            echo "$(color magenta)ERROR: target_folder must be define before calling setupzfs$(color)"
+            exit 1
+        fi
+        blindjobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
+        echo "Setting blind backup to $target_folder"
+        mkdir -p $blindbackupjobdir/$blindjobname
+        echo "zfs_folder=\"${pool}/${zfspath}\"" > $blindbackupjobdir/$blindjobname/folders
+        echo "target_folder=\"${target_folder}\"" >> $blindbackupjobdir/$blindjobname/folders
+        if [ "x$snap_type" == "x" ]; then
+            echo "snap_type=\"daily\"" >> $blindbackupjobdir/$blindjobname/folders
+        else
+            echo "snap_type=\"$snap_type\"" >> $blindbackupjobdir/$blindjobname/folders
+        fi
+        echo "$(color cyan)Be sure you schedule blind-increment-job.sh to run after every $snap_type snapshot."
+        if [ ! -f "$blindbackupjobdir/$blindjobname/last-snap" ]; then
+            echo "$(color cyan)You must seed the file $blindbackupjobdir/$blindjobname/last-snap"
+            echo "with the name of the last snapshot that was syncronized.$(color)"
+        fi
+    fi
+
 
     jobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
 
-    # Prep the jobs folders
+    # Prep the snapshot jobs folders
     for snaptype in $snaptypes; do
         if [ ! -d $snapjobdir/$snaptype ]; then
             mkdir $snapjobdir/$snaptype

@@ -109,3 +109,43 @@ fi
 
 }
 
+
+####
+#
+# Conversions
+#
+####
+
+tobytes () {
+    awk '{ ex = index("KMG", substr($1, length($1)))
+           val = substr($1, 0, length($1))
+           prod = val * 10^(ex * 3)
+           sum += prod
+         }
+         END {print sum}'
+}
+
+bytestohuman () {
+    if [ $1 -gt 1099511627776 ]; then
+        echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
+        return
+    fi
+
+    if [ $1 -gt 1073741824 ]; then
+        echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
+        return
+    fi
+
+    if [ $1 -gt 1048576 ]; then
+        echo -n $(echo "scale=3;$1/1048576"|bc)MiB
+        return
+    fi
+
+    if [ $1 -gt 1024 ]; then
+        echo -n $(echo "scale=3;$1/1024"|bc)KiB
+        return
+    fi
+
+    echo "$1 bytes"
+
+}

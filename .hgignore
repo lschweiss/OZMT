@@ -12,3 +12,4 @@ reporting/reports_pending
 reporting/reporting.muttrc
 root.save
 etc.save
+tmp/*
