@@ -88,6 +88,10 @@ if [ "x$default_report_name" == "x" ]; then
     default_report_name="default"
 fi
 
+if [ "x$TMP" == "x" ]; then
+    TMP="/tmp"
+fi
+
 . $TOOLS_ROOT/reporting/reporting_functions.sh
 
 now() {

@@ -570,7 +570,7 @@ delete_file () {
         esac
     fi
 
-    return error_val
+    return $error_val
     
 }
 

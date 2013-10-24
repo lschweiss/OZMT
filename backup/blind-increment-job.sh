@@ -128,7 +128,6 @@ for job in $blind_jobs; do
             last_snapshot=`cat $jobfolder/$job/last-snap`
         else
             error "$jobfolder/$job/last-snap does not exist.   This must be seeded with the most resent snapshot synced."
-            exit 1
         fi
 
         if [ "${target_folder:0:1}" == "/" ]; then
