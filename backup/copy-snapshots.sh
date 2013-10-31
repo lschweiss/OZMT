@@ -701,8 +701,8 @@ for snap in $net_snap_list; do
                             if [ $? -eq 0 ]; then
                                 let "modify_bytes = $modify_bytes + $(stat -c %s "$source_file")"
                             else
-                                error "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
-                                error "\"$line\"" $TMP/blind_inc_error_$$
+                                warning "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
+                                warning "\"$line\"" $TMP/blind_inc_error_$$
                             fi
                         fi
                         ;;
@@ -712,8 +712,8 @@ for snap in $net_snap_list; do
                         if [ $? -eq 0 ]; then    
                             let "copy_bytes = $copy_bytes + $(stat -c %s "$source_file")"
                         else
-                            error "Failed to copy \"$file\" from ${snap}. ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to copy \"$file\" from ${snap}. ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
                         fi
                         ;;
                     '-')
@@ -721,8 +721,8 @@ for snap in $net_snap_list; do
                         if [ $? -eq 0 ]; then
                             delete_count=$(( delete_count + 1 ))
                         else
-                            error "Failed to delete \"$file\".  ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to delete \"$file\".  ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
                         fi
                             
                         ;;
@@ -733,8 +733,8 @@ for snap in $net_snap_list; do
                             newname=`echo "$line"|cut -f 4`
                             newname="${newname:$stripfolderlen}"
                         else
-                            error "Failed to rename \"$file\" to \"$newname\".  ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to rename \"$file\" to \"$newname\".  ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
                         fi
                         ;;
                 esac

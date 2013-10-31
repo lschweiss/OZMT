@@ -14,12 +14,13 @@ locate_snap () {
     date=$2
     preferred_tag=$3
 
+
     if [ -d $path ]; then
 	if [ "$#" -eq "3" ]; then
-	    snap=`ls -1 $path|grep $date|grep $preferred_tag`
+	    snap=`ls -1 $path|grep $date|grep $preferred_tag|tail -n 1`
 	fi
 	if [ "$snap" == "" ]; then
-            snap=`ls -1 $path|grep $date`
+        snap=`ls -1 $path|grep $date|tail -n 1`
 	fi
     else
 	echo "Directory $path not found."

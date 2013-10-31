@@ -272,7 +272,7 @@ remove_empty_dirs () {
 
             for empty in $empties; do
                 warning "removing empty directory $target/$empty which rsync failed to remove"
-                notice "would run: rm -rf \"$target/$empty\""
+                rm -rf \"$target/$empty\"
             done
         fi
 
@@ -335,9 +335,15 @@ output_stats () {
 
 
 
-if [ -d "${source_folder}/.snapshot" ]; then
-    debug "${source_folder}/.snapshot found."
-    snapdir="${source_folder}/.snapshot"
+if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]; then
+    if [ -d "${source_folder}/.snapshot" ]; then
+        debug "${source_folder}/.snapshot found."
+        snapdir="${source_folder}/.snapshot"
+    fi
+    if [ -d "${source_folder}/.zfs/snapshot" ]; then
+        debug "${source_folder}/.zfs/snapshot found."
+        snapdir="${source_folder}/.zfs/snapshot"
+    fi
     # Below syntax captures output of 'locate_snap' function
     snap=`locate_snap "$snapdir" "$date"`
     # Check the return status of 'locate_snap'
@@ -523,7 +529,7 @@ fi
 
 # Capture snapshot
 if [ -z "$eval" ]; then
-    #We are not pushing to remote host assume zfs snapshot to be taken here
+    # We are not pushing to remote host assume zfs snapshot to be taken here
     # Find the zfs folder in case we are not mounted to the same path
         zfsfolder=`mount|grep "$target_folder on"|awk -F " " '{print $3}'`
     debug "zfs snapshot ${zfsfolder}@${snap_label}"
