@@ -67,15 +67,15 @@ for job in $backupjobs; do
     # Find previous sucessful snapshot
 
     snapshots=`ssh root@${instance_dns} zfs list -t snapshot -H -o name -s creation | \
-                grep "^${target_folder}@" | \
-                grep "aws-backup_"`
+                $grep "^${target_folder}@" | \
+                $grep "aws-backup_"`
 
     # Determine if there is enough space on the pool for the increment.
     # If not expand the pool first.
 
     if [ "$snapshots" == "" ]; then
         # This must be our first sync
-        required=`zfs list -H ${staging_folder:1} | cut -f 2`
+        required=`zfs list -H ${staging_folder:1} | $cut -f 2`
         requiredunit=${required#${required%?}}
         # Strip the units
         required="${required%?}"
@@ -85,7 +85,7 @@ for job in $backupjobs; do
         fi  
     fi
 
-    targetfree=`ssh root@${instance_dns} zfs list -H $ec2_zfspool | cut -f 3`
+    targetfree=`ssh root@${instance_dns} zfs list -H $ec2_zfspool | $cut -f 3`
     targetunit=${targetfree#${targetfree%?}}
     # Strip the units
     targetfree="${targetfree%?}"
@@ -151,9 +151,9 @@ for job in $backupjobs; do
                     # Processes report success
                     # Get the md5sum of the staging file
                     echo -n "Calculating md5sum on target staging file..."
-                    cstarget=`ssh root@${instance_dns} "md5sum -b ${target_file} | cut -d ' ' -f1 " `
+                    cstarget=`ssh root@${instance_dns} "md5sum -b ${target_file} | $cut -d ' ' -f1 " `
                     echo "Done."
-                    cssource=`cat $csfile | cut -d " " -f1`
+                    cssource=`cat $csfile | $cut -d " " -f1`
 
                     if [ "$cssource" == "$cstarget" ]; then
 

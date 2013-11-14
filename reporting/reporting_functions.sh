@@ -100,7 +100,7 @@ process_message() {
 
     if [[ "$debug_level" == "" || "${this_message_level}" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
         # Determine if we are running on a terminal
-        if [[ -t 1 || "$DEBUG" == "true" ]]; then
+        if [[ -t 1 || "$DEBUG" == "true" && "$DEBUG" != "false" ]]; then
             # Set the color
             case "$2" in 
                 '0') echo -n "${noreport}$(color bd white)" ;;

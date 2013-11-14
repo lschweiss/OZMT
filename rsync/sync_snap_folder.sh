@@ -124,15 +124,15 @@ fi
 if [ ! -z "$dflag" ]; then
     #echo "Option -d $dval specified"
     debug "Attempting to use given snapshot date"
-    date=$dval
+    this_date=$dval
     # Assume we are running interactively if a date is specified
     #pflag=1
 else
     # Default to today's date
     debug "Defaulting to today's date"
-    date=`date +%F`
+    this_date=`$date +%F`
 fi
-debug "Using Date: $date"
+debug "Using Date: $this_date"
 
 if [ ! -z "$pflag" ]; then
     progress="--verbose --progress"
@@ -262,13 +262,13 @@ remove_empty_dirs () {
 
     # Can't do this when using a remote connection
     if [ -z "$eflag" ]; then
-        cat $logfile | grep -q "cannot delete non-empty directory: "
+        cat $logfile | $grep -q "cannot delete non-empty directory: "
         has_empties=$?
 
         if [ $has_empties -eq 0 ]; then
             empties=`cat $logfile | \
-                     grep "cannot delete non-empty directory: " | \
-                     awk -F "cannot delete non-empty directory: " '{print $2}'`
+                     $grep "cannot delete non-empty directory: " | \
+                     $awk -F "cannot delete non-empty directory: " '{print $2}'`
 
             for empty in $empties; do
                 warning "removing empty directory $target/$empty which rsync failed to remove"
@@ -300,15 +300,15 @@ output_stats () {
         local log_name="$1"
         local log_prefix="$2"
 
-        logs=`ls -1 ${TMP}|grep ${log_name}|grep ".log"`
+        logs=`ls -1 ${TMP}|$grep ${log_name}|$grep ".log"`
 
         for log in ${logs} ; do
             if [ -f ${TMP}/$log ]; then
                 debug "Adding totals for ${TMP}/$log"
-                this_num_files=`cat ${TMP}/$log | grep "Number of files:" | awk -F ": " '{print $2}'`
-                this_num_files_trans=`cat ${TMP}/$log | grep "Number of files transferred:" | awk -F ": " '{print $2}'`
-                this_total_file_size=`cat ${TMP}/$log | grep "Total file size:" | awk -F " " '{print $4}'` 
-                this_total_transfered_size=`cat ${TMP}/$log | grep "Total transferred file size:" | awk -F " " '{print $5}'`
+                this_num_files=`cat ${TMP}/$log | $grep "Number of files:" | $awk -F ": " '{print $2}'`
+                this_num_files_trans=`cat ${TMP}/$log | $grep "Number of files transferred:" | $awk -F ": " '{print $2}'`
+                this_total_file_size=`cat ${TMP}/$log | $grep "Total file size:" | $awk -F " " '{print $4}'` 
+                this_total_transfered_size=`cat ${TMP}/$log | $grep "Total transferred file size:" | $awk -F " " '{print $5}'`
                 # Add to totals
                 let "num_files = $num_files + $this_num_files"
                 let "num_files_trans = $num_files_trans + $this_num_files_trans"
@@ -345,7 +345,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         snapdir="${source_folder}/.zfs/snapshot"
     fi
     # Below syntax captures output of 'locate_snap' function
-    snap=`locate_snap "$snapdir" "$date"`
+    snap=`locate_snap "$snapdir" "$this_date"`
     # Check the return status of 'locate_snap'
     if [ $? -eq 0 ] ; then
         debug "Snapshot folder located: $snap"
@@ -393,13 +393,13 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         # Collect lists
         debug "Collecting lists.  Part 1:"
         find $basedir -mindepth $zval -maxdepth $zval -type d | \
-            grep -x -v ".snapshot"|grep -x -v ".zfs"|grep -v ".history" > ${TMP}/sync_folder_list_$$
+            $grep -x -v ".snapshot"|$grep -x -v ".zfs"|$grep -v ".history" > ${TMP}/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
-        cat ${TMP}/sync_folder_list_$$ | sed "s,${basedir}/,," | sed 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
+        cat ${TMP}/sync_folder_list_$$ | $sed "s,${basedir}/,," | $sed 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
         debug "Collecting lists.  Part 2:"
         find $basedir -maxdepth $zval -type f | \
-            sed "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+            $sed "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
             
         # Randomize the list to spread across jobs better
 
@@ -454,7 +454,7 @@ else
     
     for folder in $subfolders; do
         if [ "$cflag" == "1" ]; then
-            cat $cval | grep -q -x "$folder" 
+            cat $cval | $grep -q -x "$folder" 
             if [ "$?" -eq "0" ]; then
                 notice "${source_folder} Skiping CNS folder $folder"
                 exclude_folder=0
@@ -470,7 +470,7 @@ else
         if [ -d ${source_folder}/$folder ] && [ $exclude_folder -ne 0 ]; then
             snapdir="${source_folder}/${folder}/.snapshot"
             # Below syntax captures output of 'locate_snap' function
-            snap=`locate_snap "$snapdir" "$date"`
+            snap=`locate_snap "$snapdir" "$this_date"`
             # Check the return status of 'locate_snap'
             if [ $? -eq 0 ] ; then
                 debug "Snapshot folder located: ${snapdir}/${snap}"
@@ -531,7 +531,7 @@ fi
 if [ -z "$eval" ]; then
     # We are not pushing to remote host assume zfs snapshot to be taken here
     # Find the zfs folder in case we are not mounted to the same path
-        zfsfolder=`mount|grep "$target_folder on"|awk -F " " '{print $3}'`
+        zfsfolder=`mount|$grep "$target_folder on"|$awk -F " " '{print $3}'`
     debug "zfs snapshot ${zfsfolder}@${snap_label}"
     if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
         zfs snapshot ${zfsfolder}@${snap_label}

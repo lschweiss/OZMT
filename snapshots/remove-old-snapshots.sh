@@ -141,13 +141,13 @@ fi
 if [ $days -ne 0 ]; then
     debug "remove-old-snapshots: Removing snapshots older than ${days} days from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
-        /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "${snap_grep}" | \
+        $awk -F " " '{print $1}' | \
+        $grep "${snap_grep}" | \
         sort`
     # Extract the date from each one and see if we should destroy it.
     for snap in $snap_list; do
     
-            snap_date=`echo ${snap}|grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
+            snap_date=`echo ${snap}|$grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
             if [ "x$snap_date" == "x" ]; then
                 debug "Skipping ${snap}, cannot decipher date."
             else
@@ -181,8 +181,8 @@ if [ $count -ne 0 ]; then
     # Reverse the order of the snap list from the newest to the oldest
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
-        /usr/gnu/bin/awk -F " " '{print $1}' | \
-        grep "${snap_grep}" | \
+        $awk -F " " '{print $1}' | \
+        $grep "${snap_grep}" | \
         sort -r | \
         tail -n +$(( $count + 1 ))`
     for snap in $delete_list; do

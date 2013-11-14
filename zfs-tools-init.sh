@@ -46,6 +46,74 @@ function DEBUG()
  [ "$_DEBUG" == "on" ] &&  $@
 }
 
+# Load paths if not defined in configs
+if [ -z $grep ]; then
+    grep=`which grep`
+fi
+
+if [ -z $sed ]; then
+    sed=`which sed`
+fi
+
+if [ -z $awk ]; then
+    awk=`which awk`
+fi
+
+if [ -z $cut ]; then
+    cut=`which cut`
+fi
+
+if [ -z $mutt ]; then
+    mutt=`which mutt`
+fi
+
+if [ -z $date ]; then
+    date=`which date`
+fi
+
+if [ -z $rsync ]; then
+    rsync=`which rsync`
+fi
+
+# Test essential binaries
+
+binary_error=0
+
+# date
+
+$date --date 2013-11-14 +%s 2>/dev/null 1>/dev/null
+
+if [ $? -ne 0 ]; then
+    echo "date function not compatible.  Make sure the path includes a gnu compatible date function or define the variable 'date'."
+    binary_error=1
+fi
+
+# grep
+
+echo 'Today is not 2010-10-01.'|$grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' 2> /dev/null 1> /dev/null
+
+if [ $? -ne 0 ]; then
+    echo "grep function not compatible.  Make sure the path includes a gnu compatible grep function or define the varible 'grep'."
+    binary_error=1
+fi
+
+# awk TODO: need a test
+
+# sed TODO: need a test
+
+# mutt TODO: need a test
+
+# cut TODO: need a test
+
+# rync TODO: need a test
+
+if [ $binary_error -ne 0 ]; then
+    echo Aborting
+    exit 1
+fi
+
+
+
 . $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
 
 if [ "$ec2_backup" == "true" ]; then
