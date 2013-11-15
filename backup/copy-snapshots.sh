@@ -290,6 +290,12 @@ copy_file () {
     # 'zfs diff' will escape many chacters as octal representations.  Passing through
     # echo will process these escapes to characters.
     local file=`echo -n "/${zfs_source}/.zfs/snapshot/${snap}/${1}"`
+
+    if [ ! -e "$file" ]; then
+        warning "File listed as new or modified does not exist. \"${file}\""
+        return 2
+    fi
+                   
     local filedest=`echo -n "/${zfs_target}/${1}"`
     local filehash=`echo -n "/${zfs_target}/${1}.sha256"`
     local filetype=`stat --printf="%F" "$file"`
@@ -699,13 +705,20 @@ for snap in $net_snap_list; do
                             long_delete_files "$file" "$snap" "$prev_snap"
                         else
                             copy_file "$file" "$snap" 
-                            if [ $? -eq 0 ]; then
-                                let "modify_bytes = $modify_bytes + $(stat -c %s "$source_file")"
-                            else
-                                warning "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
-                                warning "\"$line\"" $TMP/blind_inc_error_$$
-                                warning_count=$(( warning_count + 1 ))
-                            fi
+                            case $? in
+                                0)
+                                    let "modify_bytes = $modify_bytes + $(stat -c %s "$source_file")"
+                                    ;;
+                                1)
+                                    warning "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
+                                    warning "\"$line\"" $TMP/blind_inc_error_$$
+                                    warning_count=$(( warning_count + 1 ))
+                                    ;;
+                                2)
+                                    delete_file "$file" "$filetype"
+                                    warning_count=$(( warning_count + 1 ))
+                                    ;;
+                            esac           
                         fi
                         ;;
                     '+')
