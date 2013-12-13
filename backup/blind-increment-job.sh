@@ -128,7 +128,6 @@ for job in $blind_jobs; do
             last_snapshot=`cat $jobfolder/$job/last-snap`
         else
             error "$jobfolder/$job/last-snap does not exist.   This must be seeded with the most resent snapshot synced."
-            exit 1
         fi
 
         if [ "${target_folder:0:1}" == "/" ]; then
@@ -144,11 +143,11 @@ for job in $blind_jobs; do
         fi
 
         latest_snapshot=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            grep "${snap_grep}" | \
-                            cut -f 1 | \
-                            tail -n 1 | cut -d "@" -f 2`
+                            $grep "${snap_grep}" | \
+                            $cut -f 1 | \
+                            tail -n 1 | $cut -d "@" -f 2`
 
-        zfs list -t snapshot -H -o name | grep -q "^${zfs_folder}@${latest_snapshot}"; result=$?
+        zfs list -t snapshot -H -o name | $grep -q "^${zfs_folder}@${latest_snapshot}"; result=$?
         if [ $result -ne 0 ]; then
             error "Last snapshot ${zfs_source}@${last_snap} does not exist!" 
             exit 1
@@ -167,7 +166,7 @@ for job in $blind_jobs; do
             notice "${zfs_folder}@${last_snapshot} and"
             notice "${zfs_folder}@${latest_snapshot} to /${target_folder} started"
        
-            copy_snaps &
+            copy_snaps 
             sleep 5 
             
         fi

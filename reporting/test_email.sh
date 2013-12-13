@@ -1,7 +1,5 @@
 #! /bin/bash
 
-# attach-ebs-volumes.sh
-#
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
 # Copyright (C) 2012  Chip Schweiss
@@ -20,27 +18,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-
-# Re-attach ebs volumes to our instance
-
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ./zfs-tools-init.sh
+. ../zfs-tools-init.sh
 
-# Create our starting point reference file
-echo -n "Gathering information..."
-ec2-describe-volumes --show-empty-fields > /tmp/ebs-volumes_$$
-echo "Done."
+die () {
 
-volumeids=`cat /tmp/ebs-volumes_$$ | $grep "TAG" | $grep "${instance_hostname}_/dev/sd" | $cut -f 3`
+    echo "$1" >&2
+    exit 1
 
-for volumeid in $volumeids; do
-    # Get the device attachment point
-    awsdev=`cat /tmp/ebs-volumes_$$ | $grep "TAG" | $grep "$volumeid" | $cut -f 5 | $grep -o -E "sd[f-p][0-9]+"`
-    awsdev="/dev/${awsdev}"
-    
-    echo "Attaching volume $volumeid to $awsdev on $instanceid" 
-    ec2-attach-volume -v $volumeid -i $instanceid -d $awsdev &
-
-done
+}
 
 
+echo "Test email from $HOSTNAME" >/tmp/test_email
+
+./send_email.sh /tmp/test_email "${HOSTNAME}: Test email."
+
+rm /tmp/test_email

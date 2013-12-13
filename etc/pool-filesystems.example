@@ -18,13 +18,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
 
-rm $TOOLS_ROOT/snapshots/jobs/*/*
-rm -rf $TOOLS_ROOT/backup/jobs/*
-
-. ./zfs_functions.sh
+# This script is not called directly it is executed by setup-filesystems.sh
 
 # This is a not very elegant at this point but easy and straight forward
 #
@@ -42,8 +37,6 @@ rm -rf $TOOLS_ROOT/backup/jobs/*
 # 2:        zfs options being set.
 # 3:        The snapshot policy to apply.
 
-
-pool="primarypool"
 
 staging="${staging_folder:1}" # From zfs-config, in this case "stagingpool/primarystaging"
 crypt="true"
@@ -65,20 +58,4 @@ setupzfs "my_important_data" \
     bi-annual|1
     annual|1"
 
-#########################
-#
-# Staging pool
-#
-#########################
-
-pool="stagingpool"
-
-staging=""
-crypt="false"
-backup="${ec2_zfspool}"
-
-setupzfs "staging" \
-    "compression=off
-    checksum=sha256
-    atime=off"
 

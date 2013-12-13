@@ -101,7 +101,8 @@ $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
 result=$?
 
 if [ $result -ne 0 ]; then 
-   echo "Failed to send message /tmp/mutt_message_$$" /tmp/mutt_output_$$
+   echo "Failed to send message /tmp/mutt_message_$$" 
+   cat /tmp/mutt_output_$$
 fi
 
 if [ ! -f /tmp/mutt_message_$$ ]; then

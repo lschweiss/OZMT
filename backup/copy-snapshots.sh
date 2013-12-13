@@ -71,6 +71,7 @@ delete_count=0
 delete_bytes=0
 move_count=0
 move_bytes=0
+warning_count=0
 
 zflag=
 fflag=
@@ -185,10 +186,10 @@ if [ "$copymode" != "blind" ]; then
     # Confirm we are using the correct snapshot for the target
     
     last_target_snapname=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            grep -v "aws-backup_" | \
-                            grep "^${zfs_target}@" | \
-                            cut -f 1 | \
-                            tail -n 1 | cut -d "@" -f 2`
+                            $grep -v "$tools_snapshot_name" | \
+                            $grep "^${zfs_target}@" | \
+                            $cut -f 1 | \
+                            tail -n 1 | $cut -d "@" -f 2`
     
     debug "Last snapshot of ${zfs_target} is: $last_target_snapname"
     
@@ -203,13 +204,13 @@ if [ "$copymode" != "blind" ]; then
     if [ "$last_snap" == "latest" ]; then
         debug "Finding latest snapshot of $zfs_source"
            last_snap=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            grep "^${zfs_source}@" | \
-                            cut -f 1 | \
-                            tail -n 1 | cut -d "@" -f 2`
+                            $grep "^${zfs_source}@" | \
+                            $cut -f 1 | \
+                            tail -n 1 | $cut -d "@" -f 2`
         debug "Found ${zfs_source}@${last_snap} as the latest snapshot."
     fi
     
-    zfs list -t snapshot -H -o name | grep -q "^${zfs_source}@${last_snap}"; result=$?
+    zfs list -t snapshot -H -o name | $grep -q "^${zfs_source}@${last_snap}"; result=$?
     if [ $result -ne 0 ]; then
         error "Last snapshot ${zfs_source}@${last_snap} does not exist!" >&2
         exit 1
@@ -233,9 +234,9 @@ if [ -n "$iflag" ]; then
     # Collect all intermediate snapshots in order of snapshot creation
     debug "Collecting intermediate snapshots..."
     gross_snap_list=`zfs list -t snapshot -H -o name,creation -s creation | \
-                        grep "^${zfs_source}@" | \
-                        cut -f 1 | \
-                        cut -d "@" -f 2`
+                        $grep "^${zfs_source}@" | \
+                        $cut -f 1 | \
+                        $cut -d "@" -f 2`
     debug "Done."
     # Trim the list from first to last snapshots
     net_snap_list=""
@@ -289,6 +290,12 @@ copy_file () {
     # 'zfs diff' will escape many chacters as octal representations.  Passing through
     # echo will process these escapes to characters.
     local file=`echo -n "/${zfs_source}/.zfs/snapshot/${snap}/${1}"`
+
+    if [ ! -e "$file" ]; then
+        warning "File listed as new or modified does not exist. \"${file}\""
+        return 2
+    fi
+                   
     local filedest=`echo -n "/${zfs_target}/${1}"`
     local filehash=`echo -n "/${zfs_target}/${1}.sha256"`
     local filetype=`stat --printf="%F" "$file"`
@@ -362,8 +369,8 @@ copy_file () {
                         sigfile="${file:0:$namelen}.sha256"
                         gpg -r "$gpg_user" --output "$filedest" --decrypt "$file" &> $TMP/blind_inc_error_$$
                         error_val=$?
-                        sourcesha256=`cat ${sigfile}.sha256|cut -f 1`
-                        destsha256=`sha256sum "$filedest"|cut -f 1`
+                        sourcesha256=`cat ${sigfile}.sha256|$cut -f 1`
+                        destsha256=`sha256sum "$filedest"|$cut -f 1`
                         if [ "$sourcesha256" != "$destsha256" ]; then
                             error "SHA256 sum of decrypted file $filedest does not match saved sum in file $sigfile."
                         fi
@@ -426,11 +433,11 @@ copy_file () {
     if [ "$filetype" == "regular file" ] && [ "$copymode" == "crypt" ] || [ "$filetype" == "directory" ]; then
         if [ -z "$dflag" ]; then
             debug "Set ownership, permissions and mtime for $filedest"
-            chown ${fileuid}.${filegid} "$filedest" &>> $TMP/blind_inc_error_$$
+            chown ${fileuid}:${filegid} "$filedest" &>> $TMP/blind_inc_error_$$
             error_val=$(( error_val + $? ))
             chmod ${filemode} "$filedest" &>> $TMP/blind_inc_error_$$
             error_val=$(( error_val + $? ))
-            touch --reference="${file}" "$filedest" &>> $TMP/blind_inc_error_$$
+            touch --reference "${file}" "$filedest" &>> $TMP/blind_inc_error_$$
             error_val=$(( error_val + $? ))
         else
             debug "Would set ownership, permissions and mtime for $filedest"
@@ -445,11 +452,11 @@ copy_file () {
                 filegid=`stat --printf="%g" "$source_fix_dir"`
                 filemode=`stat --printf="%a" "$source_fix_dir"`
                 debug "Set ownership, permissions and mtime for $target_fix_dir"
-                chown ${fileuid}.${filegid} "$target_fix_dir" &>> $TMP/blind_inc_error_$$
+                chown ${fileuid}:${filegid} "$target_fix_dir" &>> $TMP/blind_inc_error_$$
                 error_val=$(( error_val + $? ))
                 chmod ${filemode} "$target_fix_dir" &>> $TMP/blind_inc_error_$$
                 error_val=$(( error_val + $? ))
-                touch --reference="${source_fix_dir}" "$target_fix_dir" &>> $TMP/blind_inc_error_$$
+                touch --reference "${source_fix_dir}" "$target_fix_dir" &>> $TMP/blind_inc_error_$$
                 error_val=$(( error_val + $? ))
             else
                 debug "Would set ownership, permissions and mtime for $filedest"
@@ -537,8 +544,8 @@ delete_file () {
                     # If the directory was also deleted it would be 
                     # executed first and our files will not be found
                     # We will dump error output.
-                    rm "/${zfs_target}/${file}" &> $TMP/blind_inc_error_$$
-                    error_val=$?
+                    rm "/${zfs_target}/${file}" &> /dev/null
+                    # error_val=$?
                     rm "/${zfs_target}/${file}.sha256" 2> /dev/null
                 else
                     debug "Would: delete \"/${zfs_target}/${file}\""
@@ -570,7 +577,7 @@ delete_file () {
         esac
     fi
 
-    return error_val
+    return $error_val
     
 }
 
@@ -587,16 +594,16 @@ long_delete_files () {
     local file=""
 
     # List the files in the current and previous snapshots
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | grep -v "." | grep -v ".." > /tmp/copy_snap_delete_files_current_$$
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | grep -v "." | grep -v ".." > /tmp/copy_snap_delete_files_previous_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | $grep -v "." | $grep -v ".." > /tmp/copy_snap_delete_files_current_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | $grep -v "." | $grep -v ".." > /tmp/copy_snap_delete_files_previous_$$
 
     # Check each file if has been removed but not renamed which is handled individually.
     while read file; do
-        cat /tmp/copy_snap_delete_files_current_$$|grep -q -x "$file";result=$?
+        cat /tmp/copy_snap_delete_files_current_$$|$grep -q -x "$file";result=$?
         if [ "$result" -ne "0" ]; then
             # The file is no longer in the directory
             # Has this file been renamed?
-            cat /tmp/copy_snaplist_$$|grep -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
+            cat /tmp/copy_snaplist_$$|$grep -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
             if [ "$result" -ne "0" ]; then
                 # File has been deleted
                 delete_file "${workdir}${file}"
@@ -685,7 +692,7 @@ for snap in $net_snap_list; do
                 debug "Files remaining: $file_count"
                 changetype=${line:0:1}
                 filetype=${line:2:1}
-                file=`echo "$line"|cut -f 3`
+                file=`echo "$line"|$cut -f 3`
                 stripfolderlen=$(( ${#zfs_source} + 2 ))
                 file="${file:$stripfolderlen}"
                 source_file=`echo -n "/${zfs_source}/.zfs/snapshot/${snap}/${file}"`
@@ -698,12 +705,20 @@ for snap in $net_snap_list; do
                             long_delete_files "$file" "$snap" "$prev_snap"
                         else
                             copy_file "$file" "$snap" 
-                            if [ $? -eq 0 ]; then
-                                let "modify_bytes = $modify_bytes + $(stat -c %s "$source_file")"
-                            else
-                                error "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
-                                error "\"$line\"" $TMP/blind_inc_error_$$
-                            fi
+                            case $? in
+                                0)
+                                    let "modify_bytes = $modify_bytes + $(stat -c %s "$source_file")"
+                                    ;;
+                                1)
+                                    warning "Failed to modify \"$file\" from ${snap}. ZFS diff line was:"
+                                    warning "\"$line\"" $TMP/blind_inc_error_$$
+                                    warning_count=$(( warning_count + 1 ))
+                                    ;;
+                                2)
+                                    delete_file "$file" "$filetype"
+                                    warning_count=$(( warning_count + 1 ))
+                                    ;;
+                            esac           
                         fi
                         ;;
                     '+')
@@ -712,8 +727,9 @@ for snap in $net_snap_list; do
                         if [ $? -eq 0 ]; then    
                             let "copy_bytes = $copy_bytes + $(stat -c %s "$source_file")"
                         else
-                            error "Failed to copy \"$file\" from ${snap}. ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to copy \"$file\" from ${snap}. ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
+                            warning_count=$(( warning_count + 1 ))
                         fi
                         ;;
                     '-')
@@ -721,20 +737,22 @@ for snap in $net_snap_list; do
                         if [ $? -eq 0 ]; then
                             delete_count=$(( delete_count + 1 ))
                         else
-                            error "Failed to delete \"$file\".  ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to delete \"$file\".  ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
+                            warning_count=$(( warning_count + 1 ))
                         fi
                             
                         ;;
                     'R')
+                        newname=`echo "$line"|$cut -f 4`
+                        newname="${newname:$stripfolderlen}"
                         rename_file "$file" "$newname" "$filetype"
                         if [ $? -eq 0 ]; then
                             move_count=$(( move_count + 1 ))
-                            newname=`echo "$line"|cut -f 4`
-                            newname="${newname:$stripfolderlen}"
                         else
-                            error "Failed to rename \"$file\" to \"$newname\".  ZFS diff line was:"
-                            error "\"$line\"" $TMP/blind_inc_error_$$
+                            warning "Failed to rename \"$file\" to \"$newname\".  ZFS diff line was:"
+                            warning "\"$line\"" $TMP/blind_inc_error_$$
+                            warning_count=$(( warning_count + 1 ))
                         fi
                         ;;
                 esac
@@ -753,7 +771,7 @@ for snap in $net_snap_list; do
                     changetype=${line:0:1}
                     case $changetype in
                         "M"|"+")
-                            file=`echo "$line"|cut -f 3`
+                            file=`echo "$line"|$cut -f 3`
                             stripfolderlen=$(( ${#zfs_source} + 2 ))
                             file="${file:$stripfolderlen}"
                             if [ -z "$dflag" ]; then
@@ -767,7 +785,7 @@ for snap in $net_snap_list; do
                             fi
                             ;;
                         "R")
-                            file=`echo "$line"|cut -f 4`
+                            file=`echo "$line"|$cut -f 4`
                             stripfolderlen=$(( ${#zfs_source} + 2 ))
                             file="${file:$stripfolderlen}"
                             if [ -z "$dflag" ]; then
@@ -812,6 +830,7 @@ for snap in $net_snap_list; do
             notice "${zfs_source} Number of files modified: $modify_count"
             notice "${zfs_source} Total modified size: $(bytestohuman $modify_bytes)"
             notice "${zfs_source} Number of files moved/rename: $move_count"
+            notice "${zfs_source} Warning count: $warning_count"
 
             # rm /tmp/copy_snap_filelist_$$
         

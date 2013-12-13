@@ -53,6 +53,10 @@ default_report_name="aws-zfs-tools"
 
 gpg_user="zfs-tools"
 
+# Snapshot prefix for tools generated snapshots.
+
+tools_snapshot_name="aws-backup_"
+
 # Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
 # keep them as they are, otherwise change to the instance-id.
 

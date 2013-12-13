@@ -48,7 +48,7 @@ die () {
 
 # Perform local snapshots
 
-zfs snapshot -r ${staging_folder:1}@aws-backup_${now}
+zfs snapshot -r ${staging_folder:1}@${tools_snapshot_name}${now}
 
 # Startup EC2 instance
 
@@ -67,15 +67,15 @@ for job in $backupjobs; do
     # Find previous sucessful snapshot
 
     snapshots=`ssh root@${instance_dns} zfs list -t snapshot -H -o name -s creation | \
-                grep "^${target_folder}@" | \
-                grep "aws-backup_"`
+                $grep "^${target_folder}@" | \
+                $grep "${tools_snapshot_name}"`
 
     # Determine if there is enough space on the pool for the increment.
     # If not expand the pool first.
 
     if [ "$snapshots" == "" ]; then
         # This must be our first sync
-        required=`zfs list -H ${staging_folder:1} | cut -f 2`
+        required=`zfs list -H ${staging_folder:1} | $cut -f 2`
         requiredunit=${required#${required%?}}
         # Strip the units
         required="${required%?}"
@@ -85,7 +85,7 @@ for job in $backupjobs; do
         fi  
     fi
 
-    targetfree=`ssh root@${instance_dns} zfs list -H $ec2_zfspool | cut -f 3`
+    targetfree=`ssh root@${instance_dns} zfs list -H $ec2_zfspool | $cut -f 3`
     targetunit=${targetfree#${targetfree%?}}
     # Strip the units
     targetfree="${targetfree%?}"
@@ -107,14 +107,14 @@ for job in $backupjobs; do
             # handing data off to bbcp.   We will decrypt on the receive end with openssl as well.
             
             #Generate an encryption key
-            bbcp_key="/tmp/zfs.aws-backup_key_${now}"
+            bbcp_key="/tmp/zfs.${tools_snapshot_name}key_${now}"
             pwgen -s 63 1 > $bbcp_key
 
             # Send the key file
             scp $bbcp_key root@${instance_dns}:$bbcp_key
 
             # Create the named pipe
-            pipe="/tmp/zfs.aws-backup_pipe_${now}"
+            pipe="/tmp/zfs.${tools_snapshot_name}pipe_${now}"
             mkfifo $pipe
 
             # Start the zfs send
@@ -122,10 +122,10 @@ for job in $backupjobs; do
             # is still trying send
             # We collect our own md5sum, bbcp seems to hang at the end if we ask it to generate one
 
-            csfile="/tmp/zfs.aws-backup_cksum_${now}"
+            csfile="/tmp/zfs.${tools_snapshot_name}cksum_${now}"
             send_result=999
-            result_file="/tmp/zfs.aws-backup_send_result_${now}"
-            ( zfs send -R ${staging_folder:1}@aws-backup_${now} | \
+            result_file="/tmp/zfs.${tools_snapshot_name}send_result_${now}"
+            ( zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
             mbuffer -q -s 128k -m 128M 2>/dev/null | \
             openssl aes-256-cbc -pass file:$bbcp_key | tee $pipe | \
             md5sum -b > $csfile ; send_result=$? ; \
@@ -134,7 +134,7 @@ for job in $backupjobs; do
             # Accellorate the copy with bbcp
 
             if [ "$inst_store_staging" == "true" ]; then
-                target_file="/data/instancestore/zfs.aws-backup_${now}"
+                target_file="/data/instancestore/zfs.${tools_snapshot_name}${now}"
                 time $bbcp -s $bbcp_streams -V -P 301 -E md5 -E %md5 -N i $pipe root@${instance_dns}:${target_file} 
                 bbcp_result=$?
                 # Remove the pipe
@@ -151,9 +151,9 @@ for job in $backupjobs; do
                     # Processes report success
                     # Get the md5sum of the staging file
                     echo -n "Calculating md5sum on target staging file..."
-                    cstarget=`ssh root@${instance_dns} "md5sum -b ${target_file} | cut -d ' ' -f1 " `
+                    cstarget=`ssh root@${instance_dns} "md5sum -b ${target_file} | $cut -d ' ' -f1 " `
                     echo "Done."
-                    cssource=`cat $csfile | cut -d " " -f1`
+                    cssource=`cat $csfile | $cut -d " " -f1`
 
                     if [ "$cssource" == "$cstarget" ]; then
 
@@ -169,7 +169,7 @@ for job in $backupjobs; do
                         echo "Done."
 
                         if [ $receive_result -ne 0 ]; then
-                            zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                            zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                             die "zfs receive failed with result code: $receive_result"
                         else
                             result=0
@@ -177,7 +177,7 @@ for job in $backupjobs; do
 
                     else 
 
-                        zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                        zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                         die "Target md5sum $cstarget does not match source md5sum $cssource."
 
                     fi
@@ -186,11 +186,11 @@ for job in $backupjobs; do
 
                     # Something failed
                     if [ $bbcp_result -ne 0 ]; then
-                        zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                        zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                         die "bbcp failed with result code: $bbcp_result"
                     fi
                     if [ $send_result -ne 0 ]; then
-                        zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                        zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                         die "zfs send failed with result code: $send_result"
                     fi
                 fi
@@ -220,15 +220,15 @@ for job in $backupjobs; do
         else
 
             if [ "$inst_store_staging" == "true" ]; then
-                target_file="/data/instancestore/zfs.aws-backup_${now}"
-                csfile="/tmp/zfs.aws-backup_cksum_${now}"
+                target_file="/data/instancestore/zfs.${tools_snapshot_name}${now}"
+                csfile="/tmp/zfs.${tools_snapshot_name}cksum_${now}"
                 
-                time zfs send -R ${staging_folder:1}@aws-backup_${now} | \
+                time zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
                 ssh root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
                     > ${target_file} " ; result=$?
 
                 if [ $result -ne 0 ]; then
-                    zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                    zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                     die "Failed to push to instance storage"
                 fi
 
@@ -237,20 +237,20 @@ for job in $backupjobs; do
                 result=$?
 
                 if [ $result -ne 0 ]; then
-                    zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                    zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                     die "Failed to zfs receive from instance store.  Manual intervention necessary."
                 fi
             else
                 # Simplest of methods, but has many drawbacks when data becomes sizeable
                 # Any type of error will require manual intervention to correct
                 ssh root@${instance_dns} "zfs create -p ${target_folder}" && \
-                zfs send -R ${staging_folder:1}@aws-backup_${now} | \
+                zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
                 ssh root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
                     zfs receive -F -vu ${target_folder}"
                 result=$?
 
                 if [ $result -ne 0 ]; then
-                    zfs destroy -r ${staging_folder:1}@aws-backup_${now}
+                    zfs destroy -r ${staging_folder:1}@${tools_snapshot_name}${now}
                     die "Failed to zfs send/receive.  Manual intervention necessary."
                 fi
 
