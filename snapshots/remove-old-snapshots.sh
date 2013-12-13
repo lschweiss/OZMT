@@ -119,11 +119,11 @@ if [ "$zflag" == "0" ]; then
     exit 1
 fi
 
+zfs_folder="$zval"
 
 # Remote folder parameter
-if [ -e "/$zval" ]; then
-    zfs_folder="$zval"
-else
+zfs list -H |cut -f 1 | grep -q "^${zfs_folder}$"
+if [ $? -eq 1 ]; then
     error "remove-old-snapshots: ZFS folder $zval does not exist!"
     exit 1
 fi
