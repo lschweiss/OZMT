@@ -6,7 +6,6 @@ zfs-config.sh
 .*.swp
 snapshots/jobs
 backup/jobs
-pools_filesystems/setup-filesystems.sh
 amazon-glacier-cmd-interface
 reporting/reports_pending
 reporting/reporting.muttrc

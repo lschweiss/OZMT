@@ -112,6 +112,10 @@ if [ $binary_error -ne 0 ]; then
     exit 1
 fi
 
+if [ -z $tools_snapshot_name ]; then
+    tools_snapshot_name="aws-backup_"
+fi
+
 
 
 . $TOOLS_ROOT/ansi-color-0.6/color_functions.sh

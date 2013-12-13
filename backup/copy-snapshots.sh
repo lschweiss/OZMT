@@ -186,7 +186,7 @@ if [ "$copymode" != "blind" ]; then
     # Confirm we are using the correct snapshot for the target
     
     last_target_snapname=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            $grep -v "aws-backup_" | \
+                            $grep -v "$tools_snapshot_name" | \
                             $grep "^${zfs_target}@" | \
                             $cut -f 1 | \
                             tail -n 1 | $cut -d "@" -f 2`
@@ -744,11 +744,11 @@ for snap in $net_snap_list; do
                             
                         ;;
                     'R')
+                        newname=`echo "$line"|$cut -f 4`
+                        newname="${newname:$stripfolderlen}"
                         rename_file "$file" "$newname" "$filetype"
                         if [ $? -eq 0 ]; then
                             move_count=$(( move_count + 1 ))
-                            newname=`echo "$line"|$cut -f 4`
-                            newname="${newname:$stripfolderlen}"
                         else
                             warning "Failed to rename \"$file\" to \"$newname\".  ZFS diff line was:"
                             warning "\"$line\"" $TMP/blind_inc_error_$$
