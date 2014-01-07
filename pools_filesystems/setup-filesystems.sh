@@ -26,7 +26,7 @@ rm -rf $TOOLS_ROOT/backup/jobs/*
 
 . ./zfs_functions.sh
 
-pools=`zpool list -H|cut -f 1`
+pools="$(pools)"
 
 for pool in $pools; do
 

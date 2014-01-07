@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-snapjobdir="$TOOLS_ROOT/snapshots/jobs"
+#snapjobdir="$TOOLS_ROOT/snapshots/jobs"
 stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
 glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier/active"
@@ -40,10 +40,14 @@ setupzfs () {
     options="$2"
     snapshots="$3"
 
+    snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
+
     if [ ! -e "/$pool" ]; then
         echo "ERROR: ZFS pool \"$pool\" does not exist!"
         exit 1
     fi
+
+    mkdir -p $snapjobdir
 
     if [ -e "/$pool/$zfspath" ]; then
         echo "${pool}/${zfspath} already exists, resetting options"

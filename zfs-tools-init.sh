@@ -225,3 +225,23 @@ bytestohuman () {
     echo "$1 bytes"
 
 }
+
+####
+#
+# Pool and file system functions
+#
+####
+
+pools () {
+    # Returns all pools mounted on the system excluding the rpool
+
+    zpool list -H | cut -f 1  | grep -v "$(rpool)"
+
+}
+
+rpool () {
+    # Returns the active rpool
+
+    mount|grep -e "^/ on"|awk -F " on " '{print $2}'|awk -F "/" '{print $1}'
+
+}
