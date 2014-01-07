@@ -34,5 +34,5 @@ while [ $thisbay -le $endbay ] ; do
  (( thisbay = $thisbay + 1 ))
 done
 
-/etc/smartmon-ux $CMDLINE $SESPATH
+smartmon-ux $CMDLINE $SESPATH
 
