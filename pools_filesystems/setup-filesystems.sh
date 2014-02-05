@@ -33,6 +33,7 @@ for pool in $pools; do
     if [ -f "/$pool/zfs_tools/etc/pool-filesystems" ] ; then
         notice "Setting up pool $pool"
         rm /${pool}/zfs_tools/etc/snapshots/jobs/*/*
+        rm /${pool}/zfs_tools/etc/backup/jobs/*/*
         source /$pool/zfs_tools/etc/pool-filesystems
     else 
         warning "No file system configuration found for $pool"

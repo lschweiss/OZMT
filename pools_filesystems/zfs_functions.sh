@@ -28,7 +28,7 @@ glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier/active"
 glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier/status"
 blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
 
-    mkdir -p $snapjobdir
+    #mkdir -p $snapjobdir
     mkdir -p ${stagingjobdir}
     mkdir -p ${ec2backupjobdir}
     mkdir -p ${glacierjobdir}
@@ -39,8 +39,10 @@ setupzfs () {
     zfspath="$1"
     options="$2"
     snapshots="$3"
+    backup_target="$4"
 
     snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
+    backupjobdir="/${pool}/zfs_tools/etc/backup/jobs"
 
     if [ ! -e "/$pool" ]; then
         echo "ERROR: ZFS pool \"$pool\" does not exist!"
@@ -48,6 +50,7 @@ setupzfs () {
     fi
 
     mkdir -p $snapjobdir
+    mkdir -p $backupjobdir
 
     if [ -e "/$pool/$zfspath" ]; then
         echo "${pool}/${zfspath} already exists, resetting options"
@@ -83,7 +86,7 @@ setupzfs () {
 
     # Setup EC2 backup
 
-    if [ "x$backup" != "x" ]; then
+    if [ "$backup" == "ec2" ]; then
         ec2backupjobname=`echo "${backup}/${pool}/${zfspath}" | sed s,/,%,g`
         echo "source_folder=\"${pool}/${zfspath}\"" > ${ec2backupjobdir}/${ec2backupjobname}
         echo "target_folder=\"${ec2_zfspool}/${pool}/${zfspath}\"" >> ${ec2backupjobdir}/${ec2backupjobname}
@@ -145,6 +148,15 @@ setupzfs () {
 
 
     jobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
+
+    # Setup ZFS backup jobs
+    if [ "$backup" == "zfs" ]; then
+        echo "Creating backup job:"
+        echo "ZFS send to $backup_target"
+        mkdir -p ${backupjobdir}/zfs
+        echo "backup_source=\"${pool}/${zfspath}\"" > ${backupjobdir}/zfs/${jobname}
+        echo "backup_target=\"${backup_target}\"" >> ${backupjobdir}/zfs/${jobname}
+    fi
 
     # Prep the snapshot jobs folders
     for snaptype in $snaptypes; do
