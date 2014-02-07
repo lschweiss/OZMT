@@ -533,22 +533,26 @@ if [ -z "$eval" ]; then
     # Find the zfs folder in case we are not mounted to the same path
         zfsfolder=`mount|$grep "$target_folder on"|$awk -F " " '{print $3}'`
     debug "zfs snapshot ${zfsfolder}@${snap_label}"
-    zfs list $zfsfolder &>/dev/null
-    if [ $? -eq 0 ]; then
-        if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
-            zfs snapshot ${zfsfolder}@${snap_label}
-            return=$?
+    if [ -f /usr/sbin/zfs ]; then
+        zfs list $zfsfolder &>/dev/null
+        if [ $? -eq 0 ]; then
+            if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
+                zfs snapshot ${zfsfolder}@${snap_label}
+                return=$?
+            fi
+       
+        
+            if [ $return -ne 0 ]; then
+                error "${source_folder} ZFS Snapshot failed for ${zfsfolder}@${snap_label} Error level: $return"
+            else
+                debug "ZFS Snapshot succeed."
+            fi
+        else 
+            warning "ZFS folder $zfsfolder not mounted.  Cannot snapshot."
         fi
-   
-    
-        if [ $return -ne 0 ]; then
-            error "${source_folder} ZFS Snapshot failed for ${zfsfolder}@${snap_label} Error level: $return"
-        else
-            debug "ZFS Snapshot succeed."
-        fi
-    else 
-        warning "ZFS folder $zfsfolder not mounted.  Cannot snapshot."
-    fi
+    else
+        notice "Not on running on a ZFS server. Snapshot skipped."
+    fi 
 fi
 
 debug "=== Job Complete ==="
