@@ -45,7 +45,7 @@ now=`date +%F_%H:%M%z`
 
 pool=$1
 
-logfile="/$pool/zfs_tools/logs/nfs_stat_${now}"
+logfile="/$pool/zfs_tools/logs/arc_stat_${now}"
 
 $TOOLS_ROOT/utils/arcstat.pl -o $logfile -f time,arcsz,read,hits,hit%,l2read,l2hits,l2miss,l2hit%,l2size,mrug,mfug 60 60 
 
