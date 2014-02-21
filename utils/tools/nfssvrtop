@@ -164,7 +164,7 @@ inline string CLEAR 	= "'$clearstr'";
 /* 
  * increase dynvarsize if you get "dynamic variable drops"
  */
-#pragma D option dynvarsize=12m
+#pragma D option dynvarsize=20m
 
 /*
  * Print header
