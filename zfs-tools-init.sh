@@ -46,6 +46,8 @@ function DEBUG()
  [ "$_DEBUG" == "on" ] &&  $@
 }
 
+os=`uname`
+
 # Load paths if not defined in configs
 if [ -z $grep ]; then
     grep=`which grep`
@@ -73,6 +75,30 @@ fi
 
 if [ -z $rsync ]; then
     rsync=`which rsync`
+fi
+
+if [ -z $ssh ]; then
+    ssh=`which ssh`
+fi
+
+if [ -z $timeout ]; then
+    timeout=`which timeout`
+fi
+
+if [ -z $bbcp ]; then
+    if [ -f "$TOOLS_ROOT/utils/bbcp.${os}" ]; then
+        bbcp="$TOOL_ROOT/utils/bbcp.${os}"
+    else
+        bbcp=`which bbcp`
+    fi
+fi
+
+if [ -z $mbuffer ]; then
+    if [ -f "$TOOLS_ROOT/utils/mbuffer.${os}" ]; then
+        bbcp="$TOOL_ROOT/utils/mbuffer.${os}"
+    else
+        bbcp=`which bbcp`
+    fi
 fi
 
 # Test essential binaries
@@ -168,6 +194,10 @@ fi
 
 now() {
     date +"%F %r %Z"
+}
+
+now_stamp () {
+    date +"%F_%H:%M:%S%z"
 }
 
 check_key () {

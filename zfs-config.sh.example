@@ -49,6 +49,24 @@ default_logfile="/var/log/aws-zfs-tools.log"
 
 default_report_name="aws-zfs-tools"
 
+###
+#
+# ZFS backups
+#
+###
+
+zfs_logfile="/var/log/zfs-tools-zfsbackup.log"
+
+zfs_report="ZFSbackup"
+
+
+###
+#
+# AWS backups
+#
+###
+
+
 # GPG key ring
 
 gpg_user="zfs-tools"
@@ -159,7 +177,27 @@ tools_snapshot_name="aws-backup_"
 
     glacier_job_stagger="600"
 
+# Make sure the EC2 Private Key and Cert files are referenced
+
+EC2_PRIVATE_KEY=/root/pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
+EC2_CERT=/root/cert-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
+
+# EC2 API tools must be in the path and its location defined in the EC2_HOME environment variable
+# Some instances from Amazon already have these installed and in the path.
+# It is recommended that once you have your jobs fully running from a terminal, to put the PATH you 
+# have in the terminal here before creating cron jobs.
+
+PATH=$PATH:/root/tools/ec2-api-tools-1.5.5.0/bin
+EC2_HOME=/root/tools/ec2-api-tools-1.5.5.0
+
+# JAVA_HOME must also be defined for the EC2 API Tools to work
+JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
+
+##
+#
 # Email reporting: Requires mutt to be installed and configured
+#
+##
 
     # Address to send reports to
     email_to="cts-admin@nrg.wustl.edu"
@@ -189,18 +227,3 @@ tools_snapshot_name="aws-backup_"
 
 snaptypes="hourly daily mid-day weekly monthly bi-annual annual"
 
-# Make sure the EC2 Private Key and Cert files are referenced
-
-EC2_PRIVATE_KEY=/root/pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
-EC2_CERT=/root/cert-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
-
-# EC2 API tools must be in the path and its location defined in the EC2_HOME environment variable
-# Some instances from Amazon already have these installed and in the path.
-# It is recommended that once you have your jobs fully running from a terminal, to put the PATH you 
-# have in the terminal here before creating cron jobs.
-
-PATH=$PATH:/root/tools/ec2-api-tools-1.5.5.0/bin
-EC2_HOME=/root/tools/ec2-api-tools-1.5.5.0
-
-# JAVA_HOME must also be defined for the EC2 API Tools to work
-JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
