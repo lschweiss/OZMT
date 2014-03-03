@@ -388,7 +388,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
     else
         # Split rsync
 
-        notice "${source_folder} Splitting into $sval rsync job(s)"
+        notice "${source_folder} Splitting into $sval rsync job(s), scan depth $zval"
 
         # Collect lists
         debug "Collecting lists.  Part 1:"

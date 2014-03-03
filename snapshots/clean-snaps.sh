@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -35,24 +35,35 @@ else
     report_name="$default_report_name"
 fi
 
+# collect jobs
 
-for snaptype in $snaptypes; do
+pools="$(pools)"
 
-    # collect jobs
-    jobs=`ls -1 $jobfolder/$snaptype`
+for pool in $pools; do
+
+    jobfolder="/${pool}/zfs_tools/etc/snapshots/jobs"
+
+
+    for snaptype in $snaptypes; do
     
-    for job in $jobs; do
-        zfsfolder=`echo $job|sed 's,%,/,g'`
-        keepcount=`cat $jobfolder/$snaptype/$job`
-        if [ "${keepcount:0:1}" == "x" ]; then
-            keepcount="${keepcount:1}"
-        fi
-        if [ "$keepcount" -ne "0" ]; then
-            ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
-        else
-            debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
-        fi
-        echo
+        # collect jobs
+        jobs=`ls -1 $jobfolder/$snaptype`
+        
+        for job in $jobs; do
+            zfsfolder=`echo $job|sed 's,%,/,g'`
+            keepcount=`cat $jobfolder/$snaptype/$job`
+            if [ "${keepcount:0:1}" == "x" ]; then
+                keepcount="${keepcount:1}"
+            fi
+            if [ "$keepcount" -ne "0" ]; then
+                ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
+            else
+                debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
+            fi
+            echo
+        done
+    
     done
+
 
 done
