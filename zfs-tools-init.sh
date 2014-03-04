@@ -85,6 +85,7 @@ if [ -z $timeout ]; then
     timeout=`which timeout`
 fi
 
+
 if [ -z $bbcp ]; then
     if [ -f "$TOOLS_ROOT/utils/bbcp.${os}" ]; then
         bbcp="$TOOL_ROOT/utils/bbcp.${os}"
@@ -95,12 +96,27 @@ fi
 
 if [ -z $mbuffer ]; then
     if [ -f "$TOOLS_ROOT/utils/mbuffer.${os}" ]; then
-        bbcp="$TOOL_ROOT/utils/mbuffer.${os}"
+        mbuffer="$TOOL_ROOT/utils/mbuffer.${os}"
     else
-        bbcp=`which bbcp`
+        mbuffer=`which bbcp` 
     fi
 fi
 
+if [ -z $lz4 ]; then
+    if [ -f "$TOOLS_ROOT/utils/lz4.${os}" ]; then
+        lz4="$TOOL_ROOT/utils/lz4.${os}"
+    else
+        lz4=`which lz4`
+    fi
+fi
+
+if [ -z $gzip ]; then
+    if [ -f "$TOOLS_ROOT/utils/gzip.${os}" ]; then
+        gzip="$TOOL_ROOT/utils/gzip.${os}"
+    else
+        gzip=`which gzil`
+    fi
+fi
 # Test essential binaries
 
 binary_error=0

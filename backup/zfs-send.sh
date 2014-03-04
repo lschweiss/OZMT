@@ -100,8 +100,8 @@ remote_host=
 mbuffer_use='false'
 bbcp_streams=0
 bbcp_encrypt='false'
-gzip=0
-lz4=0
+gzip_level=0
+lz4_level=0
 replicate='false'
 target_prop=
 flat_file='false'
@@ -142,16 +142,16 @@ while getopts s:t:f:l:h:mbeg:zrpFk:L:R: opt; do
             debug "zfs_send: Encrypting BBCP traffic"
             ;;
         g)  # Compress with gzip
-            gzip="$OPTARG"
-            debug "zfs_send: Gzip compression level $gzip"
+            gzip_level="$OPTARG"
+            debug "zfs_send: Gzip compression level $gzip_level"
             ;;
         z)  # Compress with LZ4
-            lz4="$OPTARG"
-            case $lz4 in
+            lz4_level="$OPTARG"
+            case $lz4_level in
                 1) 
                     debug "zfs_send: Using LZ4 standard" ;;
                 [4-9])
-                    debug "zfs_send: Using LZ4HC level $lz4" ;;
+                    debug "zfs_send: Using LZ4HC level $lz4_level" ;;
                 *)
                     die "zfs_send: Invalid LZ4 specified" ;;
             esac
@@ -221,12 +221,12 @@ if [ "$flat_file" == 'false' ]; then
 fi
 
 re='^[0-9]+$'
-if ! [[ $gzip =~ $re ]] ; then
+if ! [[ $gzip_level =~ $re ]] ; then
    die "zfs_send: -g expects a number between 0 and9"
 fi
 
-if ! [[ $lz4 =~ $re ]] ; then
-    if [ [ $lz4 -gt 9 ] || [ $lz4 -lt 4 ] ]; then
+if ! [[ $lz4_level =~ $re ]] ; then
+    if [ [ $lz4_level -gt 9 ] || [ $lz4_level -lt 4 ] ]; then
         die "zfs_send: -z expects a number between 4 and 9"
     fi
 fi
@@ -387,6 +387,8 @@ fi
 # to Glacier
 ##
 
+#TODO: Make backup to glacier use this script
+# Allow usage of more than one glacier tool.
 
 ##
 # mbuffer - Receive end
@@ -395,12 +397,12 @@ fi
 if [ "$mbuffer_use" == 'true' ]; then
     # Target end
     if [ [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ]; then
-            target_mbuffer_fifo=`remote_fifo target.mbuffer.in`
-            $remote_ssh "( nohup mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/target.mbuffer.log \
-                -i $target_mbuffer_fifo -o $target_fifo 1>/dev/null \
-                2> $remote_tmp/target.mbuffer.error \
-                < /dev/null ; echo $? > $remote_tmp/target.mbuffer.errorlevel ) &"
-            target_fifo="$target_mbuffer_fifo"
+        target_mbuffer_fifo=`remote_fifo target.mbuffer.in`
+        $remote_ssh "( nohup mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/target.mbuffer.log \
+            -i $target_mbuffer_fifo -o $target_fifo 1>/dev/null \
+            2> $remote_tmp/target.mbuffer.error \
+            < /dev/null ; echo $? > $remote_tmp/target.mbuffer.errorlevel ) &"
+        target_fifo="$target_mbuffer_fifo"
     fi
 fi
 
@@ -408,10 +410,10 @@ fi
 # gzip - Decompress
 ##
 
-if [ [ "$gzip" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ]; then
-    target_gzip_fifo=`remote_fifo target.gzip.in`
-    $remote_ssh "( nohup gunzip < $target_gzip_fifo 1> $target_fifo 2> $remote_tmp/zfs_target.gzip.error ; \
-        echo $? > $remote_tmp/zfs_target.gzip.errorlevel ) &"
+if [ [ "$gzip_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ]; then
+    target_gzip_fifo=`remote_fifo target.gzip`
+    $remote_ssh "( nohup gzip -d $target_gzip_fifo 1> $target_fifo 2> $remote_tmp/target.gzip.error ; \
+        echo $? > $remote_tmp/target.gzip.errorlevel ) &"
     target_fifo="$target_gzip_fifo"
 fi
 
@@ -419,7 +421,12 @@ fi
 # LZ4     
 ##
 
-#TODO:  Need and LZ4 binary    
+if [ [ "$lz4_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ]; then
+    target_lz4_fifo=`remote_fifo target.lz4`
+    $remote_ssh "( nohup $lz4 -d $target_lz4_fifo $target_fifo 2> $remote_tmp/target.lz4.error ; \
+        echo $? > $remote_tmp/target.lz4.errorlevel ) &"
+    target_fifo="$target_lz4_fifo"
+fi
 
 
 ##
@@ -435,7 +442,7 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     scp $bbcp_key root@${remote_host}:${remote_bbcp_key}
 
     # Open FIFO
-    target_ssl_fifo=`remote_fifo target_ssl_in`
+    target_ssl_fifo=`remote_fifo target_ssl`
 
     # Start openssl
     $remote_ssh "( nohup openssl aes-256-cbc -d -pass file:$bbcp_key <$target_ssl_fifo 1> $target_fifo \
@@ -457,33 +464,70 @@ if [ "$bbcp_streams" -ne 0 ]; then
 fi
     
 
-
-
-
-
 ##
 # SSH
 ##
+
+if [ [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ] ]; then
+    target_ssh_fifo=`local_fifo ssh_fifo`
+        ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > /tmpdir/ssh.errorlevel ) &
+    target_fifo="$target_ssh_fifo"
+fi
 
 ##
 # OpenSSL Encrypt
 ##
 
+if [ "$bbcp_encrypt" == 'true' ]; then
+    # Setup was handled when target decrypt was configured
+    source_ssl_fifo=`local_fifo source_ssl`
+    ( openssl aes-256-cbc -pass file:$bbcp_key <$source_ssl_fifo 1> $target_fifo \
+        2> $tmpdir/source_ssl.error ; echo $? > $tmpdir/source_ssl.errorlevel ) &
+    target_fifo="$target_ssl_fifo"
+fi
+
 ##
 # gpg Encrypt
 ##
+
+#TODO: Redo backup to glacier to use this send routine.
 
 ##
 # LZ4
 ##
 
+if [ "$lz4_level" -ne 0 ]; then
+    source_lz4_fifo=`local_fifo source_lz4`
+    ( $lz4 -${lz4_level} $source_lz4_fifo $target_fifo 2> /$tmpdir/lz4.error ; echo $? > /tmpdir/lz4.errorlevel ) &
+    target_fifo="$source_lz4_fifo"
+fi
+
 ##
 # gzip
 ##
 
+if [ "$gzip_level" -ne 0 ]; then
+    source_gzip_fifo=`local_fifo source_gzip`
+    ( $gzip -${gzil_level} --stdout $source_gzip_fifo > $target_fifo 2> /tmpdir/gzip.error ; echo $? /tmpdir/gzip.errorlevel ) &
+    target_fifo="$source_gzip_fifo"
+fi
+
+
 ##
 # mbuffer - Send end
 ##
+
+if [ "$mbuffer_use" == 'true' ]; then
+    # Source end
+    if [ "$flat_file" == 'false' ]; then
+        source_mbuffer_fifo=`remote_fifo target.mbuffer.in`
+        ( mbuffer -q -s 128k -m 128M --md5 -l $tmpdir/source_mbuffer.log \
+            -i $source_mbuffer_fifo -o $target_fifo 1>/dev/null \
+            2> $tmpdri/source_mbuffer.error \
+            < /dev/null ; echo $? > $tmpdir/source_mbuffer.errorlevel ) &
+        target_fifo="$source_mbuffer_fifo"
+    fi
+fi
 
 ##
 # zfs send
