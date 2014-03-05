@@ -354,12 +354,6 @@ else
     debug "zfs_send: Input valdation succeeded.  Proceeding."
 fi
 
-###
-#
-# Setup named pipes for each transport type
-#
-###
-
 ##
 # Functions
 ##
@@ -405,9 +399,11 @@ pause () {
     read nothing
 }
 
-
-#TODO: Build from target to source connecting fifos as we build
-
+###
+#
+# Build from target to source connecting fifos as we build
+#
+###
 
 ##
 # zfs receive or flat file
@@ -638,6 +634,8 @@ debug "zfs_send: zfs send finished."
 ##
 
 sleep 10
+
+#TODO: Make zfs send a background process and cycle looking for completion or an error condition
 
 ##
 # Collect job component error levels and report failures
