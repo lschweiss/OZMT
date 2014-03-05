@@ -88,7 +88,7 @@ fi
 
 if [ -z $bbcp ]; then
     if [ -f "$TOOLS_ROOT/utils/bbcp.${os}" ]; then
-        bbcp="$TOOL_ROOT/utils/bbcp.${os}"
+        bbcp="$TOOLS_ROOT/utils/bbcp.${os}"
     else
         bbcp=`which bbcp`
     fi
@@ -96,7 +96,7 @@ fi
 
 if [ -z $mbuffer ]; then
     if [ -f "$TOOLS_ROOT/utils/mbuffer.${os}" ]; then
-        mbuffer="$TOOL_ROOT/utils/mbuffer.${os}"
+        mbuffer="$TOOLS_ROOT/utils/mbuffer.${os}"
     else
         mbuffer=`which bbcp` 
     fi
@@ -104,7 +104,7 @@ fi
 
 if [ -z $lz4 ]; then
     if [ -f "$TOOLS_ROOT/utils/lz4.${os}" ]; then
-        lz4="$TOOL_ROOT/utils/lz4.${os}"
+        lz4="$TOOLS_ROOT/utils/lz4.${os}"
     else
         lz4=`which lz4`
     fi
@@ -112,9 +112,9 @@ fi
 
 if [ -z $gzip ]; then
     if [ -f "$TOOLS_ROOT/utils/gzip.${os}" ]; then
-        gzip="$TOOL_ROOT/utils/gzip.${os}"
+        gzip="$TOOLS_ROOT/utils/gzip.${os}"
     else
-        gzip=`which gzil`
+        gzip=`which gzip`
     fi
 fi
 # Test essential binaries
