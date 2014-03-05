@@ -162,22 +162,22 @@ process_message() {
 
         report_path="$TOOLS_ROOT/reporting/reports_pending/$report_name"
 
-        mkdir -p $report_path/attach
+        mkdir -p "$report_path/attach"
 
         # Raise the report level if necessary
-        if [ -f $report_path/report_level ]; then
-            source $report_path/report_level
+        if [ -f "$report_path/report_level" ]; then
+            source "$report_path/report_level"
         fi
         if [[ "$report_level" == "" || "$report_level" -le "${this_message_level}" ]]; then
-            echo "report_level=\"${this_message_level}\"" > $report_path/report_level
+            echo "report_level=\"${this_message_level}\"" > "$report_path/report_level"
         fi
 
         if [ "$DEBUG" != "true" ]; then
-            echo "${this_message}" >> $report_path/report_pending
+            echo "${this_message}" >> "$report_path/report_pending"
             if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
                 this_file=$(basename ${this_include_file})
-                cp ${this_include_file} $report_path/attach/report_file_$$.txt
-                echo "$report_path/attach/report_file_$$.txt" >> $report_path/report_attachments
+                cp ${this_include_file} "$report_path/attach/report_file_$$.txt"
+                echo "$report_path/attach/report_file_$$.txt" >> "$report_path/report_attachments"
             fi
         fi
     fi
