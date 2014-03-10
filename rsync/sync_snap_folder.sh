@@ -34,6 +34,7 @@ show_usage() {
     echo "  [-s n] Split in to n rsync jobs. Incompatitble with CNS root folders."
     echo "  [-z n] scan n folders deep for split jobs"
     echo "  [-e options] remote shell program.  Passed directly as -e 'options' to rsync"
+    echo "  [-n name] job name.  Defaults to source folder."
     echo "  [-r] dry Run."
     echo
     exit 1
@@ -60,11 +61,12 @@ aflag=
 eflag=
 lflag=
 zflag=
+nflag=
 zval=1
 
 progress=""
 
-while getopts apkrtc:x:d:s:e:z:l: opt; do
+while getopts apkrtc:x:d:s:e:z:l:n: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -94,6 +96,9 @@ while getopts apkrtc:x:d:s:e:z:l: opt; do
         z)  # Scan depth for split jobs
             zflag=1
             zval="$OPTARG";;
+        n)  # Job name
+            nflag=1
+            nval="$OPTARG";;
         e)  # Use remote shell
             eflag=1
             eval="$OPTARG";;
@@ -189,6 +194,14 @@ if [ ! -z "$kflag" ]; then
     extra_options="${extra_options} --checksum"
 fi
 
+if [ ! -x "$nflag" ]; then
+    debug "Setting job name to $nval"
+    jobname="$nval"
+else
+    debug "Setting job name to $source_folder"
+    jobnaem="$source_folder"
+fi
+
 
 
 ####
@@ -223,15 +236,15 @@ split_rsync () {
             if [ $rsync_result -ne 0 ]; then
                 warning "${source_folder} Job failed with error code $rsync_result" ${1}.log
                 if [ $try -eq 3 ]; then
-                    error "${source_folder} Job for $1 failed 3 times. Giving up. " ${1}.log
+                    error "${jobname} Job for $1 failed 3 times. Giving up. " ${1}.log
                     break;
                 else
-                    notice "${source_folder} Job for $1 failed.  Will try up to 3 times."
+                    notice "${jobname} Job for $1 failed.  Will try up to 3 times."
                 fi
             fi
 
             if [ "$aflag" == "1" ]; then
-                notice "${source_folder} split job ${1} logs attached" ${1}.log
+                notice "${jobname} split job ${1} logs attached" ${1}.log
             fi
 
         done
@@ -298,7 +311,8 @@ output_stats () {
         local total_transfered_size=0
 
         local log_name="$1"
-        local log_prefix="$2"
+
+        local indent=`head -c ${#jobname} < /dev/zero | tr '\0' '\040'`
 
         logs=`ls -1 ${TMP}|$grep ${log_name}|$grep ".log"`
 
@@ -320,14 +334,12 @@ output_stats () {
 
         # Output totals
 
-        notice "${log_prefix} ****************************************"
-        notice "${log_prefix} ** Rsync Totals                       **"
-        notice "${log_prefix} ****************************************"
-        notice "${log_prefix} Number of jobs: $x"
-        notice "${log_prefix} Number of files: $num_files"
-        notice "${log_prefix} Number of files transfered: $num_files_trans"
-        notice "${log_prefix} Total_file_size: $(bytestohuman $total_file_size)"
-        notice "${log_prefix} Total Transfered size: $(bytestohuman $total_transfered_size)"
+        notice "${jobname} ******* Rsync Totals *******"
+        notice  "${indent} Number of jobs: $x"
+        notice  "${indent} Number of files: $num_files"
+        notice  "${indent} Number of files transfered: $num_files_trans"
+        notice  "${indent} Total_file_size: $(bytestohuman $total_file_size)"
+        notice  "${indent} Total Transfered size: $(bytestohuman $total_transfered_size)"
         
         # DEBUG set +x
         
@@ -337,11 +349,11 @@ output_stats () {
 
 if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]; then
     if [ -d "${source_folder}/.snapshot" ]; then
-        debug "${source_folder}/.snapshot found."
+        debug "${jobname}: ${source_folder}/.snapshot found."
         snapdir="${source_folder}/.snapshot"
     fi
     if [ -d "${source_folder}/.zfs/snapshot" ]; then
-        debug "${source_folder}/.zfs/snapshot found."
+        debug "${jobname}: ${source_folder}/.zfs/snapshot found."
         snapdir="${source_folder}/.zfs/snapshot"
     fi
     # Below syntax captures output of 'locate_snap' function
@@ -383,21 +395,21 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
             if [ "$aflag" == "1" ]; then
                 notice "$basedir complete logs attached." ${TMP}/sync_snap_folder_$$.log
             fi
-            output_stats "sync_snap_folder_$$" "$source_folder"
+            output_stats "sync_snap_folder_$$" 
         fi
     else
         # Split rsync
 
-        notice "${source_folder} Splitting into $sval rsync job(s), scan depth $zval"
+        notice "${jobname}: Splitting into $sval rsync job(s), scan depth $zval"
 
         # Collect lists
-        debug "Collecting lists.  Part 1:"
+        debug "${jobname}: Collecting lists.  Part 1:"
         find $basedir -mindepth $zval -maxdepth $zval -type d | \
             $grep -x -v ".snapshot"|$grep -x -v ".zfs"|$grep -v ".history" > ${TMP}/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
         cat ${TMP}/sync_folder_list_$$ | $sed "s,${basedir}/,," | $sed 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
-        debug "Collecting lists.  Part 2:"
+        debug "${jobname}: Collecting lists.  Part 2:"
         find $basedir -maxdepth $zval -type f | \
             $sed "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
             
@@ -447,7 +459,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
 
 else
     # We will assume there is a .snapshot folder in each subdir of the CNS tree
-    debug "${source_folder}/.snapshot not found, assuming CNS root"
+    debug "${jobname}: ${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
 
     joblog="${TMP}/sync_folder_$$_"
@@ -493,7 +505,7 @@ else
                             zfs snapshot ${target_folder:1}/${folder}@${snap_label}
                             return=$?
                             if [ $return -ne 0 ]; then
-                                error "${source_folder} ZFS Snapshot failed for ${target_folder:1}/${folder}@${snap_label} Error level: $return"
+                                error "${jobname}: ZFS Snapshot failed for ${target_folder:1}/${folder}@${snap_label} Error level: $return"
                             else
                                 debug "ZFS Snapshot succeed."
                             fi
@@ -502,10 +514,10 @@ else
                 fi
             else
                 # If snapshot was not located, output the error message 
-                warning "Snapshot not located: $snap"
+                warning "${jobname}: Snapshot not located: $snap"
             fi
 
-            notice "${source_folder} ===== Rsync complete for $basedir ====="
+            notice "${jobname} ===== Rsync complete for $basedir ====="
         
         fi
         
@@ -515,7 +527,7 @@ else
 
     # output stats
 
-    output_stats "sync_folder_$$_" "$source_folder"
+    output_stats "sync_folder_$$_"
 
     # clean up
 
@@ -543,17 +555,17 @@ if [ -z "$eval" ]; then
        
         
             if [ $return -ne 0 ]; then
-                error "${source_folder} ZFS Snapshot failed for ${zfsfolder}@${snap_label} Error level: $return"
+                error "${jobname} ZFS Snapshot failed for ${zfsfolder}@${snap_label} Error level: $return"
             else
-                debug "ZFS Snapshot succeed."
+                debug "${jobname}: ZFS Snapshot succeed."
             fi
         else 
-            warning "ZFS folder $zfsfolder not mounted.  Cannot snapshot."
+            warning "${jobname}: ZFS folder $zfsfolder not mounted.  Cannot snapshot."
         fi
     else
-        notice "Not on running on a ZFS server. Snapshot skipped."
+        notice "${jobname}: Not on running on a ZFS server. Snapshot skipped."
     fi 
 fi
 
-debug "=== Job Complete ==="
+debug "${jobname}: === Job Complete ==="
 exit 0
