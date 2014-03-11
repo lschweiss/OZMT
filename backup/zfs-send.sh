@@ -21,6 +21,12 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
+_DEBUG="on"
+
+function DEBUG()
+{
+ [ "$_DEBUG" == "on" ] &&  $@
+}
 
 if [ "x$zfs_logfile" != "x" ]; then
     logfile="$zfs_logfile"
@@ -359,19 +365,21 @@ fi
 ##
 
 remote_fifo () {
-    debug "zfs_send: Creating remote fifo ${remote_tmp}/${1}"
-    $timeout 1m $remote_ssh "mkfifo ${remote_tmp}/${1}" || \
+    local fifo="${remote_tmp}/${1}.fifo"
+    debug "zfs_send: Creating remote fifo ${fifo}"
+    $timeout 1m $remote_ssh "mkfifo ${fifo}" || \
         die "zfs_send: Could not setup remote fifo $1 on host $remote_host"
-    target_fifos="${remote_tmp}/${1} $target_fifos"
-    echo -n "${remote_tmp}/${1}"
+    target_fifos="${fifo} $target_fifos"
+    result="${fifo}"
 }
 
 local_fifo () {
-    debug "zfs_send: Creating local fifo ${tmpdir}/${1}"
-    mkfifo "${tmpdir}/${1}" || \
-        die "zfs_send: Could not setup fifo ${tmpdir}/${1}"
-    local_fifos="${tmpdir}/${1} $local_fifos"
-    echo -n "${tmpdir}/${1}"
+    local fifo="${tmpdir}/${1}.fifo"
+    debug "zfs_send: Creating local fifo $fifo"
+    mkfifo "${fifo}" || \
+        die "zfs_send: Could not setup fifo $fifo"
+    local_fifos="${fifo} $local_fifos"
+    result="${fifo}"
 }
 
 remote_launch () {
@@ -399,11 +407,11 @@ pause () {
     read nothing
 }
 
-###
+################################################################
 #
 # Build from target to source connecting fifos as we build
 #
-###
+################################################################
 
 ##
 # zfs receive or flat file
@@ -412,28 +420,37 @@ pause () {
 if [ "$flat_file" == 'true' ]; then
     # To flat file
     if [ "$remote_host" == "" ]; then
-        target_fifo=`local_fifo flat_file`
+        local_fifo flat_file
+        target_fifo="$result"
         debug "zfs_send: Starting local cat from $target_fifo to $flat_file"
-        ( cat $target_fifo 1> $flat_file 2> $tmpdir/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel ) &       
+        ( cat $target_fifo 1> $flat_file 2> $tmpdir/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel ) &
+        local_watch="flat_file $local_watch"
+        
     else
-        target_fifo=`remote_fifo flat_file`
+        remote_fifo flat_file
+        target_fifo="$result"
         debug "zfs_send: Starting remote cat from $target_fifo to $flat_file"
-        remote_launch "flat_file" "cat $target_fifo 1> $flat_file 2> $remote_tmp/flat_file.error"
+        remote_launch "flat_file" "cat $target_fifo 1> $flat_file 2> $remote_tmp/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel"
+        remote_watch="flat_file $remote_watch"
     fi
 else
     # To zfs receive
     if [ "$remote_host" == "" ]; then
         # Local
-        target_fifo=`local_fifo zfs_receive`
+        local_fifo zfs_receive
+        target_fifo="$result"
         debug "zfs_send: Starting local zfs receive $target_fifo to ${target_folder}"
         ( cat $target_fifo | zfs receive -F -vu ${target_prop} ${target_folder} \
             2> $tmpdir/zfs_receive.error ; echo $? > $tmpdir/zfs_receive.errorlevel ) &
+        local_watch="$zfs_receive $local_watch"
     else
         # Remote
-        target_fifo=`remote_fifo zfs_receive`
+        remote_fifo zfs_receive
+        target_fifo="$result"
         debug "zfs_send: Starting remote zfs receive $target_fifo to ${target_folder}"
         remote_launch "zfs_receive" "cat $target_fifo | zfs receive -F -vu ${target_prop} ${target_folder} \
             2> $remote_tmp/zfs_receive.error ; echo $? > $remote_tmp/zfs_receive.errorlevel"
+        remote_watch="zfs_receive $remote_watch"
     fi
 fi
 
@@ -451,13 +468,15 @@ fi
 if [ "$mbuffer_use" == 'true' ]; then
     # Target end
     if [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ; then
-        target_mbuffer_fifo=`remote_fifo target_mbuffer`
+        remote_fifo mbuffer
+        target_mbuffer_fifo="$result"
         debug "zfs_send: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
         remote_launch "mbuffer" "cat $target_mbuffer_fifo | \
             /opt/csw/bin/mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log \
             2> $remote_tmp/mbuffer.error \
             | cat > $target_fifo ; \
             echo \$? > $remote_tmp/mbuffer.errorlevel"
+        remote_watch="mbuffer $remote_watch"
         sleep 3
         target_fifo="$target_mbuffer_fifo"
     fi
@@ -468,12 +487,14 @@ fi
 ##
 
 if [ "$gzip_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ]; then
-    target_gzip_fifo=`remote_fifo target.gzip`
+    remote_fifo gzip
+    target_gzip_fifo="$result"
     debug "zfs_send: Starting remote gzip decompression from $target_gzip_fifo to $target_fifo"
     remote_launch "gzip" "cat $target_gzip_fifo | \
         gzip -d --stdout 2> $remote_tmp/gunzip.error | \
         cat > $target_fifo ; \
         echo \$? > $remote_tmp/gunzip.errorlevel "
+    remote_watch="gunzip $remote_watch"
     sleep 2
     target_fifo="$target_gzip_fifo"
 fi
@@ -483,12 +504,14 @@ fi
 ##
 
 if [ "$lz4_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ]; then
-    target_lz4_fifo=`remote_fifo target.lz4`
+    remote_fifo lz4
+    target_lz4_fifo="$result"
     debug "zfs_send: Starting remote lz4 decompression from $target_lz4_fifo to $target_fifo"
     remote_launch "lz4" "cat $target_lz4_fifo | \
         $lz4 -d 2> $remote_tmp/lz4.error | \
         cat > $target_fifo ; \
         echo \$? > $remote_tmp/lz4.errorlevel"
+    remote_watch="lz4 $remote_watch"
     sleep 2
     target_fifo="$target_lz4_fifo"
 fi
@@ -507,12 +530,14 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     scp $bbcp_key root@${remote_host}:${remote_bbcp_key}
 
     # Open FIFO
-    target_ssl_fifo=`remote_fifo target_ssl`
+    remote_fifo openssl
+    target_ssl_fifo="$result"
 
     # Start openssl
     debug "zfs_send: Starting remote openssl decrypt from $target_ssl_fifo to $target_fifo"
     remote_launch "openssl" "openssl aes-256-cbc -d -pass file:$bbcp_key <$target_ssl_fifo 1> $target_fifo \
         2> $remote_tmp/openssl.error ; echo $? > $remote_tmp/openssl.errorlevel"
+    remote_watch="openssl $remote_watch"
     sleep 2
     target_fifo="$target_ssl_fifo"
 fi
@@ -524,11 +549,13 @@ fi
 
 if [ "$bbcp_streams" -ne 0 ]; then
     # Source FIFO
-    target_bbcp_fifo=`local_fifo bbcp_fifo`
+    local_fifo bbcp
+    target_bbcp_fifo="$result"
     debug "zfs_send: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
-    ( $bbcp -V -D -o -s $bbcp_streams -P 300 -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
+    ( $bbcp -V -o -s $bbcp_streams -P 300 -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
         2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
     target_fifo="$target_bbcp_fifo"
+    local_watch="bbcp $local_watch"
     sleep 10
 fi
     
@@ -538,10 +565,12 @@ fi
 ##
 
 if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ]; then
-    target_ssh_fifo=`local_fifo ssh_fifo`
+    local_fifo ssh
+    target_ssh_fifo="$result"
     debug "zfs_send: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
         ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
     target_fifo="$target_ssh_fifo"
+    local_watch="ssh $local_watch"
     sleep 3
 fi
 
@@ -551,13 +580,15 @@ fi
 
 if [ "$bbcp_encrypt" == 'true' ]; then
     # Setup was handled when target decrypt was configured
-    source_ssl_fifo=`local_fifo source_ssl`
+    local_fifo openssl
+    source_ssl_fifo="$result"
     debug "zfs_send: Starting local openssl encrypt from $source_ssl_fifo to $target_fifo"
     ( cat "$source_ssl_fifo" | \
         openssl aes-256-cbc -pass file:$bbcp_key \
-        2> "$tmpdir/source_ssl.error" | \
-        cat > "$target_fifo" ; echo $? > $tmpdir/source_ssl.errorlevel ) &
+        2> "$tmpdir/openssl.error" | \
+        cat > "$target_fifo" ; echo $? > $tmpdir/openssl.errorlevel ) &
     target_fifo="$target_ssl_fifo"
+    local_watch="openssl $local_watch"
     sleep 3
 fi
 
@@ -572,13 +603,15 @@ fi
 ##
 
 if [ "$lz4_level" -ne 0 ]; then
-    source_lz4_fifo=`local_fifo source_lz4`
+    local_fifo lz4
+    source_lz4_fifo="$result"
     debug "zfs_send: Starting local lz4 compression from $source_lz4_fifo to $target_fifo"
     ( cat "$source_lz4_fifo" | \
         $lz4 -${lz4_level} 2> "$tmpdir/lz4.error" | \
         cat > "$target_fifo" ; \
         echo $? > "$tmpdir/lz4.errorlevel" ) &
     target_fifo="$source_lz4_fifo"
+    local_watch="lz4 $local_watch"
     sleep 2
 fi
 
@@ -587,12 +620,14 @@ fi
 ##
 
 if [ "$gzip_level" -ne 0 ]; then
-    source_gzip_fifo=`local_fifo source_gzip`
+    local_fifo gzip
+    source_gzip_fifo="$result"
     debug "zfs_send: Starting local gzip compression from $source_gzip_fifo to $target_fifo"
     ( cat "$source_gzip_fifo" | \
         gzip -${gzip_level} --stdout 2> "$tmpdir/gzip.error" | \
         cat > "$target_fifo" ; echo $? > "$tmpdir/gzip.errorlevel" ) &
     target_fifo="$source_gzip_fifo"
+    local_watch="gzip $local_watch"
     sleep 2
 fi
 
@@ -603,14 +638,16 @@ fi
 
 if [ "$mbuffer_use" == 'true' ]; then
     # Source end
-    source_mbuffer_fifo=`local_fifo source_mbuffer`
+    local_fifo mbuffer
+    source_mbuffer_fifo="$result"
     debug "zfs_send: Starting local mbuffer from $source_mbuffer_fifo to $target_fifo"
     ( cat "$source_mbuffer_fifo" | \
-        $mbuffer -q -s 128k -m 128M --md5 -l "$tmpdir/source_mbuffer.log" \
-        2> $tmpdir/source_mbuffer.error | \
+        $mbuffer -q -s 128k -m 128M --md5 -l "$tmpdir/mbuffer.log" \
+        2> $tmpdir/mbuffer.error | \
         cat > "$target_fifo" ; \
-        echo $? > "$tmpdir/source_mbuffer.errorlevel" ) &
+        echo $? > "$tmpdir/mbuffer.errorlevel" ) &
     target_fifo="$source_mbuffer_fifo"
+    local_watch="mbuffer $local_watch"
     sleep 2
 fi
 
@@ -624,18 +661,153 @@ else
     send_options=
 fi
 
+DEBUG set -x
+
 debug "zfs_send: Starting zfs send to $target_fifo"
 echo "zfs send $send_options $last_snap 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel"
-zfs send -v $send_options $last_snap 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel
-debug "zfs_send: zfs send finished."
+( zfs send -P $send_options $last_snap 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
+
+local_watch="zfs_send $local_watch"
+
+debug "zfs_send: Starting watch loop"
 
 ##
-# Allow time for buffers to flush 
+# Watch the running processes for completion or failure
+##
+if [ "$remote_host" != "" ]; then
+    # Launch remote monitor script
+    
+    cat << 'MONITOR' > $tmpdir/remote_monitor.sh
+#!/bin/bash
+
+running='true'
+remote_tmp="$1"
+watch="$2"
+
+while [ "$running" == 'true' ]; do
+    for process in $watch; do
+        errfile="${remote_tmp}/${process}.errorlevel"
+        if [ ! -f ${remote_tmp}/${process}.complete ] && [ -f $errfile ]; then
+            # This process has ended
+            errlvl=`cat $errfile`
+            if [ $errlvl -eq 0 ]; then
+                touch ${remote_tmp}/${process}.complete
+                complete="$process $complete"
+            else
+                touch ${remote_tmp}/${process}.fail
+                running='false'
+            fi
+        fi
+    done
+
+    # Determine if all processes are complete
+    finished='true'
+    for process in $watch; do
+        if [[ $complete != *${process}* ]]; then
+            finished='false'
+        fi
+    done
+
+    if [ "$finished" == 'true' ]; then
+        touch ${remote_tmp}/remote.complete
+        running='false'
+    fi
+
+    sleep 5
+
+done
+MONITOR
+
+
+    scp $tmpdir/remote_monitor.sh "root@${remote_host}:/${remote_tmp}/monitor.sh"
+
+    $remote_ssh "chmod +x $remote_tmp/monitor.sh"
+    remote_launch "monitor" "$remote_tmp/monitor.sh \"$remote_tmp\" \"$remote_watch\" ; echo $? $remote_tmp/monitor.errorlevel"
+
+fi
+
+# Local monitor script
+
+running='true'
+watch="$local_watch"
+success='false'
+
+while [ "$running" == 'true' ]; do
+    for process in $watch; do
+        errfile="${tmpdir}/${process}.errorlevel"
+        if [ ! -f ${tmpdir}/${process}.complete ] && [ -f $errfile ]; then
+            # This process has ended
+            errlvl=`cat $errfile`
+            if [ $errlvl -eq 0 ]; then
+                touch ${tmpdir}/${process}.complete
+                complete="$process $complete"
+            else
+                touch ${tmpdir}/${process}.fail
+                running='false'
+            fi
+        fi
+    done
+
+    # Determine if all processes are complete
+    finished='true'
+    for process in $watch; do
+        if [[ $complete != *${process}* ]]; then
+            finished='false'
+        fi
+    done
+
+    # Check remote status
+    remote_failed=`$remote_ssh "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
+    remote_finished=`$remote_ssh "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
+
+    if [ "$remote_failed" != "" ]; then
+        running='false'
+    fi
+
+    if [ "$finished" == 'true' ] && [ "$remote_finished" == "${remote_tmp}/remote.complete" ]; then
+        running='false'
+        success='true'
+    fi
+
+    sleep 5
+
+done
+
+DEBUG set +x
+
+##
+# Report success/failure
 ##
 
-sleep 10
+if [ "$success" == 'true' ]; then
+    notice "zfs_send: Job completed successfully."
+else
+    error "zfs_send: Job failed."
+fi
 
-#TODO: Make zfs send a background process and cycle looking for completion or an error condition
+##
+# Clean up 
+##
+
+if [ "$success" == 'false' ]; then
+    # Kill running processes
+
+    /bin/true
+
+
+else
+    # Clean up temp space
+
+    /bin/true
+
+
+
+
+fi
+    
+
+
+
 
 ##
 # Collect job component error levels and report failures
