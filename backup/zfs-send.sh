@@ -552,11 +552,11 @@ if [ "$bbcp_streams" -ne 0 ]; then
     local_fifo bbcp
     target_bbcp_fifo="$result"
     debug "zfs_send: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
-    ( $bbcp -V -o -s $bbcp_streams -P 300 -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
+    ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
         2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
     target_fifo="$target_bbcp_fifo"
     local_watch="bbcp $local_watch"
-    sleep 10
+    sleep 30
 fi
     
 
@@ -660,8 +660,6 @@ if [ "$replicate" == 'true' ]; then
 else
     send_options=
 fi
-
-DEBUG set -x
 
 debug "zfs_send: Starting zfs send to $target_fifo"
 echo "zfs send $send_options $last_snap 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel"
@@ -772,8 +770,6 @@ while [ "$running" == 'true' ]; do
     sleep 5
 
 done
-
-DEBUG set +x
 
 ##
 # Report success/failure
