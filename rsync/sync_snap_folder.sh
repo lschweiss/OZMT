@@ -151,7 +151,7 @@ shift $(($OPTIND - 1))
 if [ -d $1 ]; then
     source_folder=$1
 else
-    error "Source folder $1 does not exist!"
+    error "${jobname}: Source folder $1 does not exist!"
     exit 1
 fi
 
@@ -334,12 +334,12 @@ output_stats () {
 
         # Output totals
 
-        notice "${jobname} ******* Rsync Totals *******"
-        notice  "${indent} Number of jobs: $x"
-        notice  "${indent} Number of files: $num_files"
-        notice  "${indent} Number of files transfered: $num_files_trans"
-        notice  "${indent} Total_file_size: $(bytestohuman $total_file_size)"
-        notice  "${indent} Total Transfered size: $(bytestohuman $total_transfered_size)"
+        notice "${jobname}: ******* Rsync Totals *******"
+        notice "    Number of jobs: $x"
+        notice "    Number of files: $num_files"
+        notice "    Number of files transfered: $num_files_trans"
+        notice "    Total_file_size: $(bytestohuman $total_file_size)"
+        notice "    Total Transfered size: $(bytestohuman $total_transfered_size)"
         
         # DEBUG set +x
         
@@ -357,7 +357,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         snapdir="${source_folder}/.zfs/snapshot"
     fi
     # Below syntax captures output of 'locate_snap' function
-    snap=`locate_snap "$snapdir" "$this_date"`
+    snap=`locate_snap "$snapdir" "$this_date" "daily"`
     # Check the return status of 'locate_snap'
     if [ $? -eq 0 ] ; then
         debug "Snapshot folder located: $snap"
@@ -368,7 +368,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         exit 1
     fi
 
-    notice "${source_folder} Starting rsync job(s)"
+    notice "${jobname} Starting rsync job(s)"
 
     basedir="${snapdir}/${snap}"
 
@@ -482,7 +482,7 @@ else
         if [ -d ${source_folder}/$folder ] && [ $exclude_folder -ne 0 ]; then
             snapdir="${source_folder}/${folder}/.snapshot"
             # Below syntax captures output of 'locate_snap' function
-            snap=`locate_snap "$snapdir" "$this_date"`
+            snap=`locate_snap "$snapdir" "$this_date" "daily"`
             # Check the return status of 'locate_snap'
             if [ $? -eq 0 ] ; then
                 debug "Snapshot folder located: ${snapdir}/${snap}"
