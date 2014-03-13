@@ -40,18 +40,9 @@ else
     report_name="$default_report_name"
 fi
 
+#TODO:
 
-# Must support multiple options
-#   Local source and destination
-#   Remote destination
-#     Use bbcp
-#     Encrypt traffic
-#     Compress traffic
-#   Use mbuffer (local or remote)
-#   Replication stream
-#   Property reset
-#   Flat file target
-#   SHA256 sum
+# Several remote commands need to have tunable full paths.
 
 result=
 verify='true'
@@ -75,18 +66,23 @@ show_usage() {
     echo "Usage: $0 -s {source_zfs_folder} -t {target_zfs_folder}"
     echo "  [-f {first_snap}]   First snapshot.  Defaults to 'origin'"
     echo "  [-l {last_snap}]    Last snapshot.  Defaults to latest snapshot."
+    echo "  [-r]                Use a replication stream"
+    echo "  [-i]                Use an incremental stream"
+    echo "  [-I]                Use an incremental stream with all intermediary snapshots"
+    echo "                      -i and -I are mutually exclusive.  The last one specfied will be honored."
+    echo "  [-d]                Delete snapshots on the target that do not exist on the source."
+    echo "  [-p {prop_string} ] Reset properties on target"
     echo "  [-h host]           Send to a remote host.  Defaults to via SSH."
     echo "  [-m]                Use mbuffer."
     echo "  [-b n]              Use BBCP, n connections.  "
     echo "     [-e]             Encrypt traffic w/ openssl.  Only for BBCP."
     echo "  [-g n]              Compress with gzip level n."
     echo "  [-z n]              Compress with LZ4.  Specify 1 for standard LZ4.  Specify 4 - 9 for LZ4HC compression level."
-    echo "  [-r]                Use a replication stream"
-    echo "  [-p {prop_string} ] Reset properties on target"
     echo "  [-F]                Target is a flat file.  No zfs receive will be used."
     echo "  [-k {file} ]        Generate a md5 sum.  Store it in {file}."
     echo "  [-L]                Overide default log file location."
     echo "  [-R]                Overide default report name."
+    echo "  [-n]                Name fore this job."
 }
 
 # Minimum number of arguments needed by this program
@@ -102,97 +98,118 @@ target_folder=
 target_pool=
 first_snap=
 last_snap=
+replicate='false'
+increment_type=''
+delete_snaps='false'
+receive_options='-vu'
+target_prop=
 remote_host=
 mbuffer_use='false'
 bbcp_streams=0
 bbcp_encrypt='false'
 gzip_level=0
 lz4_level=0
-replicate='false'
-target_prop=
 flat_file='false'
 gen_chksum=
+job_name='zfs_send'
 
-while getopts s:t:f:l:h:mb:eg:z:rpFk:L:R: opt; do
+while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:L:R: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
-            debug "zfs_send: Source folder: $source_folder"
+            debug "${job_name}: Source folder: $source_folder"
             ;;
         t)  # Target ZFS folder or flat file
             target_folder="$OPTARG"
-            debug "zfs_send: Target folder: $target_folder"
+            debug "${job_name}: Target folder: $target_folder"
             ;;
         f)  # First snapshot
             first_snap="$OPTARG"
-            debug "zfs_send: first_snap:    $first_snap"
+            debug "${job_name}: first_snap:    $first_snap"
             ;;
         l)  # Last snapshot
             last_snap="$OPTARG"
-            debug "zfs_send: last_snap:     $last_snap"
-            ;;
-        h)  # Remote host
-            remote_host="$OPTARG"
-            debug "zfs_send: Remote host:   $remote_host"
-            ;;
-        m)  # Use mbuffer
-            mbuffer_use='true'
-            debug "zfs_send: Using mbuffer"
-            ;;
-        b)  # Use BBCP
-            bbcp_streams="$OPTARG"
-            debug "zfs_send: Using BBCP, $bbcp_streams connections."
-            ;;
-        e)  # Encrypt BBCP traffic
-            bbcp_encrypt='true'
-            debug "zfs_send: Encrypting BBCP traffic"
-            ;;
-        g)  # Compress with gzip
-            gzip_level="$OPTARG"
-            debug "zfs_send: Gzip compression level $gzip_level"
-            ;;
-        z)  # Compress with LZ4
-            lz4_level="$OPTARG"
-            debug "zfs_send: lz4 set to: $lz4_level"
-            case $lz4_level in
-                1) 
-                    debug "zfs_send: Using LZ4 standard" ;;
-                [4-9])
-                    debug "zfs_send: Using LZ4HC level $lz4_level" ;;
-                *)
-                    die "zfs_send: Invalid LZ4 specified" ;;
-            esac
+            debug "${job_name}: last_snap:     $last_snap"
             ;;
         r)  # Use a replication stream
             replicate='true'
-            debug "zfs_send: Using a replication stream."
+            debug "${job_name}: Using a replication stream."
+            ;;
+        i)  # Use an incremental stream
+            increment_type='-i'
+            debug "${job_name}: Using and incremental stream."
+            ;;
+        I)  # Use an incremental stream with intermediary snapshots
+            increment_type='-I'
+            debug "${job_name}: Using and incremental stream with intermediary snapshots."
+            ;; 
+        d)  # Delete snapshots on the target
+            delete_snaps='true'
+            receive_options="-F $receive_options"
+            debug "${job_name}: Will delete snapshots on the target"
             ;;
         p)  # Reset properties on target
             target_prop="-o $OPTARG"
-            debug "zfs_send: resetting target properties to: $target_prop"
+            debug "${job_name}: resetting target properties to: $target_prop"
+            ;;
+        h)  # Remote host
+            remote_host="$OPTARG"
+            debug "${job_name}: Remote host:   $remote_host"
+            ;;
+        m)  # Use mbuffer
+            mbuffer_use='true'
+            debug "${job_name}: Using mbuffer"
+            ;;
+        b)  # Use BBCP
+            bbcp_streams="$OPTARG"
+            debug "${job_name}: Using BBCP, $bbcp_streams connections."
+            ;;
+        e)  # Encrypt BBCP traffic
+            bbcp_encrypt='true'
+            debug "${job_name}: Encrypting BBCP traffic"
+            ;;
+        g)  # Compress with gzip
+            gzip_level="$OPTARG"
+            debug "${job_name}: Gzip compression level $gzip_level"
+            ;;
+        z)  # Compress with LZ4
+            lz4_level="$OPTARG"
+            debug "${job_name}: lz4 set to: $lz4_level"
+            case $lz4_level in
+                1) 
+                    debug "${job_name}: Using LZ4 standard" ;;
+                [4-9])
+                    debug "${job_name}: Using LZ4HC level $lz4_level" ;;
+                *)
+                    die "${job_name}: Invalid LZ4 specified" ;;
+            esac
             ;;
         F)  # Target is a flat file
             flat_file='true'
-            debug "zfs_send: Flat file target"
+            debug "${job_name}: Flat file target"
             ;;
         k)  # Generate a md5 checksum
             gen_chksum="$OPTARG"
-            debug "zfs_send: Generate MD5 sum in file $gen_chksum"
+            debug "${job_name}: Generate MD5 sum in file $gen_chksum"
             ;;
         L)  # Overide default log file
             log_file="$OPTARG"
-            debug "zfs_send: Log file set to $log_file"
+            debug "${job_name}: Log file set to $log_file"
             ;;
         R)  # Overide default report name
             report_name="$OPTARG"
-            debug "zfs_send: Report name set to $report_name"
+            debug "${job_name}: Report name set to $report_name"
             ;;   
+        n)  # Job name
+            job_name="$OPTARG"
+            debug "${job_name}: Job name set to $job_name"
+            ;;
         ?)  # Show program usage and exit
             show_usage
             exit 0
             ;;
         :)  # Mandatory arguments not specified
-            die "zfs_send: Option -$OPTARG requires an argument."
+            die "${job_name}: Option -$OPTARG requires an argument."
             ;;
     esac
 done
@@ -209,17 +226,17 @@ mkdir $tmpdir
 ###
 
 if [ "$source_folder" == "" ]; then
-    die "zfs_send: no source folder specified"
+    die "${job_name}: no source folder specified"
 fi
 
 if [ "$target_folder" == "" ]; then
-    die "zfs_send: not target specified"
+    die "${job_name}: not target specified"
 fi
 
 
 if [ "$first_snap" == "" ]; then
     first_snap='origin'
-    debug "zfs_send: first_snap not specified, set to origin"
+    debug "${job_name}: first_snap not specified, set to origin"
 fi
 
 if [ "$flat_file" == 'false' ]; then
@@ -229,12 +246,12 @@ fi
 
 re='^[0-9]+$'
 if ! [[ $gzip_level =~ $re ]] ; then
-   die "zfs_send: -g expects a number between 0 and9"
+   die "${job_name}: -g expects a number between 0 and9"
 fi
 
 if ! [[ $lz4_level =~ $re ]] ; then
     if [ [ $lz4_level -gt 9 ] || [ $lz4_level -lt 4 ] ]; then
-        die "zfs_send: -z expects a number between 4 and 9"
+        die "${job_name}: -z expects a number between 4 and 9"
     fi
 fi
 
@@ -247,14 +264,14 @@ if [ "$remote_host" != "" ]; then
     $timeout 30s $ssh root@${remote_host} mkdir $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
-        error "zfs_send: Cannot connect to remote host at root@${remote_host}"
+        error "${job_name}: Cannot connect to remote host at root@${remote_host}"
         verify='fail'
     else
-        debug "zfs_send: Remote host connection verified."
+        debug "${job_name}: Remote host connection verified."
     fi
 else
     if [ "$bbcp_streams" != "0" ]; then
-        error "zfs_send: Cannot use bbcp for local jobs"
+        error "${job_name}: Cannot use bbcp for local jobs"
     fi
 fi
 
@@ -265,10 +282,11 @@ fi
 zfs list $source_folder &> /dev/null
 result=$?
 if [ $result -ne 0 ]; then
-    error "zfs_send: Source zfs folder $source_folder not found."
+    error "${job_name}: Source zfs folder $source_folder not found."
     verify='fail'
 else
-    debug "zfs_send: Source zfs folder $source_foldeer verified."
+    debug "${job_name}: Source zfs folder $source_foldeer verified."
+    zfs list -t snapshot -H -o name -s creation | $grep "^${source_folder}@" > $tmpdir/snapshot.list
 fi
 
 ##
@@ -276,16 +294,45 @@ fi
 ##
 
 if [ "$last_snap" != "" ]; then
-    zfs list -t snapshot -H -o name -s creation | $grep "^${source_folder}@" | grep -q "$last_snap"
+    cat $tmpdir/snapshot.list | grep -q "$last_snap"
     if [ $? -ne 0 ]; then
-        die "zfs_send: Last snapshot $last_snap not found in source folder $source_folder"
+        die "${job_name}: Last snapshot $last_snap not found in source folder $source_folder"
+    else
+        debug "${job_name}: Last snapshot $last_snap verified."
     fi
 else
-    debug "zfs_send: Last snap not specified.  Looking up last snapshot for folder $source_folder"
-    last_snap=`zfs list -t snapshot -H -o name -s creation | $grep "^${source_folder}@" | tail -1`
+    debug "${job_name}: Last snap not specified.  Looking up last snapshot for folder $source_folder"
+    last_snap=`cat $tmpdir/snapshot.list | $grep "^${source_folder}@" | tail -1`
 fi
 
-debug "zfs_send: Last snap set to $last_snap"
+debug "${job_name}: Last snap set to $last_snap"
+
+##
+# Verify first snapshot
+##
+
+if [ "$first_snap" != "origin" ]; then
+    cat $tmpdir/snapshot.list | grep -q "$first_snap"
+    if [ $? -ne 0 ]; then
+        die "${job_name}: First snapshot $first_snap not found in source folder $source_folder"
+    else
+        send_snaps="$increment_type ${first_snap} ${last_snap}"
+        debug "${job_name}: First snapshot $first_snap verified."
+    fi
+else
+#    if [ "$increment_type" != '' ]; then
+#        error "${job_name}: Incremental jobs cannot start at the origin unless it is a clone"
+#    fi
+    # Determine if this is a clone
+    origin=`zfs get -H origin $source_folder|awk -F " " '{print $3}'`
+    if [ "$origin" == '-' ]; then
+        send_snaps="$increment_type ${source_folder}@origin ${last_snap}"
+    else
+        originfs=`echo $origin | awk -F "@" '{print $1}'`
+        debug "${job_name}: Source file system is a clone.  Setting source to ${originfs}@origin"
+        send_snaps="$increment_type ${originfs}@origin ${last_snap}"
+    fi
+fi
 
 
 ##
@@ -299,7 +346,7 @@ if [ "$remote_host" == "" ]; then
             zfs list $target_folder &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
-                error "zfs_send: Replicate not specified however target folder $target_folder does not exist."
+                error "${job_name}: Replicate not specified however target folder $target_folder does not exist."
                 verify='fail'
             fi
         else
@@ -307,7 +354,7 @@ if [ "$remote_host" == "" ]; then
             zfs list $target_pool &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
-                error "zfs_send: Replicate specified however target pool $target_pool does not exist."
+                error "${job_name}: Replicate specified however target pool $target_pool does not exist."
                 verify='fail'
             fi
         fi
@@ -315,7 +362,7 @@ if [ "$remote_host" == "" ]; then
         touch $target_folder &> /dev/null
         result=$?
         if [ $result -ne 0 ]; then
-            error "zfs_send: Cannot create flat file $target_folder"
+            error "${job_name}: Cannot create flat file $target_folder"
             verify='fail'
         else
             rm $target_folder
@@ -329,15 +376,15 @@ else
             $timeout 2m $remote_ssh zfs list $target_folder &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
-                error "zfs_send: Replicate not specified however target folder $target_folder does not exist on host $remote_host"
+                error "${job_name}: Replicate not specified however target folder $target_folder does not exist on host $remote_host"
                 verify='fail'
             fi
         else
             # Verify pool exists
-            $timeout 2m $remote_ssh zfs list $target_pool #&> /dev/null
+            $timeout 2m $remote_ssh zfs list $target_pool &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
-                error "zfs_send: Replicate specified however target pool $target_pool does not exist on host $remote_host"
+                error "${job_name}: Replicate specified however target pool $target_pool does not exist on host $remote_host"
                 verify='fail'
             fi
         fi
@@ -345,7 +392,7 @@ else
         $timeout 30s $remote_ssh touch $target_folder &> /dev/null
         result=$?
         if [ $result -ne 0 ]; then
-            error "zfs_send: Cannot create flat file $target_folder on host $remote_host"
+            error "${job_name}: Cannot create flat file $target_folder on host $remote_host"
             verify='fail'
         else
             $remote_ssh rm $target_folder
@@ -355,9 +402,9 @@ fi
 
 
 if [ "$verify" == 'fail' ]; then
-    die "zfs_send: Input validation failed.  Aborting."
+    die "${job_name}: Input validation failed.  Aborting."
 else
-    debug "zfs_send: Input valdation succeeded.  Proceeding."
+    debug "${job_name}: Input valdation succeeded.  Proceeding."
 fi
 
 ##
@@ -366,18 +413,18 @@ fi
 
 remote_fifo () {
     local fifo="${remote_tmp}/${1}.fifo"
-    debug "zfs_send: Creating remote fifo ${fifo}"
+    debug "${job_name}: Creating remote fifo ${fifo}"
     $timeout 1m $remote_ssh "mkfifo ${fifo}" || \
-        die "zfs_send: Could not setup remote fifo $1 on host $remote_host"
+        die "${job_name}: Could not setup remote fifo $1 on host $remote_host"
     target_fifos="${fifo} $target_fifos"
     result="${fifo}"
 }
 
 local_fifo () {
     local fifo="${tmpdir}/${1}.fifo"
-    debug "zfs_send: Creating local fifo $fifo"
+    debug "${job_name}: Creating local fifo $fifo"
     mkfifo "${fifo}" || \
-        die "zfs_send: Could not setup fifo $fifo"
+        die "${job_name}: Could not setup fifo $fifo"
     local_fifos="${fifo} $local_fifos"
     result="${fifo}"
 }
@@ -387,16 +434,17 @@ remote_launch () {
     local name="$1"
     local script_content="$2"
     local script="$remote_tmp/${name}.script"
+    local pidfile="$remote_tmp/${name}.pid"
 
     ##
     # Push the script to the remote host
     ##
 
-    debug "zfs_send: Remote launching: $script_content"
+    debug "${job_name}: Remote launching: $script_content"
 
     echo "$script_content" | $remote_ssh "cat >$script; chmod +x $script"
 
-    $remote_ssh "/usr/bin/screen -d -m $script"
+    $remote_ssh "/usr/bin/screen -d -S \"${job_name}_${name}\" -m $script; screen -ls | $grep \"${job_name}_${name}\" | $grep -o -P \"(\d+)\" > $pidfile"
 
 }
 
@@ -422,15 +470,16 @@ if [ "$flat_file" == 'true' ]; then
     if [ "$remote_host" == "" ]; then
         local_fifo flat_file
         target_fifo="$result"
-        debug "zfs_send: Starting local cat from $target_fifo to $flat_file"
-        ( cat $target_fifo 1> $flat_file 2> $tmpdir/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel ) &
+        debug "${job_name}: Starting local pipe from $target_fifo to $target_folder"
+        ( cat $target_fifo 1> $target_folder 2> $tmpdir/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel ) &
+        echo $! > $tmpdir/flat_file.pid
         local_watch="flat_file $local_watch"
         
     else
         remote_fifo flat_file
         target_fifo="$result"
-        debug "zfs_send: Starting remote cat from $target_fifo to $flat_file"
-        remote_launch "flat_file" "cat $target_fifo 1> $flat_file 2> $remote_tmp/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel"
+        debug "${job_name}: Starting remote pipe from $target_fifo to $target_folder"
+        remote_launch "flat_file" "cat $target_fifo 1> $target_folder 2> $remote_tmp/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel"
         remote_watch="flat_file $remote_watch"
     fi
 else
@@ -439,16 +488,17 @@ else
         # Local
         local_fifo zfs_receive
         target_fifo="$result"
-        debug "zfs_send: Starting local zfs receive $target_fifo to ${target_folder}"
-        ( cat $target_fifo | zfs receive -F -vu ${target_prop} ${target_folder} \
+        debug "${job_name}: Starting local zfs receive $target_fifo to ${target_folder}"
+        ( cat $target_fifo | zfs receive ${receive_options} ${target_prop} ${target_folder} \
             2> $tmpdir/zfs_receive.error ; echo $? > $tmpdir/zfs_receive.errorlevel ) &
+        echo $! > $tmpdir/zfs_receive.pid
         local_watch="$zfs_receive $local_watch"
     else
         # Remote
         remote_fifo zfs_receive
         target_fifo="$result"
-        debug "zfs_send: Starting remote zfs receive $target_fifo to ${target_folder}"
-        remote_launch "zfs_receive" "cat $target_fifo | zfs receive -F -vu ${target_prop} ${target_folder} \
+        debug "${job_name}: Starting remote zfs receive $target_fifo to ${target_folder}"
+        remote_launch "zfs_receive" "cat $target_fifo | zfs receive ${receive_options} ${target_prop} ${target_folder} \
             2> $remote_tmp/zfs_receive.error ; echo $? > $remote_tmp/zfs_receive.errorlevel"
         remote_watch="zfs_receive $remote_watch"
     fi
@@ -470,7 +520,7 @@ if [ "$mbuffer_use" == 'true' ]; then
     if [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ] ; then
         remote_fifo mbuffer
         target_mbuffer_fifo="$result"
-        debug "zfs_send: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
+        debug "${job_name}: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
         remote_launch "mbuffer" "cat $target_mbuffer_fifo | \
             /opt/csw/bin/mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log \
             2> $remote_tmp/mbuffer.error \
@@ -489,7 +539,7 @@ fi
 if [ "$gzip_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ]; then
     remote_fifo gzip
     target_gzip_fifo="$result"
-    debug "zfs_send: Starting remote gzip decompression from $target_gzip_fifo to $target_fifo"
+    debug "${job_name}: Starting remote gzip decompression from $target_gzip_fifo to $target_fifo"
     remote_launch "gzip" "cat $target_gzip_fifo | \
         gzip -d --stdout 2> $remote_tmp/gunzip.error | \
         cat > $target_fifo ; \
@@ -506,7 +556,7 @@ fi
 if [ "$lz4_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != "" ]; then
     remote_fifo lz4
     target_lz4_fifo="$result"
-    debug "zfs_send: Starting remote lz4 decompression from $target_lz4_fifo to $target_fifo"
+    debug "${job_name}: Starting remote lz4 decompression from $target_lz4_fifo to $target_fifo"
     remote_launch "lz4" "cat $target_lz4_fifo | \
         $lz4 -d 2> $remote_tmp/lz4.error | \
         cat > $target_fifo ; \
@@ -534,7 +584,7 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     target_ssl_fifo="$result"
 
     # Start openssl
-    debug "zfs_send: Starting remote openssl decrypt from $target_ssl_fifo to $target_fifo"
+    debug "${job_name}: Starting remote openssl decrypt from $target_ssl_fifo to $target_fifo"
     remote_launch "openssl" "openssl aes-256-cbc -d -pass file:$bbcp_key <$target_ssl_fifo 1> $target_fifo \
         2> $remote_tmp/openssl.error ; echo $? > $remote_tmp/openssl.errorlevel"
     remote_watch="openssl $remote_watch"
@@ -544,137 +594,13 @@ fi
 
 
 ##
-# BBCP
+# Remote components are all running.
+# Launch remote watch script
 ##
 
-if [ "$bbcp_streams" -ne 0 ]; then
-    # Source FIFO
-    local_fifo bbcp
-    target_bbcp_fifo="$result"
-    debug "zfs_send: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
-    ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
-        2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
-    target_fifo="$target_bbcp_fifo"
-    local_watch="bbcp $local_watch"
-    sleep 30
-fi
-    
-
-##
-# SSH
-##
-
-if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ]; then
-    local_fifo ssh
-    target_ssh_fifo="$result"
-    debug "zfs_send: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
-        ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
-    target_fifo="$target_ssh_fifo"
-    local_watch="ssh $local_watch"
-    sleep 3
-fi
-
-##
-# OpenSSL Encrypt
-##
-
-if [ "$bbcp_encrypt" == 'true' ]; then
-    # Setup was handled when target decrypt was configured
-    local_fifo openssl
-    source_ssl_fifo="$result"
-    debug "zfs_send: Starting local openssl encrypt from $source_ssl_fifo to $target_fifo"
-    ( cat "$source_ssl_fifo" | \
-        openssl aes-256-cbc -pass file:$bbcp_key \
-        2> "$tmpdir/openssl.error" | \
-        cat > "$target_fifo" ; echo $? > $tmpdir/openssl.errorlevel ) &
-    target_fifo="$target_ssl_fifo"
-    local_watch="openssl $local_watch"
-    sleep 3
-fi
-
-##
-# gpg Encrypt
-##
-
-#TODO: Redo backup to glacier to use this send routine.
-
-##
-# LZ4
-##
-
-if [ "$lz4_level" -ne 0 ]; then
-    local_fifo lz4
-    source_lz4_fifo="$result"
-    debug "zfs_send: Starting local lz4 compression from $source_lz4_fifo to $target_fifo"
-    ( cat "$source_lz4_fifo" | \
-        $lz4 -${lz4_level} 2> "$tmpdir/lz4.error" | \
-        cat > "$target_fifo" ; \
-        echo $? > "$tmpdir/lz4.errorlevel" ) &
-    target_fifo="$source_lz4_fifo"
-    local_watch="lz4 $local_watch"
-    sleep 2
-fi
-
-##
-# gzip Compress
-##
-
-if [ "$gzip_level" -ne 0 ]; then
-    local_fifo gzip
-    source_gzip_fifo="$result"
-    debug "zfs_send: Starting local gzip compression from $source_gzip_fifo to $target_fifo"
-    ( cat "$source_gzip_fifo" | \
-        gzip -${gzip_level} --stdout 2> "$tmpdir/gzip.error" | \
-        cat > "$target_fifo" ; echo $? > "$tmpdir/gzip.errorlevel" ) &
-    target_fifo="$source_gzip_fifo"
-    local_watch="gzip $local_watch"
-    sleep 2
-fi
-
-
-##
-# mbuffer - Send end
-##
-
-if [ "$mbuffer_use" == 'true' ]; then
-    # Source end
-    local_fifo mbuffer
-    source_mbuffer_fifo="$result"
-    debug "zfs_send: Starting local mbuffer from $source_mbuffer_fifo to $target_fifo"
-    ( cat "$source_mbuffer_fifo" | \
-        $mbuffer -q -s 128k -m 128M --md5 -l "$tmpdir/mbuffer.log" \
-        2> $tmpdir/mbuffer.error | \
-        cat > "$target_fifo" ; \
-        echo $? > "$tmpdir/mbuffer.errorlevel" ) &
-    target_fifo="$source_mbuffer_fifo"
-    local_watch="mbuffer $local_watch"
-    sleep 2
-fi
-
-##
-# zfs send
-##
-
-if [ "$replicate" == 'true' ]; then
-    send_options="-R"
-else
-    send_options=
-fi
-
-debug "zfs_send: Starting zfs send to $target_fifo"
-echo "zfs send $send_options $last_snap 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel"
-( zfs send -P $send_options $last_snap 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
-
-local_watch="zfs_send $local_watch"
-
-debug "zfs_send: Starting watch loop"
-
-##
-# Watch the running processes for completion or failure
-##
 if [ "$remote_host" != "" ]; then
     # Launch remote monitor script
-    
+
     cat << 'MONITOR' > $tmpdir/remote_monitor.sh
 #!/bin/bash
 
@@ -717,18 +643,161 @@ done
 MONITOR
 
 
-    scp $tmpdir/remote_monitor.sh "root@${remote_host}:/${remote_tmp}/monitor.sh"
+    scp $tmpdir/remote_monitor.sh "root@${remote_host}:${remote_tmp}/monitor.sh" || \
+        die "${job_name}: Could not push remote monitor script to $remote_host:${remote_tmp}/monitor.sh"
 
     $remote_ssh "chmod +x $remote_tmp/monitor.sh"
-    remote_launch "monitor" "$remote_tmp/monitor.sh \"$remote_tmp\" \"$remote_watch\" ; echo $? $remote_tmp/monitor.errorlevel"
+    remote_launch "monitor" "$remote_tmp/monitor.sh \"$remote_tmp\" \"$remote_watch\" ; echo \$? $remote_tmp/monitor.errorlevel"
 
 fi
 
-# Local monitor script
+
+##
+# BBCP
+##
+
+if [ "$bbcp_streams" -ne 0 ]; then
+    # Source FIFO
+    local_fifo bbcp
+    target_bbcp_fifo="$result"
+    debug "${job_name}: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
+    ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
+        2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
+    echo $! > $tmpdir/bbcp.pid
+    target_fifo="$target_bbcp_fifo"
+    local_watch="bbcp $local_watch"
+    sleep 30
+fi
+    
+
+##
+# SSH
+##
+
+if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ]; then
+    local_fifo ssh
+    target_ssh_fifo="$result"
+    debug "${job_name}: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
+    ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
+    echo $! > $tmpdir/ssh.pid
+    target_fifo="$target_ssh_fifo"
+    local_watch="ssh $local_watch"
+    sleep 3
+fi
+
+##
+# OpenSSL Encrypt
+##
+
+if [ "$bbcp_encrypt" == 'true' ]; then
+    # Setup was handled when target decrypt was configured
+    local_fifo openssl
+    source_ssl_fifo="$result"
+    debug "${job_name}: Starting local openssl encrypt from $source_ssl_fifo to $target_fifo"
+    ( cat "$source_ssl_fifo" | \
+        openssl aes-256-cbc -pass file:$bbcp_key \
+        2> "$tmpdir/openssl.error" | \
+        cat > "$target_fifo" ; echo $? > $tmpdir/openssl.errorlevel ) &
+    echo $! > $tmpdir/openssl.pid
+    target_fifo="$target_ssl_fifo"
+    local_watch="openssl $local_watch"
+    sleep 3
+fi
+
+##
+# gpg Encrypt
+##
+
+#TODO: Redo backup to glacier to use this send routine.
+
+##
+# LZ4
+##
+
+if [ "$lz4_level" -ne 0 ]; then
+    local_fifo lz4
+    source_lz4_fifo="$result"
+    debug "${job_name}: Starting local lz4 compression from $source_lz4_fifo to $target_fifo"
+    ( cat "$source_lz4_fifo" | \
+        $lz4 -${lz4_level} 2> "$tmpdir/lz4.error" | \
+        cat > "$target_fifo" ; \
+        echo $? > "$tmpdir/lz4.errorlevel" ) &
+    echo $! > $tmpdir/lz4.pid
+    target_fifo="$source_lz4_fifo"
+    local_watch="lz4 $local_watch"
+    sleep 2
+fi
+
+##
+# gzip Compress
+##
+
+if [ "$gzip_level" -ne 0 ]; then
+    local_fifo gzip
+    source_gzip_fifo="$result"
+    debug "${job_name}: Starting local gzip compression from $source_gzip_fifo to $target_fifo"
+    ( cat "$source_gzip_fifo" | \
+        gzip -${gzip_level} --stdout 2> "$tmpdir/gzip.error" | \
+        cat > "$target_fifo" ; echo $? > "$tmpdir/gzip.errorlevel" ) &
+    echo $! > $tmpdir/gzip.pid
+    target_fifo="$source_gzip_fifo"
+    local_watch="gzip $local_watch"
+    sleep 2
+fi
+
+
+##
+# mbuffer - Send end
+##
+
+if [ "$mbuffer_use" == 'true' ]; then
+    # Source end
+    local_fifo mbuffer
+    source_mbuffer_fifo="$result"
+    debug "${job_name}: Starting local mbuffer from $source_mbuffer_fifo to $target_fifo"
+    ( cat "$source_mbuffer_fifo" | \
+        $mbuffer -q -s 128k -m 128M --md5 -l "$tmpdir/mbuffer.log" \
+        2> $tmpdir/mbuffer.error | \
+        cat > "$target_fifo" ; \
+        echo $? > "$tmpdir/mbuffer.errorlevel" ) &
+    echo $! > $tmpdir/mbuffer.pid
+    target_fifo="$source_mbuffer_fifo"
+    local_watch="mbuffer $local_watch"
+    sleep 2
+fi
+
+################################################################
+#
+# Start the zfs send
+#
+################################################################
+
+if [ "$replicate" == 'true' ]; then
+    send_options="-R"
+else
+    send_options=
+fi
+
+debug "${job_name}: Starting zfs send to $target_fifo"
+#echo "zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel"
+( sleep 2 ; zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
+echo $! > $tmpdir/zfs_send.pid
+local_watch="zfs_send $local_watch"
+
+
+
+
+################################################################
+#
+# Watch the running processes for completion or failure
+#
+################################################################
 
 running='true'
 watch="$local_watch"
 success='false'
+
+debug "${job_name}: Starting watch loop"
 
 while [ "$running" == 'true' ]; do
     for process in $watch; do
@@ -754,17 +823,26 @@ while [ "$running" == 'true' ]; do
         fi
     done
 
-    # Check remote status
-    remote_failed=`$remote_ssh "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
-    remote_finished=`$remote_ssh "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
-
-    if [ "$remote_failed" != "" ]; then
-        running='false'
+    if [ "$remote_host" != "" ]; then
+        # Check remote status
+        remote_failed=`$remote_ssh "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
+        remote_finished=`$remote_ssh "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
+    
+        if [ "$remote_failed" != "" ]; then
+            running='false'
+        fi
     fi
 
-    if [ "$finished" == 'true' ] && [ "$remote_finished" == "${remote_tmp}/remote.complete" ]; then
-        running='false'
-        success='true'
+    if [ "$finished" == 'true' ]; then
+        if [ "$remote_host" != "" ]; then
+            if [ "$remote_finished" == "${remote_tmp}/remote.complete" ]; then
+                running='false'
+                success='true'
+            fi
+        else
+            running='false'
+            success='true'
+        fi
     fi
 
     sleep 5
@@ -776,9 +854,9 @@ done
 ##
 
 if [ "$success" == 'true' ]; then
-    notice "zfs_send: Job completed successfully."
+    notice "${job_name}: Job completed successfully."
 else
-    error "zfs_send: Job failed."
+    error "${job_name}: Job failed."
 fi
 
 ##
@@ -788,21 +866,36 @@ fi
 if [ "$success" == 'false' ]; then
     # Kill running processes
 
-    /bin/true
+    pids=`ls -1 $tmpdir/*.pid`
+    for pidfile in $pids; do
+        pid=`cat $pidfile`
+        debug "Killing process $pidfile, PID $pid"
+        kill $pid 2> /dev/null
+    done
 
+    if [ "$remote_host" != "" ]; then
+        #DEBUG set -x
+        pids=`$remote_ssh "ls -1 $remote_tmp/*.pid"`
+        for pidfile in $pids; do
+            pid=`$remote_ssh "cat $pidfile"`
+            debug "Killing remote process $pidfile, PID $pid"
+            $remote_ssh "kill $pid 2 >/dev/null"
+        done
+        #DEBUG set +x
+    fi
 
 else
     # Clean up temp space
 
-    /bin/true
-
-
-
+    if [ ! -t 1 ]; then
+        rm -rf $tmpdir
+        if [ "$remote_host" != "" ]; then
+            $remote_ssh "rm -r $remote_tmp"
+        fi
+    fi
 
 fi
     
-
-
 
 
 ##
@@ -820,17 +913,19 @@ for error in $errors; do
     cat $error
 done
 
-errorlevels=`$remote_ssh "ls -1 $remote_tmp/*.errorlevel"`
-for errorlevel in $errorlevels; do
-    echo -n "remote $errorlevel = "
-    $remote_ssh "cat $errorlevel"
-done
-
-errors=`$remote_ssh "ls -1 $remote_tmp/*.error"`
-for error in $errors; do
-    echo "remote ${error}:"
-    $remote_ssh "cat $error"
-done
+if [ "$remote_host" != "" ]; then
+    errorlevels=`$remote_ssh "ls -1 $remote_tmp/*.errorlevel"`
+    for errorlevel in $errorlevels; do
+        echo -n "remote $errorlevel = "
+        $remote_ssh "cat $errorlevel"
+    done
+    
+    errors=`$remote_ssh "ls -1 $remote_tmp/*.error"`
+    for error in $errors; do
+        echo "remote ${error}:"
+        $remote_ssh "cat $error"
+    done
+fi
 
 
 
