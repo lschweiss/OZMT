@@ -30,25 +30,23 @@ report_name="default"
 
 if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
-    reports=`ls -1 $TOOLS_ROOT/reporting/reports_pending`
+    for report_path in $TOOLS_ROOT/reporting/reports_pending/*/; do
 
-    for report in $reports; do
+        report=`echo "$report_path"|awk -F "/" '{print $(NF-1)}'`
 
-        report_path="$TOOLS_ROOT/reporting/reports_pending/$report"
-
-        if [ -f $report_path/report_pending ]; then
+        if [ -f "${report_path}report_pending" ]; then
             report_pending="/tmp/send_report_$report_$$"
 
             # Move the report to a temporary file to avoid race conditions
-            mv $report_path/report_pending $report_pending
+            mv "${report_path}report_pending" "$report_pending"
 
-            if [ -f $report_path/report_attachments ]; then
-                mv $report_path/report_attachments ${report_pending}_attachments
+            if [ -f "${report_path}report_attachments" ]; then
+                mv "${report_path}report_attachments" "${report_pending}_attachments"
             fi
         
-            source $report_path/report_level
+            source "${report_path}report_level"
         
-            rm $report_path/report_level
+            rm "${report_path}report_level"
     
             email_subject="${default_report_title} $report report"
         
@@ -56,23 +54,23 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
         
             if [[ "x$report_level" != "x" && "$report_level" -ge 3 ]]; then
                 email_subject="ERROR: $email_subject"
-                ./send_email.sh $report_pending "$email_subject" high
+                ./send_email.sh "$report_pending" "$email_subject" high
             else 
-                ./send_email.sh $report_pending "$email_subject"
+                ./send_email.sh "$report_pending" "$email_subject"
             fi
     
             if [ "$debug_level" -eq "0" ]; then
                 debug "send_report: report file left at $report_pending"
             else
-                rm -f $report_pending
+                rm -f "$report_pending"
             fi
     
-            if [ -f ${report_pending}_attachments ]; then
-                attachments=`cat ${report_pending}_attachments`
+            if [ -f "${report_pending}_attachments" ]; then
+                attachments=`cat "${report_pending}_attachments"`
                 for attach in $attachments; do
-                    rm -f $attach
+                    rm -f "$attach"
                 done
-                rm -f ${report_pending}_attachments
+                rm -f "${report_pending}_attachments"
             fi
 
         else
