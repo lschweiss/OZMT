@@ -40,6 +40,20 @@ else
     report_name="$default_report_name"
 fi
 
+# Take this out when out of beta and in production:
+
+    # When to send debug level messages (now,report,never)
+    email_debug="report"
+
+    # When to send notice level messages (now,report,never)
+    email_notice="report"
+
+    # When to send warnings level messages (now,report,never)
+    email_warnings="report"
+
+    # When to send error level messages (now,report,never)
+    email_errors="report"
+
 #TODO:
 
 # Several remote commands need to have tunable full paths.
@@ -779,7 +793,7 @@ else
 fi
 
 debug "${job_name}: Starting zfs send to $target_fifo"
-#echo "zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel"
+debug "${job_name}:   zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
 ( sleep 2 ; zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
 echo $! > $tmpdir/zfs_send.pid
 local_watch="zfs_send $local_watch"
