@@ -151,7 +151,7 @@ shift $(($OPTIND - 1))
 if [ -d $1 ]; then
     source_folder=$1
 else
-    error "Source folder $1 does not exist!"
+    error "${jobname} Source folder $1 does not exist!"
     exit 1
 fi
 
@@ -335,11 +335,11 @@ output_stats () {
         # Output totals
 
         notice "${jobname} ******* Rsync Totals *******"
-        notice  "    Number of jobs: $x"
-        notice  "    Number of files: $num_files"
-        notice  "    Number of files transfered: $num_files_trans"
-        notice  "    Total_file_size: $(bytestohuman $total_file_size)"
-        notice  "    Total Transfered size: $(bytestohuman $total_transfered_size)"
+        notice "    Number of jobs: $x"
+        notice "    Number of files: $num_files"
+        notice "    Number of files transfered: $num_files_trans"
+        notice "    Total_file_size: $(bytestohuman $total_file_size)"
+        notice "    Total Transfered size: $(bytestohuman $total_transfered_size)"
         
         # DEBUG set +x
         
