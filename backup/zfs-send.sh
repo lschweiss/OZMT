@@ -94,6 +94,7 @@ show_usage() {
     echo "  [-z n]              Compress with LZ4.  Specify 1 for standard LZ4.  Specify 4 - 9 for LZ4HC compression level."
     echo "  [-F]                Target is a flat file.  No zfs receive will be used."
     echo "  [-k {file} ]        Generate a md5 sum.  Store it in {file}."
+    echo "  [-K {file} ]        Generate a md5 sum.  Store it in remote {file}."
     echo "  [-L]                Overide default log file location."
     echo "  [-R]                Overide default report name."
     echo "  [-n]                Name fore this job."
@@ -127,7 +128,7 @@ flat_file='false'
 gen_chksum=
 job_name='zfs_send'
 
-while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:L:R: opt; do
+while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:K:L:R: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -205,6 +206,10 @@ while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:L:R: opt; do
         k)  # Generate a md5 checksum
             gen_chksum="$OPTARG"
             debug "${job_name}: Generate MD5 sum in file $gen_chksum"
+            ;;
+        K)  # Generate a md5 checksum
+            remote_chksum="$OPTARG"
+            debug "${job_name}: Generate MD5 sum in file remote $remote_chksum"
             ;;
         L)  # Overide default log file
             log_file="$OPTARG"
@@ -340,12 +345,22 @@ else
     # Determine if this is a clone
     origin=`zfs get -H origin $source_folder|awk -F " " '{print $3}'`
     if [ "$origin" == '-' ]; then
-        send_snaps="$increment_type ${source_folder}@origin ${last_snap}"
+        first_snap_name="${source_folder}@origin"
     else
         originfs=`echo $origin | awk -F "@" '{print $1}'`
         debug "${job_name}: Source file system is a clone.  Setting source to ${originfs}@origin"
-        send_snaps="$increment_type ${originfs}@origin ${last_snap}"
+        first_snap_name="${originfs}@origin"
     fi
+    if [ "$replicate" == 'true' ] && [ "$first_snap" == 'origin' ] && [ "$increment_type" != '' ]; then
+        die "${job_name}: Cannot use a replication stream and incremental scream from a filesystem's origin."
+    else 
+        if [ "$increment_type" != '' ]; then
+            send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
+        else
+            send_snaps="${last_snap}"
+        fi
+    fi
+    
 fi
 
 
@@ -780,6 +795,24 @@ if [ "$mbuffer_use" == 'true' ]; then
     sleep 2
 fi
 
+##
+# Generate md5 sum for local or remote storage
+##
+
+if [ "$gen_chksum" != "" ] || [ "$remote_chksum" != "" ]; then
+    local_fifo md5sum
+    source_md5sum_fifo="$result"
+    debug "${job_name}: Starting md5sum from $source_md5sum_fifo piping to $target_fifo"
+    ( cat "$source_md5sum_fifo" | \
+        tee $target_fifo | \
+        md5sum -b > "$tmpdir/md5sum" 2> "$tmpdir/md5sum.error" ; \
+        echo $? > "$tmpdir/md5sum.errorlevel" ) &
+    echo $! > $tmpdir/md5sum.pid
+    target_fifo="$source_md5sum_fifo"
+    local_watch="md5sum $local_watch"
+fi
+
+
 ################################################################
 #
 # Start the zfs send
@@ -869,6 +902,14 @@ done
 
 if [ "$success" == 'true' ]; then
     notice "${job_name}: Job completed successfully."
+    if [ "$gen_chksum" != "" ]; then
+        cp "$tmpdir/md5sum" "$gen_chksum"
+    fi
+
+    if [ "$remote_chksum" != "" ]; then
+        scp "$tmpdir/md5sum" "root@${remote_host}:/${remote_chksum}" &> /dev/null ||
+            error "Failed to push md5sum to ${remote_chksum} on ${remote_host}"
+    fi    
 else
     error "${job_name}: Job failed."
 fi
