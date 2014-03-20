@@ -163,7 +163,7 @@ else
         debug "Assuming remote target folder $2 exists.  Cannot check from here."
         target_folder=$2
     else
-        error "Target folder $2 does not exist!"
+        error "${jobname} Target folder $2 does not exist!"
         exit 1
     fi
 fi
@@ -364,7 +364,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         snap_label="snap-daily_${snap}"
     else
         # If snapshot was not located, output the error message and exit
-        error $snap
+        error "${jobname} Could locate snapshot: $snap"
         exit 1
     fi
 
