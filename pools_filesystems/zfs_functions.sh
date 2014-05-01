@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012  Chip Schweiss
+# Copyright (C) 2012-2014  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -34,12 +34,134 @@ blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
     mkdir -p ${glacierjobdir}
     mkdir -p ${glacierjobstatus}
 
+
+
+setzfs () {
+
+    local zfsfolder="$1"
+    local options="$2"
+    local option=""
+
+    if [ ! -e "/$pool" ]; then
+        echo "ERROR: ZFS pool \"$pool\" does not exist!"
+        exit 1
+    fi
+
+    for option in $options; do
+
+        thisoption=`echo $option | awk -F "=" '{print $1}'`
+        newvalue=`echo $option | awk -F "${thisoption}=" '{print $2}'`
+        currentvalue=`zfs get -H $thisoption $zfsfolder|cut -f3`
+        
+        if [ "$currentvalue" != "$newvalue" ]; then
+            echo "$(color cyan)Resetting $(color red)$thisoption $(color cyan)from"
+            echo "$(color red)$currentvalue"
+            echo "$(color cyan)to"
+            echo "$(color red)$newvalue$(color)"
+            eval zfs set $option $zfsfolder
+        else
+            echo "Keeping $thisoption set to $currentvalue"
+        fi
+
+    done
+
+}
+
+
+
 setupzfs () {
 
-    zfspath="$1"
-    options="$2"
-    snapshots="$3"
-    backup_target="$4"
+    local zfspath=
+    local options=
+    local properties=
+    local snapshots=
+    local backup_target=
+    local target_properties=
+    local backup_options=
+   
+
+    show_usage() {
+        echo
+        echo "Usage: $0 "
+        echo "  Depricated:"
+        echo "      $0 {zfs_path} {zfs_options} {snapshots} "
+        echo
+        echo "  Prefered:"
+        echo "      $0 -z {zfs_path} "
+        echo "          [-o {zfs_option)]           Set zfs property (repeatable) "
+        echo "          [-s {snapshot|count}]       Set snapshot policy and count (repeatable)"
+        echo "          [-b {backup_target}]        zfs send/receive target"
+        echo "                                      {pool}/{zfs_folder} or "
+        echo "                                      {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured."
+        echo "              [-p {target_properties}]    Properties to reset on the target zfs folder. (repeatable) " 
+        echo "              [-r]                        Use a replication stream, which will include all child zfs folders and snapshots."
+        echo "              [-i]                        Use an incremental stream"
+        echo "              [-I]                        Use an incremental stream with all intermediary snapshots"
+        echo "                                          -i and -I are mutually exclusive."
+    }
+
+    while getopts z:o:s:b:p:riI opt; do
+        case $opt in
+            z)  # Set zfspath
+                zfspath="$OPTARG"
+                debug "ZFS path set to: $zfspath"
+                ;;
+            o)  # Add an zfs property
+                properties="$properties $OPTARG"
+                debug "Adding zfs property: $OPTARG"
+                ;;
+            s)  # Add a snapshot policy
+                snapshots="$snapshots $OPTARG"
+                debug "Adding snapshot policy: $OPTARG"
+                ;;
+            b)  # Backup target
+                backup_target="$OPTARG"
+                debug "Adding backup target: $backup_target"
+                ;;
+            p)  # zfs property for backup target
+                target_properties="$target_properties $OPTARG"
+                debug "Adding backup property for $backup_target: $target_property"
+                ;;
+            r)  # Use a replication stream
+                backup_options="$backup_options -r"
+                debug "Setting replication stream for $backup_target"
+                ;;
+            i)  # Use an incremental stream
+                backup_options="-i $backup_options"
+                debug "Setting incremental stream for $backup_target"
+                ;;
+            I)  # Use and incremental stream with intermediary snapshots
+                backup_options="-I $backup_options"
+                debug "Setting incremental stream with intermediary snapshots for $backup_target"
+                ;;
+            ?)  # Show program usage and exit
+                show_usage
+                exit 0
+                ;;
+            :)  # Mandatory arguments not specified
+                error "setupzfs: Option -$OPTARG requires an argument."
+                ;;
+        
+        esac
+    done
+
+    #Move to remaining arguments
+    shift $(($OPTIND - 1))
+    
+    if [ "$1" != "" ]; then
+        warning "setup zfs using depricated format: setupzfs $*"
+
+        zfspath="$1"
+        options="$2"
+        snapshots="$3"
+        backup_target="$4"
+        backup_options="$5"
+
+    else
+        options="$properties"
+    fi
+
+    
 
     snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
     backupjobdir="/${pool}/zfs_tools/etc/backup/jobs"
@@ -154,8 +276,10 @@ setupzfs () {
         echo "Creating backup job:"
         echo "ZFS send to $backup_target"
         mkdir -p ${backupjobdir}/zfs
-        echo "backup_source=\"${pool}/${zfspath}\"" > ${backupjobdir}/zfs/${jobname}
-        echo "backup_target=\"${backup_target}\"" >> ${backupjobdir}/zfs/${jobname}
+        # All variables prefixed by local because this will be sourced in a bash function
+        echo "local backup_source=\"${pool}/${zfspath}\"" > ${backupjobdir}/zfs/${jobname}
+        echo "local backup_target=\"${backup_target}\"" >> ${backupjobdir}/zfs/${jobname}
+        echo "local backup_options=\"${backup_options}\"" >> ${backupjobdir}/zfs/${jobname}
     fi
 
     # Prep the snapshot jobs folders
@@ -185,36 +309,4 @@ setupzfs () {
     fi
     echo
 }
-
-setzfs () {
-
-    local zfsfolder="$1"
-    local options="$2"
-    local option=""
-
-    if [ ! -e "/$pool" ]; then
-        echo "ERROR: ZFS pool \"$pool\" does not exist!"
-        exit 1
-    fi
-
-    for option in $options; do
-
-        thisoption=`echo $option | awk -F "=" '{print $1}'`
-        newvalue=`echo $option | awk -F "${thisoption}=" '{print $2}'`
-        currentvalue=`zfs get -H $thisoption $zfsfolder|cut -f3`
-        
-        if [ "$currentvalue" != "$newvalue" ]; then
-            echo "$(color cyan)Resetting $(color red)$thisoption $(color cyan)from"
-            echo "$(color red)$currentvalue"
-            echo "$(color cyan)to"
-            echo "$(color red)$newvalue$(color)"
-            eval zfs set $option $zfsfolder
-        else
-            echo "Keeping $thisoption set to $currentvalue"
-        fi
-
-    done
-
-}
-
 
