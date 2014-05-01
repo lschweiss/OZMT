@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -65,13 +65,60 @@ target_fifo=
 target_fifos=
 source_fifo=
 local_fifos=
+success='false'
+
+
+##
+# Clean up 
+##
+clean_up () {
+
+    if [ "$success" == 'false' ]; then
+        # Kill running processes
+    
+        pids=`ls -1 $tmpdir/*.pid` 2> /dev/null
+        for pidfile in $pids; do
+            pid=`cat $pidfile`
+            debug "Killing process $pidfile, PID $pid"
+            kill $pid 2> /dev/null
+        done
+    
+        if [ "$remote_host" != "" ]; then
+            #DEBUG set -x
+            pids=`$remote_ssh "ls -1 $remote_tmp/*.pid"` 2> /dev/null
+            for pidfile in $pids; do
+                pid=`$remote_ssh "cat $pidfile"`
+                debug "Killing remote process $pidfile, PID $pid"
+                $remote_ssh "kill $pid 2 >/dev/null"
+            done
+            #DEBUG set +x
+        fi
+    
+    else
+        # Clean up temp space
+    
+        if [ ! -t 1 ]; then
+            rm -rf $tmpdir
+            if [ "$remote_host" != "" ]; then
+                $remote_ssh "rm -r $remote_tmp"
+            fi
+        fi
+    
+    fi
+        
+    exit $1
+
+}
+
+trap clean_up SIGHUP SIGINT SIGTERM
+
 
 die () {
     error "$1"
     if [ "$tmpdir" != "" ]; then
         rm -rf $tmpdir
     fi
-    exit 1
+    clean_up 1
 }
 
 # show function usage
@@ -345,6 +392,7 @@ else
     # Determine if this is a clone
     origin=`zfs get -H origin $source_folder|awk -F " " '{print $3}'`
     if [ "$origin" == '-' ]; then
+        first_snap_name=""
         first_snap_name="${source_folder}@origin"
     else
         originfs=`echo $origin | awk -F "@" '{print $1}'`
@@ -355,7 +403,11 @@ else
         die "${job_name}: Cannot use a replication stream and incremental scream from a filesystem's origin."
     else 
         if [ "$increment_type" != '' ]; then
-            send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
+            if [ "$first_snap_name" == "${source_folder}@origin" ]; then
+                send_snaps="${last_snap}"
+            else
+                send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
+            fi
         else
             send_snaps="${last_snap}"
         fi
@@ -508,7 +560,7 @@ if [ "$flat_file" == 'true' ]; then
         remote_fifo flat_file
         target_fifo="$result"
         debug "${job_name}: Starting remote pipe from $target_fifo to $target_folder"
-        remote_launch "flat_file" "cat $target_fifo 1> $target_folder 2> $remote_tmp/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel"
+        remote_launch "flat_file" "cat $target_fifo 1> $target_folder 2> $remote_tmp/flat_file.error ; echo \$? > $tmpdir/flat_file.errorlevel"
         remote_watch="flat_file $remote_watch"
     fi
 else
@@ -528,7 +580,7 @@ else
         target_fifo="$result"
         debug "${job_name}: Starting remote zfs receive $target_fifo to ${target_folder}"
         remote_launch "zfs_receive" "cat $target_fifo | zfs receive ${receive_options} ${target_prop} ${target_folder} \
-            2> $remote_tmp/zfs_receive.error ; echo $? > $remote_tmp/zfs_receive.errorlevel"
+            2> $remote_tmp/zfs_receive.error ; echo \$? > $remote_tmp/zfs_receive.errorlevel"
         remote_watch="zfs_receive $remote_watch"
     fi
 fi
@@ -615,7 +667,7 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     # Start openssl
     debug "${job_name}: Starting remote openssl decrypt from $target_ssl_fifo to $target_fifo"
     remote_launch "openssl" "openssl aes-256-cbc -d -pass file:$bbcp_key <$target_ssl_fifo 1> $target_fifo \
-        2> $remote_tmp/openssl.error ; echo $? > $remote_tmp/openssl.errorlevel"
+        2> $remote_tmp/openssl.error ; echo \$? > $remote_tmp/openssl.errorlevel"
     remote_watch="openssl $remote_watch"
     sleep 2
     target_fifo="$target_ssl_fifo"
@@ -914,80 +966,50 @@ else
     error "${job_name}: Job failed."
 fi
 
-##
-# Clean up 
-##
-
-if [ "$success" == 'false' ]; then
-    # Kill running processes
-
-    pids=`ls -1 $tmpdir/*.pid`
-    for pidfile in $pids; do
-        pid=`cat $pidfile`
-        debug "Killing process $pidfile, PID $pid"
-        kill $pid 2> /dev/null
-    done
-
-    if [ "$remote_host" != "" ]; then
-        #DEBUG set -x
-        pids=`$remote_ssh "ls -1 $remote_tmp/*.pid"`
-        for pidfile in $pids; do
-            pid=`$remote_ssh "cat $pidfile"`
-            debug "Killing remote process $pidfile, PID $pid"
-            $remote_ssh "kill $pid 2 >/dev/null"
-        done
-        #DEBUG set +x
-    fi
-
-else
-    # Clean up temp space
-
-    if [ ! -t 1 ]; then
-        rm -rf $tmpdir
-        if [ "$remote_host" != "" ]; then
-            $remote_ssh "rm -r $remote_tmp"
-        fi
-    fi
-
-fi
-    
-
 
 ##
 # Collect job component error levels and report failures
 ##
 
-errorlevels=`ls -1 $tmpdir/*.errorlevel`
-for errorlevel in $errorlevels; do
-    echo "local $errorlevel = $(cat $errorlevel)"
-done
+if [ ! -t 1 ]; then
 
-errors=`ls -1 $tmpdir/*.error`
-for error in $errors; do
-    echo "local ${error}:"
-    cat $error
-done
-
-if [ "$remote_host" != "" ]; then
-    errorlevels=`$remote_ssh "ls -1 $remote_tmp/*.errorlevel"`
+    errorlevels=`ls -1 $tmpdir/*.errorlevel`
     for errorlevel in $errorlevels; do
-        echo -n "remote $errorlevel = "
-        $remote_ssh "cat $errorlevel"
+        echo "local $errorlevel = $(cat $errorlevel)"
     done
     
-    errors=`$remote_ssh "ls -1 $remote_tmp/*.error"`
+    errors=`ls -1 $tmpdir/*.error`
     for error in $errors; do
-        echo "remote ${error}:"
-        $remote_ssh "cat $error"
+        echo "local ${error}:"
+        cat $error
     done
+    
+    if [ "$remote_host" != "" ]; then
+        errorlevels=`$remote_ssh "ls -1 $remote_tmp/*.errorlevel"`
+        for errorlevel in $errorlevels; do
+            echo -n "remote $errorlevel = "
+            $remote_ssh "cat $errorlevel"
+        done
+        
+        errors=`$remote_ssh "ls -1 $remote_tmp/*.error"`
+        for error in $errors; do
+            echo "remote ${error}:"
+            $remote_ssh "cat $error"
+        done
+    fi
+    
+
 fi
 
 
+##
+# Clean up
+##
 
-
-
-
-
-
+if [ "$success" == 'true' ]; then
+    clean_up 0
+else
+    clean_up 1
+fi
 
 

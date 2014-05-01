@@ -9,6 +9,7 @@ backup/jobs
 amazon-glacier-cmd-interface
 reporting/reports_pending
 reporting/reporting.muttrc
+logsurfer/logsurfer-1.8/*
 root.save
 etc.save
 tmp/*

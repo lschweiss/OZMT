@@ -198,6 +198,12 @@ if [ "$ec2_backup" == "true" ]; then
 
 fi
 
+# Backup defaults
+if [ "$skiptypes" == "" ]; then
+    # Skip processing increments smaller than daily
+    skiptypes="mid-day hourly 30min 15min 5min min"
+fi
+
 if [ "x$default_report_name" == "x" ]; then
     default_report_name="default"
 fi
