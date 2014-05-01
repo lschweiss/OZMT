@@ -240,6 +240,7 @@ split_rsync () {
                     break;
                 else
                     notice "${jobname} Job for $1 failed.  Will try up to 3 times."
+                    sleep 15m
                 fi
             fi
 
