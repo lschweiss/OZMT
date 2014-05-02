@@ -78,6 +78,7 @@ setupzfs () {
     local backup_target=
     local target_properties=
     local backup_options=
+    local OPTIND=1
    
 
     show_usage() {

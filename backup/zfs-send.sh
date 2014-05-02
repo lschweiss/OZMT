@@ -405,11 +405,17 @@ else
         if [ "$increment_type" != '' ]; then
             if [ "$first_snap_name" == "${source_folder}@origin" ]; then
                 send_snaps="${last_snap}"
+                if [ "$delete_snaps" != 'true' ]; then
+                    receive_options="-F $receive_options"
+                fi
             else
                 send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
             fi
         else
             send_snaps="${last_snap}"
+            if [ "$delete_snaps" != 'true' ]; then
+                receive_options="-F $receive_options"
+            fi
         fi
     fi
     
