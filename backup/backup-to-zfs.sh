@@ -1,4 +1,4 @@
-#! /bin/bash -x
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -80,9 +80,11 @@ update_job_status () {
 
     rm -f "$temp_file"
 
+    wait_for_lock "$status_file" 5
+
     # Copy all status lines execept the variable we are dealing with
     while read line; do
-        echo "$line" | grep -q "^local ${variable}="
+        echo "$line" | $grep -q "^local ${variable}="
         if [ $? -ne 0 ]; then
             echo "$line" >> "$temp_file"
         fi
@@ -93,6 +95,8 @@ update_job_status () {
 
     # Replace the status file with the updated file
     mv "$temp_file" "$status_file"
+
+    release_lock "$status_file"
 
     return 0
 
@@ -127,16 +131,23 @@ zfsjob () {
     local target_snapshots=
     local target_host=
     local target_folder=
+    local num_snaps=
+    local this_snap_num=
     local this_snap=
     local job_snap=
     local backup_source=
     local backup_children=
     local backup_options=
     local found_start=
+    local job_running=
+
 
     source ${jobfolder}/${job}
 
     jobstat="${statfolder}/${job}/job.status"
+
+    # We will want to lock on the job.status file
+    init_lock "$jobstat"
 
     # Determine if we've backed up before
     if [ -f "$jobstat" ]; then
@@ -146,11 +157,12 @@ zfsjob () {
         mkdir -p "${statfolder}/${job}"
         touch "$jobstat"
     fi
-    
-    echo "$backup_target" | grep -q ':/'
+
+
+    echo "$backup_target" | $grep -q ':/'
     if [ $? -eq 0 ]; then
-        target_host=`echo $backup_target | awk -F ":" '{print $1}'`
-        target_folder=`echo $backup_target | awk -F ":/" '{print $2}'`
+        target_host=`echo $backup_target | $awk -F ":" '{print $1}'`
+        target_folder=`echo $backup_target | $awk -F ":/" '{print $2}'`
         debug "Backing up $backup_source to $target_host folder $target_folder"
     else
         target_host=''
@@ -178,10 +190,25 @@ zfsjob () {
         fi
     fi
 
+    # Make sure a previous instance of this job is not still running
+
+    if [ "$job_running" != "" ]; then
+        if [ -e /proc/$job_running ]; then
+            ps awwx |$grep -v "grep" | $grep "$job_running " | $grep -q "backup-to-zfs.sh"
+            if [ $? -eq 0 ]; then
+                notice "Previous instance of this job: $job is still running.   Skipping this run."
+                return 0
+            fi
+        fi
+    fi
+    
+    update_job_status "$jobstat" "job_running" "$$"
+
+
     # Generate full list of snapshots
     zfs list -t snapshot -H -o name -s creation | $grep "^${backup_source}@" > $TMP/zfsjob.snaplist.$$
     
-    cat $TMP/zfsjob.snaplist.$$
+    num_snaps=`cat $TMP/zfsjob.snaplist.$$ | wc -l`
 
     if [ "$source_end_snap" == "" ]; then
         # Lookup last source snapshot for backup
@@ -208,6 +235,11 @@ zfsjob () {
         backup_options="-r $backup_options"
     fi
 
+    echo "$backup_options" | $grep -v "-I\|-i"
+    if [ $? -eq 0 ]; then
+        incremental='true'
+    fi
+
     if [ "$last_complete_snap" != "" ]; then
         # Verify recorded last completed snapshot is on the destination
         debug "Need destination verification."
@@ -228,7 +260,16 @@ zfsjob () {
     
     found_start='false'
 
-    while read -r -u 9 this_snap; do
+    this_snap_num=1
+
+    while [ $this_snap_num -le $num_snaps ]; do
+
+        # The normal convention is to use 'while read line; do blah;blah; done < file_to_read'
+        # This doesn't work here because this loop is meant to be running multiple times in parallel 
+        # each process would trample each others input pipe.   Instead we keep track of which line
+        # we are processing and grab that line from the file.
+    
+        this_snap=`cat $TMP/zfsjob.snaplist.$$ | head -n $this_snap_num | tail -n 1`
 
         job_snap='false'
 
@@ -270,6 +311,7 @@ zfsjob () {
                 if [ $? -ne 0 ]; then
                     # Send failed
                     error "Failed to send first snapshot ${this_snap}.  Aborting."
+                    update_job_status "$jobstat" "job_running" ""
                     return 1
                 else
                     found_start='true'
@@ -290,6 +332,7 @@ zfsjob () {
                     if [ $? -ne 0 ]; then
                         # Send failed
                         error "Failed to send from $last_complete_snap to ${this_snap}.  Aborting."
+                        update_job_status "$jobstat" "job_running" ""
                         return 1
                     else
                         debug "Sent from $last_increment_snap to ${this_snap} to $target_folder"
@@ -309,7 +352,7 @@ zfsjob () {
                     ./delete-previous-snaps.sh -f "$target_folder" -n "$job_backup_snaptag" \
                         -t "$job_backup_snaptag" -l "$last_complete_snap" $background
                 else
-                    target_last_snap=`echo "$last_complete_snap" | sed s,${backup_source},${target_folder},g`
+                    target_last_snap=`echo "$last_complete_snap" | $sed s,${backup_source},${target_folder},g`
                     ./delete-previous-snaps.sh -h "$target_host" -f "$target_folder" -n "$job_backup_snaptag" \
                         -t "$job_backup_snaptag" -l "$target_last_snap" $background
                 fi
@@ -322,12 +365,14 @@ zfsjob () {
             fi
 
         fi
-       
-    done 9< $TMP/zfsjob.snaplist.$$
-   
 
+        this_snap_num=$(( this_snap_num + 1 ))
+       
+    done 
+   
+    update_job_status "$jobstat" "job_running" ""
     
-    #rm $TMP/zfsjob.snaplist.$$
+    rm $TMP/zfsjob.snaplist.$$
 
 }
 

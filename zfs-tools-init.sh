@@ -159,8 +159,20 @@ if [ -z $tools_snapshot_name ]; then
 fi
 
 
+##
+# 
+# Source other functions
+#
+##
 
-. $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
+source $TOOLS_ROOT/zfs-tools-functions.sh
+
+
+
+
+##
+# EC2 Backup
+##
 
 if [ "$ec2_backup" == "true" ]; then
 
@@ -212,88 +224,4 @@ if [ "x$TMP" == "x" ]; then
     TMP="/tmp"
 fi
 
-. $TOOLS_ROOT/reporting/reporting_functions.sh
 
-now() {
-    date +"%F %r %Z"
-}
-
-now_stamp () {
-    date +"%F_%H:%M:%S%z"
-}
-
-check_key () {
-
-# confirm the key
-poolkey=`cat ${ec2_zfspool}_key.sha512`
-sha512=`echo $key|sha512sum|cut -d " " -f 1`
-
-if [ "$poolkey" != "$sha512" ]; then
-   echo "Invalid encryption key for ${ec2_zfspool}!"
-   exit 1
-else
-   echo "Key is valid."
-fi
-
-}
-
-
-####
-#
-# Conversions
-#
-####
-
-tobytes () {
-    awk '{ ex = index("KMG", substr($1, length($1)))
-           val = substr($1, 0, length($1))
-           prod = val * 10^(ex * 3)
-           sum += prod
-         }
-         END {print sum}'
-}
-
-bytestohuman () {
-    if [ $1 -gt 1099511627776 ]; then
-        echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
-        return
-    fi
-
-    if [ $1 -gt 1073741824 ]; then
-        echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
-        return
-    fi
-
-    if [ $1 -gt 1048576 ]; then
-        echo -n $(echo "scale=3;$1/1048576"|bc)MiB
-        return
-    fi
-
-    if [ $1 -gt 1024 ]; then
-        echo -n $(echo "scale=3;$1/1024"|bc)KiB
-        return
-    fi
-
-    echo "$1 bytes"
-
-}
-
-####
-#
-# Pool and file system functions
-#
-####
-
-pools () {
-    # Returns all pools mounted on the system excluding the rpool
-
-    zpool list -H | cut -f 1  | grep -v "$(rpool)"
-
-}
-
-rpool () {
-    # Returns the active rpool
-
-    mount|grep -e "^/ on"|awk -F " on " '{print $2}'|awk -F "/" '{print $1}'
-
-}

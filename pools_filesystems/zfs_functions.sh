@@ -76,6 +76,7 @@ setupzfs () {
     local properties=
     local snapshots=
     local backup_target=
+    local zfs_backup=
     local target_properties=
     local backup_options=
     local OPTIND=1
@@ -117,6 +118,7 @@ setupzfs () {
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
+                zfs_backup='true'
                 debug "Adding backup target: $backup_target"
                 ;;
             p)  # zfs property for backup target
@@ -273,7 +275,7 @@ setupzfs () {
     jobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
 
     # Setup ZFS backup jobs
-    if [ "$backup" == "zfs" ]; then
+    if [[ "$backup" == "zfs" || "$zfs_backup" == 'true' ]] ; then
         echo "Creating backup job:"
         echo "ZFS send to $backup_target"
         mkdir -p ${backupjobdir}/zfs
