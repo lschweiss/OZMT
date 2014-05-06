@@ -165,7 +165,7 @@ function wait_for_lock() {
             lockpid=`cat $lockfile`
             # check if it is running
             if [ -e /proc/$lockpid ]; then
-                ps awwx |$grep -v grep | $grep -q "^$lockpid "
+                ps awwx |$grep -v grep | $grep -q "$lockpid "
                 result=$?
                 if [ "$result" -eq "0" ]; then
                     # Process id exists.  Sleep 2 seconds and check again

@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -146,9 +146,6 @@ zfsjob () {
 
     jobstat="${statfolder}/${job}/job.status"
 
-    # We will want to lock on the job.status file
-    init_lock "$jobstat"
-
     # Determine if we've backed up before
     if [ -f "$jobstat" ]; then
         source "$jobstat"
@@ -158,12 +155,19 @@ zfsjob () {
         touch "$jobstat"
     fi
 
+    # We will want to lock on the job.status file
+    init_lock "$jobstat"
 
     echo "$backup_target" | $grep -q ':/'
     if [ $? -eq 0 ]; then
         target_host=`echo $backup_target | $awk -F ":" '{print $1}'`
         target_folder=`echo $backup_target | $awk -F ":/" '{print $2}'`
         debug "Backing up $backup_source to $target_host folder $target_folder"
+        timeout 5 ssh root@$target_host echo "Hello world" &> /dev/null
+        if [ $? -ne 0 ]; then
+            error "Can connect to target host via ssh root@${target_host}"
+            return 1
+        fi
     else
         target_host=''
         target_folder="$backup_target"
@@ -235,7 +239,7 @@ zfsjob () {
         backup_options="-r $backup_options"
     fi
 
-    echo "$backup_options" | $grep -q "-I\|-i"
+    echo "$backup_options" | $grep -q " -I \| -i "
     if [ $? -eq 0 ]; then
         incremental='true'
     fi
