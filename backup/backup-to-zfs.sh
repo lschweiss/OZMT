@@ -46,14 +46,6 @@ else
     background='&'
 fi
 
-debug () {
-    echo "DEBUG: $1"
-}
-
-notice () {
-    echo "NOTICE: $1"
-}
-
 update_job_status () {
 
     # TODO: Make this thread safe so jobs can be made multipart.
