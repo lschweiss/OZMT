@@ -235,7 +235,7 @@ zfsjob () {
         backup_options="-r $backup_options"
     fi
 
-    echo "$backup_options" | $grep -v "-I\|-i"
+    echo "$backup_options" | $grep -q "-I\|-i"
     if [ $? -eq 0 ]; then
         incremental='true'
     fi
