@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>HTML Online Editor Sample</title>
+  </head>
+  <body>
+    <h2> <span style="font-family:verdana,geneva,sans-serif;">Quota
+        warning from #HOSTNAME#</span></h2>
+    <p> The ZFS folder #ZFS_FOLDER# has triggered a quota warning:</p>
+    <p> #REFQUOTA_TRIGGER#<br>
+      #QUOTA_TRIGGER#<br>
+      #SIZE_TRIGGER#</p>
+    <p> </p>
+    <table style="width: 800px;" cellpadding="1" cellspacing="1"
+      align="left" border="0">
+      <tbody>
+        <tr>
+          <td>Referenced</td>
+          <td>#REFERENCED#</td>
+        </tr>
+        <tr>
+          <td>Referenced Quota<br>
+          </td>
+          <td>#REF_QUOTA#</td>
+        </tr>
+        <tr>
+          <td>&nbsp; <br>
+          </td>
+          <td>&nbsp;<br>
+          </td>
+        </tr>
+        <tr>
+          <td>Used by folder and subfolders<br>
+          </td>
+          <td>#USED#</td>
+        </tr>
+        <tr>
+          <td valign="top">Used by data set in folder<br>
+          </td>
+          <td valign="top">#USED_DS#<br>
+          </td>
+        </tr>
+        <tr>
+          <td valign="top">Used by snapshots<br>
+          </td>
+          <td valign="top">#USED_SNAP#<br>
+          </td>
+        </tr>
+        <tr>
+          <td>Available</td>
+          <td>#AVAILABLE#</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
