@@ -7,49 +7,77 @@
   <body>
     <h2> <span style="font-family:verdana,geneva,sans-serif;">Quota
         warning from #HOSTNAME#</span></h2>
-    <p> The ZFS folder #ZFS_FOLDER# has triggered a quota warning:</p>
+    <p> The ZFS folder <big><big><b>#ZFS_FOLDER#</b></big></big> has
+      triggered a quota warning:</p>
     <p> #REFQUOTA_TRIGGER#<br>
       #QUOTA_TRIGGER#<br>
       #SIZE_TRIGGER#</p>
     <p> </p>
-    <table style="width: 800px;" cellpadding="1" cellspacing="1"
-      align="left" border="0">
+    <table style="width: 500px;" cellpadding="1" cellspacing="1"
+      border="0">
       <tbody>
         <tr>
-          <td>Referenced</td>
-          <td>#REFERENCED#</td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">Referenced</font></td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">#REFERENCED#</font></td>
         </tr>
         <tr>
-          <td>Referenced Quota<br>
-          </td>
-          <td>#REF_QUOTA#</td>
+          <td><font face="Arial Rounded MT">Referenced Quota<br>
+            </font> </td>
+          <td><font face="Arial Rounded MT">#REF_QUOTA#</font></td>
         </tr>
         <tr>
-          <td>&nbsp; <br>
-          </td>
-          <td>&nbsp;<br>
-          </td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">Logical
+              Used&nbsp; <br>
+            </font> </td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">#LOGICALUSED#
+              <br>
+            </font> </td>
         </tr>
         <tr>
-          <td>Used by folder and subfolders<br>
-          </td>
-          <td>#USED#</td>
+          <td valign="top"><font face="Arial Rounded MT">Logical
+              Referenced<br>
+            </font></td>
+          <td valign="top"><font face="Arial Rounded MT">#LOGICALREFERENCED#<br>
+            </font></td>
         </tr>
         <tr>
-          <td valign="top">Used by data set in folder<br>
-          </td>
-          <td valign="top">#USED_DS#<br>
-          </td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">Used by
+              folder and subfolders<br>
+            </font> </td>
+          <td bgcolor="#33ccff"><font face="Arial Rounded MT">#USED#</font></td>
         </tr>
         <tr>
-          <td valign="top">Used by snapshots<br>
-          </td>
-          <td valign="top">#USED_SNAP#<br>
-          </td>
+          <td valign="top"><font face="Arial Rounded MT">Used by data
+              set in folder<br>
+            </font> </td>
+          <td valign="top"><font face="Arial Rounded MT">#USED_DS#<br>
+            </font> </td>
         </tr>
         <tr>
-          <td>Available</td>
-          <td>#AVAILABLE#</td>
+          <td bgcolor="#33ccff" valign="top"><font face="Arial Rounded
+              MT">Used by snapshots<br>
+            </font> </td>
+          <td bgcolor="#33ccff" valign="top"><font face="Arial Rounded
+              MT">#USED_SNAP#<br>
+            </font> </td>
+        </tr>
+        <tr>
+          <td valign="top"><font face="Arial Rounded MT">Compression<br>
+            </font></td>
+          <td valign="top"><font face="Arial Rounded MT">#COMPRESSION#<br>
+            </font></td>
+        </tr>
+        <tr>
+          <td bgcolor="#33ccff" valign="top"><font face="Arial Rounded
+              MT">Compression Ratio<br>
+            </font></td>
+          <td bgcolor="#33ccff" valign="top"><font face="Arial Rounded
+              MT">#COMPRESSRATIO#<br>
+            </font></td>
+        </tr>
+        <tr>
+          <td><font face="Arial Rounded MT">Available</font></td>
+          <td><font face="Arial Rounded MT"><big><big>#AVAILABLE#</big></big></font></td>
         </tr>
       </tbody>
     </table>
