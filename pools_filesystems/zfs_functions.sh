@@ -59,11 +59,12 @@ Usage:
         [-i]                        Use an incremental stream
         [-I]                        Use an incremental stream with all intermediary snapshots
                                     -i and -I are mutually exclusive.
-      [-q "{free}|{destination}|{frequency}"] 
+      [-q "{free}|{alert_type}|{destination}|{frequency}"] 
                                   Send a quota alert at {free} to {destination} every {frequency} seconds.   
+                                    {alert_type} can be any adjective, typically "warning", or "critical"
                                     {free} can be xx% or in GB, TB.
                                     (repeatable)
-      [-t "{trend}|{scope}|{destination}|{frequency}] 
+      [-t "{trend}|{scope}|{alert_type}|{destination}|{frequency}] 
                                   Send a trend alert when daily usage varies more than {trend} percent over a scope 
                                     of {scope} days.   Send the alert every {frequency} seconds.
                                     Alert goes to {destination}.

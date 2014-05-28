@@ -100,6 +100,7 @@ quota_report () {
     local compressionratio=
     local report=
     local free_trigger=
+    local alert_type=
     local trigger_percent=
     local trigger_bytes=
     local trigger_t=
@@ -151,8 +152,9 @@ quota_report () {
             if [ "${quota_report[$report]}" != "" ]; then
                 triggered=0
                 free_trigger=`echo ${quota_report[$report]} | $awk -F '|' '{print $1}'`
-                destinations=`echo ${quota_report[$report]} | $awk -F '|' '{print $2}'`
-                frequency=`echo ${quota_report[$report]} | $awk -F '|' '{print $3}'`
+                alert_type=`echo ${quota_report[$report]} | $awk -F '|' '{print $2}'`
+                destinations=`echo ${quota_report[$report]} | $awk -F '|' '{print $3}'`
+                frequency=`echo ${quota_report[$report]} | $awk -F '|' '{print $4}'`
                 if [[ "$frequency" == "" || $frequency -lt $minimum_report_frequency ]]; then
                     # Minimum report frequency
                     frequency="$minimum_report_frequency"
@@ -198,7 +200,7 @@ quota_report () {
                         ;; 
                 esac
                 if [ $triggered -eq 1 ]; then
-                    subject="$default_quota_report_title Quota WARNING for $quota_path"
+                    subject="$default_quota_report_title Quota ${alert_type^^}  for $quota_path"
                     # Build the email report
                     if [ -f "$QUOTA_REPORT_TEMPLATE" ]; then
                         if [ "${QUOTA_REPORT_TEMPLATE: -4}" == "html" ]; then
@@ -206,6 +208,7 @@ quota_report () {
                         fi
                         cat $QUOTA_REPORT_TEMPLATE | \
                         $sed "s,#HOSTNAME#,$HOSTNAME,g" | \
+                        $sed "s,#ALERT_TYPE#,${alert_type,,},g" | \
                         $sed "s,#ZFS_FOLDER#,$quota_path,g" | \
                         $sed "s/#REFERENCED#/$(bytestohuman $referenced 2)/g" | \
                         $sed "s/#REF_QUOTA#/$(bytestohuman $refquota 2)/g" | \
