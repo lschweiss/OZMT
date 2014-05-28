@@ -85,6 +85,10 @@ if [ -z $timeout ]; then
     timeout=`which timeout`
 fi
 
+if [ -z $BC ]; then
+    BC=`which bc`
+fi
+
 
 if [ -z $bbcp ]; then
     if [ -f "$TOOLS_ROOT/utils/bbcp.${os}" ]; then

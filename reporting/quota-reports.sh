@@ -149,6 +149,19 @@ quota_report () {
         compression=`zfs list -Hp -o compression $quota_path`
         compressratio=`zfs list -Hp -o compressratio $quota_path`
         report=0
+        debug "Checking $quota_path"
+        debug "Referenced:          $referenced"
+        debug "Ref quota:           $refquota"
+        debug "Logical used:        $logicalused"
+        debug "Logical ref:         $logicalreferenced"
+        debug "Quota:               $quota"
+        debug "Used:                $used"
+        debug "Used by DS:          $used_ds"
+        debug "Used by snaps:       $used_snap"
+        debug "Compresion:          $compression"
+        debug "Compression ratio:   $compressratio"
+        debug "Available:           $available"
+        
         while [ $report -le $quota_reports ]; do
             if [ "${quota_report[$report]}" != "" ]; then
                 triggered=0
@@ -156,19 +169,24 @@ quota_report () {
                 alert_type=`echo ${quota_report[$report]} | $awk -F '|' '{print $2}'`
                 destinations=`echo ${quota_report[$report]} | $awk -F '|' '{print $3}'`
                 frequency_human=`echo ${quota_report[$report]} | $awk -F '|' '{print $4}'`
+
+                debug "Free trigger:            $free_trigger"
+                debug "Alert type:              $alert_type"
+                debug "Destinations:            $destinations"
+                debug "Frequency:               $frequency_human"
     
                 case $frequency_human in 
                     *w) # Weeks
-                        frequency=`echo $frequency_human | $sed 's/w/*604800/' | bc`
+                        frequency=`echo $frequency_human | $sed 's/w/*604800/' | $BC`
                         ;;
                     *d) # Days
-                        frequency=`echo $frequency_human | $sed 's/d/*86400/' | bc`
+                        frequency=`echo $frequency_human | $sed 's/d/*86400/' | $BC`
                         ;;
                     *h) # Hours
-                        frequency=`echo $frequency_human | $sed 's/h/*3600/' | bc`
+                        frequency=`echo $frequency_human | $sed 's/h/*3600/' | $BC`
                         ;;
                     *m) # Minutes
-                        frequency=`echo $frequency_human | $sed 's/m/*60/' | bc`
+                        frequency=`echo $frequency_human | $sed 's/m/*60/' | $BC`
                         ;;
                     *)  # Default
                         frequency="$frequency_human"
@@ -185,16 +203,17 @@ quota_report () {
                         trigger_percent=`echo $free_trigger | $awk -F '%' '{print $1}'`
                         # Check by reference quota
                         if [ $refquota -ne 0 ] ; then
-                            ref_free=`echo "scale=2;100-(${referenced}*100/${refquota})" | bc | $sed 's/^\./0./'`
-                            if [ $(echo "$ref_free <= $trigger_percent" | bc) -eq 1 ]; then 
+                            ref_free=`echo "scale=2;100-(${referenced}*100/${refquota})" | $BC | $sed 's/^\./0./'`
+                            debug "\"scale=2;100-(${referenced}*100/${refquota})\" | $BC | $sed 's/^\./0./'"
+                            if [ $(echo "$ref_free <= $trigger_percent" | $BC) -eq 1 ]; then 
                                 triggered=1
                                 refquota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $refquota 2) reference quota<br>"
                             fi
                         fi
                         # Check by full quota
                         if [ $quota -ne 0 ]; then
-                            percent_free=`echo "scale=2;100-(${used}*100/${quota})" | bc | $sed 's/^\./0./'`
-                            if [ $(echo "$percent_free <= $trigger_percent" | bc) -eq 1 ]; then
+                            percent_free=`echo "scale=2;100-(${used}*100/${quota})" | $BC | $sed 's/^\./0./'`
+                            if [ $(echo "$percent_free <= $trigger_percent" | $BC) -eq 1 ]; then
                                 triggered=1
                                 quota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $quota 2) quota<br>"
                             fi
@@ -203,16 +222,16 @@ quota_report () {
                     *T*) # Trigger on terabytes free
                         mathline=`echo $free_trigger | $sed 's/TiB/*(1024^4)/' | $sed 's/TB/*(1000^4)/' | $sed 's/T/*(1024^4)/'`
                         trigger_t=`echo $free_trigger | $awk -F 'T' '{print $1}'`
-                        trigger_bytes=`echo "${mathline}" | bc`
+                        trigger_bytes=`echo "${mathline}" | $BC`
                         if [ $available -le $trigger_bytes ]; then
                             triggered=1
                             size_trigger="The zfs folder $quota_path has $(bytestohuman $available 2) free.  Triggered at $(bytestohuman $trigger_bytes 2) free<br>"
                         fi
                         ;;
                     *G*) # Trigger on gigabytes free
-                        mathline=`echo $free_trigger | $sed 's/GiB/*(1024^4)/' | $sed 's/GB/*(1000^4)/' | $sed 's/G/*(1024^4)/'`
-                        trigger_g=`echo $free_trigger | $awk -F 'T' '{print $1}'`
-                        trigger_bytes=`echo "${mathline}" | bc`  
+                        mathline=`echo $free_trigger | $sed 's/GiB/*(1024^3)/' | $sed 's/GB/*(1000^3)/' | $sed 's/G/*(1024^3)/'`
+                        trigger_g=`echo $free_trigger | $awk -F 'G' '{print $1}'`
+                        trigger_bytes=`echo "${mathline}" | $BC`  
                         if [ $available -le $trigger_bytes ]; then
                             triggered=1
                             size_trigger="The zfs folder $quota_path has $(bytestohuman $available 2) free.  Triggered at $(bytestohuman $trigger_bytes 2) free<br>"
@@ -270,13 +289,22 @@ quota_report () {
                             fi
                             # Update last report
                             update_last_report "${jobstat}/${job}" "${free_trigger}|${recipient}" "$now_secs"
+                        else
+                            debug "Not adding $recipient to report for $quota_path only $elapsed secs since last report.  Requires $frequency."
                         fi    
                         receiver=$(( receiver + 1 ))
                         recipient=`echo $destinations | cut -d ';' -f $receiver`
+                        echo "$destinations" | grep -q ';' 
+                        if [ $? -ne 0 ]; then
+                            # There is only one recipient.  'cut' will always return it without a separator.
+                            recipient=""
+                        fi
                     done    
 
                     # Send the report 
                     if [ "$to" != "" ]; then
+                        debug "Sending email report to $to;$cc_list;$email_bcc"
+                        debug "  $subject"
                         ./send_email.sh -s "$subject" -f "$emailfile" -r "$to" $cc_list $email_bcc
                     fi
                     
@@ -303,6 +331,12 @@ pools="$(pools)"
 for pool in $pools; do
 
     jobfolder="/${pool}/zfs_tools/etc/reports/jobs/quota"
+
+    $BC -v &> /dev/null
+    if [ $? -ne 0 ]; then
+        error "GNU bc required for quota reports"
+        exit 1
+    fi
 
     if [ -d "$jobfolder" ]; then
 
