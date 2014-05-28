@@ -31,4 +31,4 @@ depth=$3
 
 logfile="/$pool/zfs_tools/logs/du_stat_${now}"
 
-/usr/gnu/bin/du -h --max-depth=$depth $folder > $logfile
+/usr/gnu/bin/du -h --max-depth=$depth $folder > $logfile 2> /dev/null

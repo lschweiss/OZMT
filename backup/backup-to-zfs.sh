@@ -438,12 +438,15 @@ for pool in $pools; do
     jobfolder="/${pool}/zfs_tools/etc/backup/jobs/zfs"
     statfolder="/${pool}/zfs_tools/etc/backup/stat/zfs"
 
-    backupjobs=`ls -1 ${jobfolder}/`
+    if [ -d "${jobfolder}" ]; then
 
-    for job in $backupjobs; do
-        notice "Launching zfs backup job $job"
-        zfsjob "$jobfolder" "$job" "$1" $background
-    done
+        backupjobs=`ls -1 ${jobfolder}/`
+
+        for job in $backupjobs; do
+            notice "Launching zfs backup job $job"
+            zfsjob "$jobfolder" "$job" "$1" $background
+        done
+    fi
     
 
 done # for pool    

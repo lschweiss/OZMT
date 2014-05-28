@@ -39,7 +39,7 @@ fi
 
 # Launch related backup jobs
 
-$TOOLS_ROOT/backup/backup-to-zfs.sh $snaptype
+$TOOLS_ROOT/backup/backup-to-zfs.sh $snaptype &
 
 # collect jobs
 
