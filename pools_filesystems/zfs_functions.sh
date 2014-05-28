@@ -72,6 +72,8 @@ Usage:
      
     {destination}       Destination can be one or more email addresses separated by ;     
 
+    {frequency}         Frequency of a report.  Defaults to seconds unless a unit is specified (m,h,d,w)
+
     Seconds         
 
     1800        30 Minutes

@@ -114,6 +114,7 @@ quota_report () {
     local mathline=
     local destinations=
     local frequency=
+    local frequency_human=
     local last_report=
     local now_secs=`date +%s`
     local elapsed=
@@ -154,7 +155,26 @@ quota_report () {
                 free_trigger=`echo ${quota_report[$report]} | $awk -F '|' '{print $1}'`
                 alert_type=`echo ${quota_report[$report]} | $awk -F '|' '{print $2}'`
                 destinations=`echo ${quota_report[$report]} | $awk -F '|' '{print $3}'`
-                frequency=`echo ${quota_report[$report]} | $awk -F '|' '{print $4}'`
+                frequency_human=`echo ${quota_report[$report]} | $awk -F '|' '{print $4}'`
+    
+                case $frequency_human in 
+                    *w) # Weeks
+                        frequency=`echo $frequency_human | $sed 's/w/*604800/' | bc`
+                        ;;
+                    *d) # Days
+                        frequency=`echo $frequency_human | $sed 's/d/*86400/' | bc`
+                        ;;
+                    *h) # Hours
+                        frequency=`echo $frequency_human | $sed 's/h/*3600/' | bc`
+                        ;;
+                    *m) # Minutes
+                        frequency=`echo $frequency_human | $sed 's/m/*60/' | bc`
+                        ;;
+                    *)  # Default
+                        frequency="$frequency_human"
+                        ;;
+                esac
+
                 if [[ "$frequency" == "" || $frequency -lt $minimum_report_frequency ]]; then
                     # Minimum report frequency
                     frequency="$minimum_report_frequency"
