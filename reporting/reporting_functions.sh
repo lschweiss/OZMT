@@ -147,7 +147,7 @@ process_message() {
         fi
 
         if [ "$DEBUG" != "true" ]; then
-            $TOOLS_ROOT/reporting/send_email.sh $message_file "$this_subject" ${importance}
+            $TOOLS_ROOT/reporting/send_email.sh -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
         fi
 
         if [ "$?" -eq "0" ]; then

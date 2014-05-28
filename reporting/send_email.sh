@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -28,13 +28,30 @@ die () {
 
 }
 
-message_file="$1"
+show_usage () {
+    echo
+    echo "Usage: $0 -f {message_file} -s {message_subject} -r {message_recipient}"
+    echo "  [-i {importance}]       Message importance."
+    echo "  [-c {cc}]               Message cc recipient.  (Repeatable)"
+    echo "  [-b {bcc}]              Message bcc recipient. (Repeatable)"
 
-message_subject="$2"
+}
 
-message_importance="$3"
-
+mutt_options=""
 attach_cmd=
+
+while getopts f:s:i:r:c:b: opt; do
+    case $opt in 
+        f) message_file="$OPTARG" ;;
+        s) message_subject="$OPTARG" ;;
+        i) message_importance="$OPTARG" ;;
+        r) message_recipient="$OPTARG" ;;
+        c) message_cc="$OPTARG;$message_cc" ;;
+        b) message_bcc="$OPTARG;$mesage_bcc" ;;
+        ?) show_usage; exit 0 ;;
+        :) die "Option -$OPTARG requires an argument." ;;
+    esac
+done 
 
 
 if [ ! -f "$message_file" ]; then
@@ -80,23 +97,42 @@ fi
 
 # Build cc and bcc list
 
-mutt_options=""
 
-for cc in $email_cc; do
-    mutt_options="$mutt_options -c $cc"
-done
+if [ "$message_cc" != "" ]; then
+    cc_num=1
+    cc=`echo $message_cc | $cut -d ";" -f $cc_num`
+    while [ "$cc" != "" ]; do
+        mutt_options="$mutt_options -c $cc"
+        cc_num=$(( cc_num + 1 ))
+        cc=`echo $message_cc | $cut -d ";" -f $cc_num `
+    done
+fi 
 
-for bcc in $email_bcc; do
-    mutt_options="$mutt_options -c $bcc"
-done
+
+if [ "$message_bcc" != "" ]; then
+    bcc_num=1
+    bcc=`echo $message_bcc | $cut -d ";" -f $bcc_num`
+    while [ "$bcc" != "" ]; do
+        mutt_options="$mutt_options -b $bcc"
+        bcc_num=$(( cc_num + 1 ))
+        bcc=`echo $message_bcc | $cut -d ";" -f $bcc_num `
+    done
+fi
+
 
 if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
     echo "$TOOLS_ROOT/reporting/reporting.muttrc does not exist.  Please create this file to enable email reporting."
+    exit 1
 fi
     
 # Send the message    
-$mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
-    $mutt_options $attach_cmd $email_to < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$ 
+if [ "${message_file: -4}" == "html" ]; then
+    $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+        -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$
+else
+    $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+        $mutt_options $attach_cmd $message_recipient < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$
+fi 
 
 result=$?
 

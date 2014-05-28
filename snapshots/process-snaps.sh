@@ -37,6 +37,10 @@ else
     report_name="$default_report_name"
 fi
 
+# Launch related backup jobs
+
+$TOOLS_ROOT/backup/backup-to-zfs.sh $snaptype
+
 # collect jobs
 
 pools="$(pools)"

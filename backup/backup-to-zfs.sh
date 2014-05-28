@@ -95,6 +95,17 @@ update_job_status () {
 
 }
 
+release_holds () {
+
+    local holds="$1"
+    local hold=
+
+    for hold in $holds; do
+        zfs release zfs_send $hold || warning "Could not release hold on $hold"
+    done
+
+}
+
 
 
 ##
@@ -111,7 +122,9 @@ zfsjob () {
 
     local jobfolder="$1"
     local job="$2"
-    local resume_job="$3"
+    local job_schedule="$3"
+    local policy=
+    local skip='true'
     local job_backup_snaptag=
     local job_mode=
     local jobstat=
@@ -127,6 +140,7 @@ zfsjob () {
     local this_snap_num=
     local this_snap=
     local job_snap=
+    local holds=
     local backup_source=
     local backup_children=
     local backup_options=
@@ -145,6 +159,21 @@ zfsjob () {
         # Create job accounting folder
         mkdir -p "${statfolder}/${job}"
         touch "$jobstat"
+    fi
+
+    if [[ "$backup_schedules" != "" && "$job_schedule" != "resume" && "$job_schedule" != "" ]]; then
+        for policy in $backup_schedules; do
+            if [ "$policy" == "$job_schedule" ]; then 
+                debug "This run time, $job_schedule, matches the backup schedule: ${backup_schedules} running backup job."
+                skip='false'
+            fi
+        done
+        if [ "$skip" == 'true' ]; then
+            debug "This run time, $job_schedule, not in the backup schedule: $backup_schedules"
+            return 0
+        fi
+    else
+        skip='false'
     fi
 
     # We will want to lock on the job.status file
@@ -175,7 +204,7 @@ zfsjob () {
         fi
     fi
         
-    if [ "$resume_job" != "resume" ]; then
+    if [ "$job_sechedule" != "resume" ]; then
         source_end_snap="${backup_source}@${job_backup_snaptag}_${now}"
         if [ "$backup_children" == 'true' ]; then
             zfs snapshot -r ${source_end_snap}
@@ -269,6 +298,8 @@ zfsjob () {
 
         job_snap='false'
 
+        holds=''
+
         # TODO: Each time we complete a backup job snapshot we need to delete older backup job snapshots on source and target
 
         debug "Processing ${this_snap}"
@@ -289,7 +320,7 @@ zfsjob () {
             # Determine if the snap type gets skipped
             skip='false'
             for skip in $skiptypes; do 
-                echo "${this_snap}" | $grep -q "^@${skip}"
+                echo "${this_snap}" | $grep -q "@${skip}_"
                 if [ $? -eq 0 ]; then
                     skip='true'
                 fi
@@ -303,17 +334,24 @@ zfsjob () {
             if [ "$last_increment_snap" == "" ]; then
                 # This must be the first pass so we start from the origin
                 debug "Starting first pass zfs-send.sh for ${this_snap} to $target_folder"
+                if [ "$job_snap" != 'true' ]; then
+                    debug "Adding hold to snapshot: $this_snap"
+                    zfs hold -t "zfs_send" $this_snap
+                    holds="$this_snap $holds"
+                fi
                 ./zfs-send.sh $backup_options -s "$backup_source" -t "$target_folder" -l "${this_snap}"
                 if [ $? -ne 0 ]; then
                     # Send failed
                     error "Failed to send first snapshot ${this_snap}.  Aborting."
                     update_job_status "$jobstat" "job_running" ""
+                    release_holds "$holds"
                     return 1
                 else
                     found_start='true'
                     debug "Sent ${this_snap} to $target_folder"
                     update_job_status "$jobstat" "last_increment_snap" "${this_snap}"
                     last_increment_snap="${this_snap}"
+                    release_holds "$holds"
                 fi
             else
                 if [ "$found_start" == 'false' ]; then
@@ -323,17 +361,30 @@ zfsjob () {
                     fi
                 else
                     # No more reason to skip
+                    if [ "$job_snap" != 'true' ]; then
+                        debug "Adding hold to snapshot: $this_snap" 
+                        zfs hold -t "zfs_send" $this_snap
+                        holds="$this_snap $holds"
+                    fi
+                    echo "$last_increment_snap" | $grep -q "@${job_backup_snaptag}_"
+                    if [ $? -ne 0 ]; then
+                        debug "Adding hold to snapshot: $last_increment_snap"
+                        zfs hold -t "zfs_send" $last_increment_snap
+                        holds="$last_increment_snap $holds"
+                    fi
                     debug "Starting zfs-send.sh for $last_increment_snap to ${this_snap}"
                     ./zfs-send.sh $backup_options -s "$backup_source" -t "$target_folder" -f "$last_increment_snap" -l "${this_snap}"
                     if [ $? -ne 0 ]; then
                         # Send failed
                         error "Failed to send from $last_complete_snap to ${this_snap}.  Aborting."
                         update_job_status "$jobstat" "job_running" ""
+                        release_holds "$holds"
                         return 1
                     else
                         debug "Sent from $last_increment_snap to ${this_snap} to $target_folder"
                         update_job_status "$jobstat" "last_increment_snap" "${this_snap}"                       
                         last_increment_snap="${this_snap}"
+                        release_holds "$holds"
                     fi
                 fi
             fi
@@ -342,15 +393,15 @@ zfsjob () {
                 update_job_status "$jobstat" "last_complete_snap" "${this_snap}"
                 last_complete_snap="${this_snap}"
                 ./delete-previous-snaps.sh -f "$backup_source" -n "$job_backup_snaptag" \
-                    -t "$job_backup_snaptag" -l "$last_complete_snap" $background
+                    -t "$job_backup_snaptag" -l "$last_complete_snap" & #$background
                 echo
                 if [ "$target_host" == '' ]; then
                     ./delete-previous-snaps.sh -f "$target_folder" -n "$job_backup_snaptag" \
-                        -t "$job_backup_snaptag" -l "$last_complete_snap" $background
+                        -t "$job_backup_snaptag" -l "$last_complete_snap" & #$background
                 else
                     target_last_snap=`echo "$last_complete_snap" | $sed s,${backup_source},${target_folder},g`
                     ./delete-previous-snaps.sh -h "$target_host" -f "$target_folder" -n "$job_backup_snaptag" \
-                        -t "$job_backup_snaptag" -l "$target_last_snap" $background
+                        -t "$job_backup_snaptag" -l "$target_last_snap" & #$background
                 fi
     
             fi
@@ -391,7 +442,7 @@ for pool in $pools; do
 
     for job in $backupjobs; do
         notice "Launching zfs backup job $job"
-        zfsjob "$jobfolder" "$job" $background
+        zfsjob "$jobfolder" "$job" "$1" $background
     done
     
 

@@ -117,6 +117,17 @@ if [ -z $gzip ]; then
         gzip=`which gzip`
     fi
 fi
+
+# Set defaults
+
+if [ "$minimum_report_frequency" == "" ]; then
+    minmum_report_frequency=1800
+fi
+
+if [ "$QUOTA_REPORT_TEMPLATE" == "" ]; then
+    QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
+fi
+
 # Test essential binaries
 
 binary_error=0

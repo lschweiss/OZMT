@@ -724,7 +724,7 @@ while [ "$running" == 'true' ]; do
         running='false'
     fi
 
-    sleep 5
+    sleep 1
 
 done
 MONITOR
@@ -753,7 +753,16 @@ if [ "$bbcp_streams" -ne 0 ]; then
     echo $! > $tmpdir/bbcp.pid
     target_fifo="$target_bbcp_fifo"
     local_watch="bbcp $local_watch"
-    sleep 30
+    if [ -t 1 ]; then
+        tail -f $tmpdir/bbcp.error &
+    fi  
+    # Wait for bbcp pipe to be setup
+    bbcp_started=1
+    while [ $bbcp_started -ne 1 ]; do
+        sleep 0.2
+        cat $tmpdir/bbcp.error | grep -q "bbcp: Creating $tmpdir"
+        bbcp_started=$?
+    done
 fi
     
 
@@ -950,7 +959,7 @@ while [ "$running" == 'true' ]; do
         fi
     fi
 
-    sleep 5
+    sleep 1
 
 done
 

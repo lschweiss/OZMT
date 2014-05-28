@@ -18,9 +18,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
-
 #snapjobdir="$TOOLS_ROOT/snapshots/jobs"
 stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
@@ -34,7 +31,78 @@ blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
     mkdir -p ${glacierjobdir}
     mkdir -p ${glacierjobstatus}
 
+    
+show_usage() {
 
+cat << EOF_USAGE
+
+Usage: 
+  Included with the execution of setup-filesystems.sh
+
+  setupzfs functions are to be used in /{pool}/zfs_tools/etc/pool_filesystems
+
+  setupzfs: 
+  Depricated:
+      setupzfs {zfs_path} {zfs_options} {snapshots} 
+
+  Prefered:
+    setupzfs -z {zfs_path} 
+      [-o {zfs_option)]           Set zfs property (repeatable) 
+      [-s {snapshot|count}]       Set snapshot policy and count (repeatable)
+      [-b {backup_target}]        zfs send/receive target
+                                  {pool}/{zfs_folder} or 
+                                  {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured.
+        [-S {job_schedules}         {job_schedules} ties the backup job to snapshot schedules.   Can be any 
+                                    snapshot policy available on the system.   This parameter is repeatable.
+        [-p {target_properties}]    Properties to reset on the target zfs folder. (repeatable)  
+        [-r]                        Use a replication stream, which will include all child zfs folders and snapshots.
+        [-i]                        Use an incremental stream
+        [-I]                        Use an incremental stream with all intermediary snapshots
+                                    -i and -I are mutually exclusive.
+      [-q "{free}|{destination}|{frequency}"] 
+                                  Send a quota alert at {free} to {destination} every {frequency} seconds.   
+                                    {free} can be xx% or in GB, TB.
+                                    (repeatable)
+      [-t "{trend}|{scope}|{destination}|{frequency}] 
+                                  Send a trend alert when daily usage varies more than {trend} percent over a scope 
+                                    of {scope} days.   Send the alert every {frequency} seconds.
+                                    Alert goes to {destination}.
+                                    (repeatable)
+     
+    {destination}       Destination can be one or more email addresses separated by ;     
+
+    Seconds         
+
+    1800        30 Minutes
+    3600        60 Minutes
+    21600       6 Hours
+    43200       12 Hours
+    86400       24 Hours
+    
+    
+    Quota and trend alerts can have a default set in the variables "QUOTA_REPORT" and "TREND_REPORT" in the pool_filesystems config or
+    zfs-config. 
+
+    The variables "ALL_QUOTA_REPORTS" and "ALL_TREND_REPORTS" can contain an email address to BCC all reports to.
+
+     
+                           
+
+
+EOF_USAGE
+}
+
+
+echo "zfs_functions, bash_source: ${BASH_SOURCE[0]}"
+
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then 
+    echo "zfs_function.sh is not meant to be run directly, but is meant to be sourced by"
+    echo "setup-filesystems.sh and called by /{pool}/zfs_tools/etc/pool_filesystems"
+    show_usage
+    exit 1
+else
+    echo "script ${BASH_SOURCE[0]} is being sourced ..."
+fi
 
 setzfs () {
 
@@ -79,30 +147,12 @@ setupzfs () {
     local zfs_backup=
     local target_properties=
     local backup_options=
+    local backup_schedules=
+    local quota_reports=0
+    local trend_reports=0
     local OPTIND=1
    
-
-    show_usage() {
-        echo
-        echo "Usage: $0 "
-        echo "  Depricated:"
-        echo "      $0 {zfs_path} {zfs_options} {snapshots} "
-        echo
-        echo "  Prefered:"
-        echo "      $0 -z {zfs_path} "
-        echo "          [-o {zfs_option)]           Set zfs property (repeatable) "
-        echo "          [-s {snapshot|count}]       Set snapshot policy and count (repeatable)"
-        echo "          [-b {backup_target}]        zfs send/receive target"
-        echo "                                      {pool}/{zfs_folder} or "
-        echo "                                      {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured."
-        echo "              [-p {target_properties}]    Properties to reset on the target zfs folder. (repeatable) " 
-        echo "              [-r]                        Use a replication stream, which will include all child zfs folders and snapshots."
-        echo "              [-i]                        Use an incremental stream"
-        echo "              [-I]                        Use an incremental stream with all intermediary snapshots"
-        echo "                                          -i and -I are mutually exclusive."
-    }
-
-    while getopts z:o:s:b:p:riI opt; do
+    while getopts z:o:s:b:S:p:riIq:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -121,6 +171,10 @@ setupzfs () {
                 zfs_backup='true'
                 debug "Adding backup target: $backup_target"
                 ;;
+            S)  # Job Schedules
+                backup_schedules="$OPTARG $backup_schedules"
+                debug "Adding backup schedule: $OPTARG"
+                ;;
             p)  # zfs property for backup target
                 target_properties="$target_properties $OPTARG"
                 debug "Adding backup property for $backup_target: $target_property"
@@ -137,9 +191,19 @@ setupzfs () {
                 backup_options="-I $backup_options"
                 debug "Setting incremental stream with intermediary snapshots for $backup_target"
                 ;;
+            q)  # Add a quota report
+                quota_reports=$(( quota_reports + 1 ))
+                local quota_report[$quota_reports]="$OPTARG"
+                debug "Adding quota report $OPTARG"
+                ;;
+            t)  # Add a trend report
+                trend_reports=$(( trend_reports + 1 ))
+                local trend_report[$trend_reports]="$OPTARG"
+                debug "Adding trend report $OPTARG"
+                ;;
             ?)  # Show program usage and exit
                 show_usage
-                exit 0
+                return 0
                 ;;
             :)  # Mandatory arguments not specified
                 error "setupzfs: Option -$OPTARG requires an argument."
@@ -164,10 +228,9 @@ setupzfs () {
         options="$properties"
     fi
 
-    
-
     snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
     backupjobdir="/${pool}/zfs_tools/etc/backup/jobs"
+    reportjobdir="/${pool}/zfs_tools/etc/reports/jobs"
 
     if [ ! -e "/$pool" ]; then
         echo "ERROR: ZFS pool \"$pool\" does not exist!"
@@ -256,7 +319,7 @@ setupzfs () {
         fi
         blindjobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
         echo "Setting blind backup to $target_folder"
-        mkdir -p $blindbackupjobdir/$blindjobname
+        mkdir -p "$blindbackupjobdir/$blindjobname"
         echo "zfs_folder=\"${pool}/${zfspath}\"" > $blindbackupjobdir/$blindjobname/folders
         echo "target_folder=\"${target_folder}\"" >> $blindbackupjobdir/$blindjobname/folders
         if [ "x$snap_type" == "x" ]; then
@@ -278,17 +341,65 @@ setupzfs () {
     if [[ "$backup" == "zfs" || "$zfs_backup" == 'true' ]] ; then
         echo "Creating backup job:"
         echo "ZFS send to $backup_target"
-        mkdir -p ${backupjobdir}/zfs
+        mkdir -p "${backupjobdir}/zfs"
         # All variables prefixed by local because this will be sourced in a bash function
-        echo "local backup_source=\"${pool}/${zfspath}\"" > ${backupjobdir}/zfs/${jobname}
-        echo "local backup_target=\"${backup_target}\"" >> ${backupjobdir}/zfs/${jobname}
-        echo "local backup_options=\"${backup_options}\"" >> ${backupjobdir}/zfs/${jobname}
+        echo "local backup_source=\"${pool}/${zfspath}\"" > "${backupjobdir}/zfs/${jobname}"
+        echo "local backup_target=\"${backup_target}\"" >> "${backupjobdir}/zfs/${jobname}"
+        echo "local backup_options=\"${backup_options}\"" >> "${backupjobdir}/zfs/${jobname}"
+        echo "local backup_schedules=\"${backup_schedules}\"" >> "${backupjobdir}/zfs/${jobname}"
     fi
+
+    # Add quota reports
+
+    if [[ "$QUOTA_REPORT" != "" || $quota_reports -ne 0 ]]; then
+        echo "Creating quota reports:"
+        mkdir -p "${reportjobdir}/quota"
+        echo "local quota_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/quota/${jobname}"
+    fi
+
+    if [ "$QUOTA_REPORT" != "" ]; then
+        echo "  Setting default report: $QUOTA_REPORT"
+        echo "local quota_report[0]=\"$QUOTA_REPORT\"" >> "${reportjobdir}/quota/${jobname}"
+    fi
+
+    if [ $quota_reports -ne 0 ]; then
+        echo "local quota_reports=$quota_reports" >> "${reportjobdir}/quota/${jobname}"
+        report=1
+        while [ $report -le $quota_reports ]; do
+            echo "  Setting report $report to: ${quota_report[$report]}"
+            echo "local quota_report[$report]=\"${quota_report[$report]}\"" >> "${reportjobdir}/quota/${jobname}"
+            report=$(( report + 1 ))
+        done
+    fi
+
+
+
+    # Add trend reports
+
+    if [[ "$TREND_REPORT" != "" || $trend_reports -ne 0 ]]; then
+        echo "Creating trend reports:"
+        mkdir -p "${reportjobdir}/trend"
+        echo "local trend_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/trend/${jobname}"
+    fi
+
+    if [ "$QUOTA_REPORT" != "" ]; then
+        echo "local trend_report[0]=\"$TREND_REPORT\"" >> "${reportjobdir}/trend/${jobname}"
+    fi
+
+    if [ $trend_reports -ne 0 ]; then
+        echo "local trend_reports=$trend_reports" >> "${reportjobdir}/trend/${jobname}"
+        report=1
+        while [ $report -le $trend_reports ]; do
+            echo "local trend_report[$report]=\"${trend_report[$report]}\"" >> "${reportjobdir}/trend/${jobname}"
+            report=$(( report + 1 ))
+        done
+    fi
+
 
     # Prep the snapshot jobs folders
     for snaptype in $snaptypes; do
         if [ ! -d $snapjobdir/$snaptype ]; then
-            mkdir $snapjobdir/$snaptype
+            mkdir "$snapjobdir/$snaptype"
         fi
         rm -f $snapjobdir/$snaptype/${jobname}
         if [ "$staging" != "" ]; then

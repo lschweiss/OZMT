@@ -54,9 +54,9 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
         
             if [[ "x$report_level" != "x" && "$report_level" -ge 3 ]]; then
                 email_subject="ERROR: $email_subject"
-                ./send_email.sh "$report_pending" "$email_subject" high
+                ./send_email.sh -f "$report_pending" -s "$email_subject" -r "$email_to" -i "high"
             else 
-                ./send_email.sh "$report_pending" "$email_subject"
+                ./send_email.sh -f "$report_pending" -s "$email_subject" -r "$email_to"
             fi
     
             if [ "$debug_level" -eq "0" ]; then

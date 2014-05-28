@@ -71,23 +71,29 @@ tobytes () {
 }
 
 bytestohuman () {
-    if [ $1 -gt 1099511627776 ]; then
-        echo -n $(echo "scale=3;$1/1099511627776"|bc)TiB
+    if [ "$2" != "" ]; then
+        scale="$2"
+    else
+        scale=3
+    fi
+
+    if [ $1 -ge 1099511627776 ]; then
+        echo -n "$(echo "scale=${scale};$1/1099511627776"|bc) TiB"
         return
     fi
 
-    if [ $1 -gt 1073741824 ]; then
-        echo -n $(echo "scale=3;$1/1073741824"|bc)GiB
+    if [ $1 -ge 1073741824 ]; then
+        echo -n "$(echo "scale=${scale};$1/1073741824"|bc) GiB"
         return
     fi
 
-    if [ $1 -gt 1048576 ]; then
-        echo -n $(echo "scale=3;$1/1048576"|bc)MiB
+    if [ $1 -ge 1048576 ]; then
+        echo -n "$(echo "scale=${scale};$1/1048576"|bc) MiB"
         return
     fi
 
-    if [ $1 -gt 1024 ]; then
-        echo -n $(echo "scale=3;$1/1024"|bc)KiB
+    if [ $1 -ge 1024 ]; then
+        echo -n "$(echo "scale=${scale};$1/1024"|bc) KiB"
         return
     fi
 
@@ -132,6 +138,8 @@ init_lock () {
 
 function wait_for_lock() {
 
+    #TODO: clean up the sleep times and time accounting
+
     local lockfile="${1}.lock"
     local unlockfile="${lockfile}.unlock"
 
@@ -168,9 +176,9 @@ function wait_for_lock() {
                 ps awwx |$grep -v grep | $grep -q "$lockpid "
                 result=$?
                 if [ "$result" -eq "0" ]; then
-                    # Process id exists.  Sleep 2 seconds and check again
-                    sleep 2
-                    (( waittime += 2 ))
+                    # Process id exists.  Sleep 1/2 second and try again.
+                    sleep 0.5
+                    (( waittime += 1 ))
                     if [ "$waittime" -ge "$expire" ]; then
                         error "Previous run of $0 (PID $lockpid) appears to be hung.  Giving up."
                         error "Please delete ${lockfile} and touch ${unlockfile}"
@@ -181,14 +189,14 @@ function wait_for_lock() {
                     debug "Removing the lock file."
                     touch $unlockfile
                     #Reduce the odds of a race condition
-                    sleep 2
+                    sleep 0.2
                 fi
             else
                 debug "Lock file exists, however the process is dead."
                 debug "Claiming previous lock file."
                 touch $unlockfile
                 #Reduce the odds of a race condition
-                sleep 2
+                sleep 0.3
             fi
         fi
     done

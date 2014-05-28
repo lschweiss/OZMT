@@ -28,12 +28,15 @@ rm -rf $TOOLS_ROOT/backup/jobs/*
 
 pools="$(pools)"
 
+# TODO: Add checks to make sure we don't do this while jobs can be disturbed. (Job start times)
+
 for pool in $pools; do
 
     if [ -f "/$pool/zfs_tools/etc/pool-filesystems" ] ; then
         notice "Setting up pool $pool"
-        rm /${pool}/zfs_tools/etc/snapshots/jobs/*/*
-        rm /${pool}/zfs_tools/etc/backup/jobs/*/*
+        rm /${pool}/zfs_tools/etc/snapshots/jobs/*/* 2> /dev/null
+        rm /${pool}/zfs_tools/etc/backup/jobs/*/* 2> /dev/null
+        rm /${pool}/zfs_tools/etc/reports/jobs/*/* 2> /dev/null
         source /$pool/zfs_tools/etc/pool-filesystems
     else 
         warning "No file system configuration found for $pool"
