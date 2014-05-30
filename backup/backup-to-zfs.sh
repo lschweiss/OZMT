@@ -101,7 +101,7 @@ release_holds () {
     local hold=
 
     for hold in $holds; do
-        zfs release zfs_send $hold || warning "Could not release hold on $hold"
+        zfs release zfs_send $hold &> /dev/null || warning "Could not release hold on $hold"
     done
 
 }
@@ -147,6 +147,11 @@ zfsjob () {
     local found_start=
     local job_running=
 
+
+    if [ "$3" == "" ]; then
+        error "Not enough arguments.  Requires 3, {jobfolder}, {job}, and {job_schedule}"
+        return 1
+    fi
 
     source ${jobfolder}/${job}
 
@@ -431,24 +436,45 @@ zfsjob () {
 ####
 ####
 
-pools="$(pools)"
+# If lauched from the console, operate on inputs of {pool} {folder} {job_schedule}
 
-for pool in $pools; do
+if [ -t 1 ]; then
 
+    MIN_ARGS=3
+
+    if [ "$#" -lt "$MIN_ARGS" ]; then
+        echo "Running on console requires 3 inputs:"
+        echo " backup-to-zfs.sh {pool} {folder} {job_schedule}"
+        exit 1
+    fi
+
+    pool="$1"
     jobfolder="/${pool}/zfs_tools/etc/backup/jobs/zfs"
     statfolder="/${pool}/zfs_tools/etc/backup/stat/zfs"
+    job=`echo "${pool}/$2" | $sed s,/,%,g`
 
-    if [ -d "${jobfolder}" ]; then
+    zfsjob "$jobfolder" "$job" "$3"
 
-        backupjobs=`ls -1 ${jobfolder}/`
-
-        for job in $backupjobs; do
-            notice "Launching zfs backup job $job"
-            zfsjob "$jobfolder" "$job" "$1" $background
-        done
-    fi
+else  
     
+    pools="$(pools)"
+    
+    for pool in $pools; do
+    
+        jobfolder="/${pool}/zfs_tools/etc/backup/jobs/zfs"
+        statfolder="/${pool}/zfs_tools/etc/backup/stat/zfs"
+    
+        if [ -d "${jobfolder}" ]; then
+    
+            backupjobs=`ls -1 ${jobfolder}/`
+    
+            for job in $backupjobs; do
+                notice "Launching zfs backup job $job"
+                zfsjob "$jobfolder" "$job" "$1" $background
+            done
+        fi
+        
+    
+    done # for pool    
 
-done # for pool    
-
-
+fi

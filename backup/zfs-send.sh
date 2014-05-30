@@ -80,7 +80,7 @@ clean_up () {
         for pidfile in $pids; do
             pid=`cat $pidfile`
             debug "Killing process $pidfile, PID $pid"
-            kill $pid 2> /dev/null
+            kill $pid &> /dev/null
         done
     
         if [ "$remote_host" != "" ]; then
@@ -89,7 +89,7 @@ clean_up () {
             for pidfile in $pids; do
                 pid=`$remote_ssh "cat $pidfile"`
                 debug "Killing remote process $pidfile, PID $pid"
-                $remote_ssh "kill $pid 2 >/dev/null"
+                $remote_ssh "kill $pid &> /dev/null"
             done
             #DEBUG set +x
         fi
