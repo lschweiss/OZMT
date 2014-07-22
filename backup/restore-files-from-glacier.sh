@@ -91,7 +91,7 @@ case $# in
         ;;
 esac
 
-destinationfixup=`echo $destinationfs|$sed s,/,%,g`
+destinationfixup=`echo $destinationfs|sed s,/,%,g`
 
 # locate job definiton
 for job in $backupjobs; do
@@ -111,7 +111,7 @@ if [ "x$jobname" == "x" ]; then
     die "No job defintion found in $TOOLS_ROOT/backup/jobs/glacier/active/ for $restorefs   Set vault and job environment variables if definition is not available."
 fi
 
-jobname_fixup=`echo $jobname|$sed s,%,.,g`
+jobname_fixup=`echo $jobname|sed s,%,.,g`
 
 # TODO: Determine the rotation number
 
@@ -138,7 +138,7 @@ fi
 # Determine last cycle we will attempt to restore
 if [ "$lastcycle" == "latest" ]; then
     # Grab the last cycle in the inventory
-    lastcycle=`cat $inventory_file | tail -1 | $awk -F '","' '{print $2}' | tail --bytes=5`
+    lastcycle=`cat $inventory_file | tail -1 | awk -F '","' '{print $2}' | tail --bytes=5`
     # Get rid of the newline
     lastcycle=$(( $lastcycle ))
 fi
@@ -146,11 +146,11 @@ fi
 if [ "${#lastcycle}" -gt 4 ]; then
     # We assume this is a date format and will attempt to match an inventory line.
     # If more than one line matches the last match will be used
-    archive_record=`cat $inventory_file | $grep "$lastcycle" | tail -1`
+    archive_record=`cat $inventory_file | grep "$lastcycle" | tail -1`
     if [ "x$archive_record" == "x" ]; then
         die "Date ($lastcycle) specified for last cycle, but no maching date found in $inventory_file"
     fi
-    lastcycle=`echo $archive_record | $awk -F '","' '{print $2}' | tail --bytes=5`
+    lastcycle=`echo $archive_record | awk -F '","' '{print $2}' | tail --bytes=5`
     # Get rid of the newline
     lastcycle=$(( $lastcycle ))
 fi
@@ -205,36 +205,34 @@ echo $gpg_password > /${TMP}/gpgtemp/passphrase
 
 
 ###################################################################################
-# Request archives from Glacier
+# Request archive from Glacier
 ###################################################################################
 
-debug "Restoring $restorefs to $destinationfs from $(( $last_complete_cycle + 1 )) to $lastcycle"
+debug "Restoring $restorefs to $destinationfs at $(( $last_complete_cycle + 1 )) "
 
 working_cycle=$(( $last_complete_cycle + 1 ))
 
 job_prefix="${vault}%${jobname}-"
 
-while [ "$working_cycle" -le "$lastcycle" ]; do
 
-    thisjob="${job_prefix}${working_cycle}"
+thisjob="${job_prefix}${working_cycle}"
 
-    # Locate archiveID
-    archiveID=`cat $inventory_file|$grep $thisjob|$awk -F '","' '{print $1}'|$awk -F '"' '{print $2}'`
+# Locate archiveID
+archiveID=`cat $inventory_file|grep $thisjob|awk -F '","' '{print $1}'|awk -F '"' '{print $2}'`
 
-    cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
+cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
 
-    echo $cmd_result|$grep -q "RequestId" ; result=$?
+echo $cmd_result|grep -q "RequestId" ; result=$?
 
-    if [ "$result" -eq "0" ]; then
-        debug "Submitted request for $thisjob"
-    else
-        request_status=`echo cmd_result|$grep StatusCode|$awk -F '","' '{print $2}'|sed s'/..$//'` 
-        debug "Job status for ${thisjob}: $request_status"
-    fi    
+if [ "$result" -eq "0" ]; then
+    debug "Submitted request for $thisjob"
+else
+    request_status=`echo cmd_result|grep StatusCode|awk -F '","' '{print $2}'|sed s'/..$//'` 
+    debug "Job status for ${thisjob}: $request_status"
+fi    
 
-    working_cycle=$(( working_cycle + 1 ))
+working_cycle=$(( working_cycle + 1 ))
 
-done
 
 ###################################################################################
 # Create destination file system if it does not already exists
@@ -252,105 +250,104 @@ fi
 
 
 ###################################################################################
-# Download and restore one cycle at a time
+# Download and restore latest or specified cycle
 ###################################################################################
 
 debug "Starting download phase."
 
-working_cycle=$(( $last_complete_cycle + 1 ))
+working_cycle=$lastcycle
+request_status=""
 
-while [ "$working_cycle" -le "$lastcycle" ]; do
+while [ "$request_status" != "Succeeded" ]; do
 
-    request_status=""
+    thisjob="${job_prefix}${working_cycle}"
 
-    while [ "$request_status" != "Succeeded" ]; do
+    # Locate archiveID
+    archiveID=`cat $inventory_file|grep $thisjob|awk -F '","' '{print $1}'|awk -F '"' '{print $2}'`
+    cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
 
-        thisjob="${job_prefix}${working_cycle}"
+    debug "Checking status."
+    debug "  This job: ${thisjob}"
+    debug "  vault name: ${full_vault_name}"
+    debug "  archiveID: ${archiveID}"
 
-        # Locate archiveID
-        archiveID=`cat $inventory_file|$grep $thisjob|$awk -F '","' '{print $1}'|$awk -F '"' '{print $2}'`
-        cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
+    $glacier_cmd --output csv getarchive $full_vault_name -- $archiveID > /${TMP}/glacier_cmd_getarchive_$$ || \
+        die "glacier-cmd failed to execute getarchive $full_vault_name $archiveID"
 
-        debug "Checking status."
-        debug "  This job: ${thisjob}"
-        debug "  vault name: ${full_vault_name}"
-        debug "  archiveID: ${archiveID}"
+    cat /${TMP}/glacier_cmd_getarchive_$$|grep -q "RequestId" ; result=$?
 
-        $glacier_cmd --output csv getarchive $full_vault_name -- $archiveID > /${TMP}/glacier_cmd_getarchive_$$ || \
-            die "glacier-cmd failed to execute getarchive $full_vault_name $archiveID"
-
-        cat /${TMP}/glacier_cmd_getarchive_$$|$grep -q "RequestId" ; result=$?
-
-        if [ "$result" -eq "0" ]; then
-            debug "Submitted request for $thisjob"
-        else
-            request_status=`cat /${TMP}/glacier_cmd_getarchive_$$|$grep StatusCode|$awk -F '","' '{print $2}'|$sed s'/..$//'`
-            debug "Job status for ${thisjob}: $request_status"
-        fi
-    
-        if [ "$request_status" == "InProgress" ]; then
-            debug "Sleep 30m until job is ready for download"
-            sleep 30m
-        fi
-
-    done
-
-    ##############################################
-    # Job is ready for download
-    ##############################################
-
-
-    debug "Job, ${thisjob}, cycle ${working_cycle}, is ready for download"
-    restore_status=1
-    restore_count=0
- 
-    while [ "$restore_status" -ne 0 ]  && [ "$restore_count" -lt 3 ]; do  
-
-        download_status=1
-        try_count=0
-        
-        while [ "$download_status" -ne 0 ]  && [ "$try_count" -lt 3 ]; do
-    
-            $glacier_cmd download --outfile /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg \
-                $full_vault_name -- $archiveID 
-            download_status=$?
-            
-            # Check the return status
-            if [ "$download_status" -ne 0 ]; then
-                notice "Download attempt failed.  Will try again."
-                try_count=$(( try_count + 1 ))
-            fi
-
-        done
-    
-        if [ "$download_status" -ne 0 ]; then
-            die "Failed to download $full_vault_name $archiveID"
-        fi
-    
-        stat /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg
-    
-        gpg --batch --passphrase-file /${TMP}/gpgtemp/passphrase \
-            --secret-keyring /${TMP}/gpgtemp/keyring.gpg \
-            --decrypt /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg | \
-        gunzip | tee /${TMP}/zfstest_${working_cycle} | \
-        zfs receive -F -v $destinationfs  
-        restore_status=$?
-
-        # Check the exit status
-        if [ "$restore_status" -ne 0 ]; then
-            notice "Restore attempt failed.  Will try downloading and restoring again."
-            restore_count=$(( restore_count + 1 ))
-            rm /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg    
-        fi
-        
-
-    done
-
-    if [ "$restore_status" -ne 0 ]; then
-        die "Failed to decrypt, uncompress and zfs receive /${TMP}/glacier-cmd-download_$$_gpg.gz"
+    if [ "$result" -eq "0" ]; then
+        debug "Submitted request for $thisjob"
+    else
+        request_status=`cat /${TMP}/glacier_cmd_getarchive_$$|grep StatusCode|awk -F '","' '{print $2}'|sed s'/..$//'`
+        debug "Job status for ${thisjob}: $request_status"
     fi
 
-    echo "last_complete_cycle=\"${working_cycle}\"" > $restore_record
-    working_cycle=$(( working_cycle + 1 ))
+    if [ "$request_status" == "InProgress" ]; then
+        debug "Sleep 30m until job is ready for download"
+        sleep 30m
+    fi
 
 done
+
+##############################################
+# Job is ready for download
+##############################################
+
+
+debug "Job, ${thisjob}, cycle ${working_cycle}, is ready for download"
+restore_status=1
+restore_count=0
+
+while [ "$restore_status" -ne 0 ]  && [ "$restore_count" -lt 3 ]; do  
+
+    download_status=1
+    try_count=0
+    
+    while [ "$download_status" -ne 0 ]  && [ "$try_count" -lt 3 ]; do
+
+        $glacier_cmd download --outfile /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg \
+            $full_vault_name -- $archiveID 
+        download_status=$?
+        
+        # Check the return status
+        if [ "$download_status" -ne 0 ]; then
+            notice "Download attempt failed.  Will try again."
+            try_count=$(( try_count + 1 ))
+        fi
+
+    done
+
+    if [ "$download_status" -ne 0 ]; then
+        die "Failed to download $full_vault_name $archiveID"
+    fi
+
+    stat /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg
+
+    pushd . >/dev/null
+
+    cd /$destinationfs
+
+    gpg --batch --passphrase-file /${TMP}/gpgtemp/passphrase \
+        --secret-keyring /${TMP}/gpgtemp/keyring.gpg \
+        --decrypt /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg | \
+    gunzip | tee /${TMP}/zfstest_${working_cycle} | \
+    tar zxv 
+    restore_status=$?
+
+    # Check the exit status
+    if [ "$restore_status" -ne 0 ]; then
+        notice "Restore attempt failed.  Will try downloading and restoring again."
+        restore_count=$(( restore_count + 1 ))
+        rm /${TMP}/glacier-cmd-download_$$_${working_cycle}_.gz.gpg    
+    fi
+    
+
+done
+
+if [ "$restore_status" -ne 0 ]; then
+    die "Failed to decrypt, uncompress and zfs receive /${TMP}/glacier-cmd-download_$$_gpg.gz"
+fi
+
+echo "last_complete_cycle=\"${working_cycle}\"" > $restore_record
+

@@ -21,15 +21,11 @@
 #snapjobdir="$TOOLS_ROOT/snapshots/jobs"
 stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
-glacierjobdir="$TOOLS_ROOT/backup/jobs/glacier/active"
-glacierjobstatus="$TOOLS_ROOT/backup/jobs/glacier/status"
 blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
 
     #mkdir -p $snapjobdir
     mkdir -p ${stagingjobdir}
     mkdir -p ${ec2backupjobdir}
-    mkdir -p ${glacierjobdir}
-    mkdir -p ${glacierjobstatus}
 
     
 show_usage() {
@@ -87,10 +83,6 @@ Usage:
     zfs-config. 
 
     The variables "ALL_QUOTA_REPORTS" and "ALL_TREND_REPORTS" can contain an email address to BCC all reports to.
-
-     
-                           
-
 
 EOF_USAGE
 }
@@ -284,7 +276,13 @@ setupzfs () {
     fi
 
     # Setup Amazon Glacier backup
+    glacierjobdir="/${pool}/zfs_tools/etc/backup/jobs/glacier"
+    glacierjobstatus="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
 
+    mkdir -p ${glacierjobdir}
+    mkdir -p ${glacierjobstatus}
+
+ 
     if [ "x$glacier" != "x" ]; then
         glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | sed s,/,%,g`
         #TODO: Add logic to make sure this zfs folder is not a decendant of another

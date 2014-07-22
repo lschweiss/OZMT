@@ -1,4 +1,4 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -21,9 +21,15 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-#jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
+die () {
 
-#pendingjobs=`ls -1 ${jobstatusdir}/pending|sort`
+    error "clean-glacier-rotation: $1"
+    exit 1
+
+}
+
+backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
+jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
 if [ "x$glacier_logfile" != "x" ]; then
     logfile="$glacier_logfile"
@@ -37,24 +43,16 @@ else
     report_name="$default_report_name"
 fi
 
-pools="$(pools)"
+# Work backwards though rotation we are destroying
 
-for pool in $pools; do
-    
-    jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
+# Remove job definitions
 
-    pendingjobs=`ls -1 ${jobstatusdir}/pending|sort`
+    # Delete any snapshots remaining
 
-    # Launch new pending jobs
-    for job in $pendingjobs; do
+# Remove completed definitions
 
-        debug "launch_glacier_jobs: lauching job $job"
+# Destroy Glacier vault
 
-        ./glacier-job.sh "$pool" "$job" &
+# Destroy rotation reference
 
-        sleep $glacier_job_stagger
-
-    done
-
-done
 

@@ -22,7 +22,8 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
 rm $TOOLS_ROOT/snapshots/jobs/*/*
-rm -rf $TOOLS_ROOT/backup/jobs/*
+
+#rm -rf $TOOLS_ROOT/backup/jobs/*
 
 . ./zfs_functions.sh
 

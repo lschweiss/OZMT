@@ -21,9 +21,11 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
+pool="$1"
+job="$2"
 
-job="$1"
+jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
+jobdefdir="/${pool}/zfs_tools/etc/backup/jobs/glacier"
 
 if [ "x$glacier_logfile" != "x" ]; then
     logfile="$glacier_logfile"
