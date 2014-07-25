@@ -30,9 +30,6 @@ die () {
 
 }
 
-backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
-jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
-
 if [ "x$glacier_logfile" != "x" ]; then
     logfile="$glacier_logfile"
 else
@@ -51,25 +48,34 @@ fi
 $glacier_cmd --output csv lsvault | awk -F '","' '{print $4}' > /tmp/glacier_vaults
 
 
-cat /tmp/glacier_vaults |
-while read vault
-do
-if [ "$vault" != "VaultName" ]; then
-    temp="/tmp/${vault}_inventory_$$"
-    $glacier_cmd --output csv inventory ${vault} &> $temp 
-        result=$?
-    if [ "$result" -ne "0" ]; then
-        error "Could not request inventory for ${vault}" $temp
-    else
-        inventory_status=`cat $temp|head -1|awk -F '","' '{print $2}'|sed s'/..$//'`
-        if [ "$inventory_status" == "Inventory retrieval in progress." ]; then
-            debug "Inventory retrieval in progress for ${vault}"
-        else
-            cp $temp $jobstatusdir/inventory/${vault}
-        fi
-        rm $temp
-    fi
-fi
+pools="$(pools)"
 
-done
+for pool in $pools; do
+
+    backupjobs=`ls -1 /${pool}/zfs_tools/etc/backup/jobs/glacier/`
+    jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
+    
+    cat /tmp/glacier_vaults |
+    while read vault; do
+
+        if [ "$vault" != "VaultName" ]; then
+            temp="/tmp/${vault}_inventory_$$"
+            $glacier_cmd --output csv inventory ${vault} &> $temp 
+                result=$?
+            if [ "$result" -ne "0" ]; then
+                error "Could not request inventory for ${vault}" $temp
+            else
+                inventory_status=`cat $temp|head -1|awk -F '","' '{print $2}'|sed s'/..$//'`
+                if [ "$inventory_status" == "Inventory retrieval in progress." ]; then
+                    debug "Inventory retrieval in progress for ${vault}"
+                else
+                    cp $temp $jobstatusdir/inventory/${vault}
+                fi
+                rm $temp
+            fi
+        fi
+        
+    done # while read vault
+
+done # for pool
 
