@@ -43,6 +43,11 @@ else
     report_name="$default_report_name"
 fi
 
+job="$1"
+rotation="$2"
+
+notice "Removing glacier rotation for job $job, rotation $rotation"
+
 # Work backwards though rotation we are destroying
 
 # Remove job definitions

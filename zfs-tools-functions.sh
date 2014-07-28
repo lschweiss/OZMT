@@ -110,7 +110,7 @@ bytestohuman () {
 pools () {
     # Returns all pools mounted on the system excluding the rpool
 
-    zpool list -H -o name | $grep -v "^$(rpool)$"
+    zpool list -H -o name | ${GREP} -v "^$(rpool)$"
 
 }
 
