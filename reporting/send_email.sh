@@ -100,22 +100,22 @@ fi
 
 if [ "$message_cc" != "" ]; then
     cc_num=1
-    cc=`echo $message_cc | $cut -d ";" -f $cc_num`
+    cc=`echo $message_cc | ${CUT} -d ";" -f $cc_num`
     while [ "$cc" != "" ]; do
         mutt_options="$mutt_options -c $cc"
         cc_num=$(( cc_num + 1 ))
-        cc=`echo $message_cc | $cut -d ";" -f $cc_num `
+        cc=`echo $message_cc | ${CUT} -d ";" -f $cc_num `
     done
 fi 
 
 
 if [ "$message_bcc" != "" ]; then
     bcc_num=1
-    bcc=`echo $message_bcc | $cut -d ";" -f $bcc_num`
+    bcc=`echo $message_bcc | ${CUT} -d ";" -f $bcc_num`
     while [ "$bcc" != "" ]; do
         mutt_options="$mutt_options -b $bcc"
         bcc_num=$(( cc_num + 1 ))
-        bcc=`echo $message_bcc | $cut -d ";" -f $bcc_num `
+        bcc=`echo $message_bcc | ${CUT} -d ";" -f $bcc_num `
     done
 fi
 
@@ -127,10 +127,10 @@ fi
     
 # Send the message    
 if [ "${message_file: -4}" == "html" ]; then
-    $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+    $MUTT -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
         -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 else
-    $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+    $MUTT -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
         $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 fi 
 

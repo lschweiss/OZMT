@@ -76,7 +76,7 @@ update_job_status () {
 
     # Copy all status lines execept the variable we are dealing with
     while read line; do
-        echo "$line" | $grep -q "^local ${variable}="
+        echo "$line" | ${GREP} -q "^local ${variable}="
         if [ $? -ne 0 ]; then
             echo "$line" >> "$temp_file"
         fi
@@ -184,12 +184,12 @@ zfsjob () {
     # We will want to lock on the job.status file
     init_lock "$jobstat"
 
-    echo "$backup_target" | $grep -q ':/'
+    echo "$backup_target" | ${GREP} -q ':/'
     if [ $? -eq 0 ]; then
-        target_host=`echo $backup_target | $awk -F ":" '{print $1}'`
-        target_folder=`echo $backup_target | $awk -F ":/" '{print $2}'`
+        target_host=`echo $backup_target | ${AWK} -F ":" '{print $1}'`
+        target_folder=`echo $backup_target | ${AWK} -F ":/" '{print $2}'`
         debug "Backing up $backup_source to $target_host folder $target_folder"
-        timeout 5 ssh root@$target_host echo "Hello world" &> /dev/null
+        ${TIMEOUT} 5 ssh root@$target_host echo "Hello world" &> /dev/null
         if [ $? -ne 0 ]; then
             error "Can connect to target host via ssh root@${target_host}"
             return 1
@@ -224,7 +224,7 @@ zfsjob () {
 
     if [ "$job_running" != "" ]; then
         if [ -e /proc/$job_running ]; then
-            ps awwx |$grep -v "grep" | $grep "$job_running " | $grep -q "backup-to-zfs.sh"
+            ps awwx |${GREP} -v "grep" | ${GREP} "$job_running " | ${GREP} -q "backup-to-zfs.sh"
             if [ $? -eq 0 ]; then
                 notice "Previous instance of this job: $job is still running.   Skipping this run."
                 return 0
@@ -236,13 +236,13 @@ zfsjob () {
 
 
     # Generate full list of snapshots
-    zfs list -t snapshot -H -o name -s creation | $grep "^${backup_source}@" > $TMP/zfsjob.snaplist.$$
+    zfs list -t snapshot -H -o name -s creation | ${GREP} "^${backup_source}@" > $TMP/zfsjob.snaplist.$$
     
     num_snaps=`cat $TMP/zfsjob.snaplist.$$ | wc -l`
 
     if [ "$source_end_snap" == "" ]; then
         # Lookup last source snapshot for backup
-        source_end_snap=`cat $TMP/zfsjob.snaplist.$$| $grep "^${backup_source}@${job_backup_snaptag}_" | tail -1`
+        source_end_snap=`cat $TMP/zfsjob.snaplist.$$| ${GREP} "^${backup_source}@${job_backup_snaptag}_" | tail -1`
     fi
 
 
@@ -265,7 +265,7 @@ zfsjob () {
         backup_options="-r $backup_options"
     fi
 
-    echo "$backup_options" | $grep -q " -I \| -i "
+    echo "$backup_options" | ${GREP} -q " -I \| -i "
     if [ $? -eq 0 ]; then
         incremental='true'
     fi
@@ -312,7 +312,7 @@ zfsjob () {
         # Determine if we skip this ${this_snap} or send it
 
         # Determine if this is a backup snap
-        echo "${this_snap}" | $grep -q "@${job_backup_snaptag}_"
+        echo "${this_snap}" | ${GREP} -q "@${job_backup_snaptag}_"
         if [ $? -eq 0 ]; then
             skip='false'
             job_snap='true'
@@ -325,7 +325,7 @@ zfsjob () {
             # Determine if the snap type gets skipped
             skip='false'
             for skip in $skiptypes; do 
-                echo "${this_snap}" | $grep -q "@${skip}_"
+                echo "${this_snap}" | ${GREP} -q "@${skip}_"
                 if [ $? -eq 0 ]; then
                     skip='true'
                 fi
@@ -371,7 +371,7 @@ zfsjob () {
                         zfs hold -t "zfs_send" $this_snap
                         holds="$this_snap $holds"
                     fi
-                    echo "$last_increment_snap" | $grep -q "@${job_backup_snaptag}_"
+                    echo "$last_increment_snap" | ${GREP} -q "@${job_backup_snaptag}_"
                     if [ $? -ne 0 ]; then
                         debug "Adding hold to snapshot: $last_increment_snap"
                         zfs hold -t "zfs_send" $last_increment_snap
@@ -404,7 +404,7 @@ zfsjob () {
                     ./delete-previous-snaps.sh -f "$target_folder" -n "$job_backup_snaptag" \
                         -t "$job_backup_snaptag" -l "$last_complete_snap" & #$background
                 else
-                    target_last_snap=`echo "$last_complete_snap" | $sed s,${backup_source},${target_folder},g`
+                    target_last_snap=`echo "$last_complete_snap" | ${SED} s,${backup_source},${target_folder},g`
                     ./delete-previous-snaps.sh -h "$target_host" -f "$target_folder" -n "$job_backup_snaptag" \
                         -t "$job_backup_snaptag" -l "$target_last_snap" & #$background
                 fi
@@ -451,7 +451,7 @@ if [ -t 1 ]; then
     pool="$1"
     jobfolder="/${pool}/zfs_tools/etc/backup/jobs/zfs"
     statfolder="/${pool}/zfs_tools/etc/backup/stat/zfs"
-    job=`echo "${pool}/$2" | $sed s,/,%,g`
+    job=`echo "${pool}/$2" | ${SED} s,/,%,g`
 
     zfsjob "$jobfolder" "$job" "$3"
 

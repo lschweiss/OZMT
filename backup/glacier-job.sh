@@ -135,20 +135,20 @@ else
     # Collect information about the job
 
     $glacier_cmd search ${vault} > ${TMP}/glacier-job-$$.search
-    jobstats=`cat ${TMP}/glacier-job-$$.search | $grep -F "${jobroot}-${thisjob}"`
+    jobstats=`cat ${TMP}/glacier-job-$$.search | ${GREP} -F "${jobroot}-${thisjob}"`
 
     echo "archive_name=\"${jobroot}-${thisjob}\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_id=" >> ${jobstatusdir}/archiving/${job} 
-    archive_id=`echo -n $jobstats|$awk -F "|" '{print $2}'|tr -d ' '`
+    archive_id=`echo -n $jobstats|${AWK} -F "|" '{print $2}'|tr -d ' '`
     echo "\"$archive_id\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_hash=" >> ${jobstatusdir}/archiving/${job}
-    archive_hash=`echo -n $jobstats|$awk -F "|" '{print $3}'|tr -d ' '`
+    archive_hash=`echo -n $jobstats|${AWK} -F "|" '{print $3}'|tr -d ' '`
     echo "\"$archive_hash\"" >> ${jobstatusdir}/archiving/${job}
 
     echo -n "archive_size=" >> ${jobstatusdir}/archiving/${job}
-    archive_size=`echo -n $jobstats|$awk -F "|" '{print $8}'|tr -d ' '`
+    archive_size=`echo -n $jobstats|${AWK} -F "|" '{print $8}'|tr -d ' '`
     echo "\"$archive_size\"" >> ${jobstatusdir}/archiving/${job}
 
     rm ${TMP}/glacier-job-$$.search

@@ -49,19 +49,19 @@ recollect () {
     local jobstats=
 
     $glacier_cmd search ${search_vault} > ${TMP}/glacier-job-$$.search
-    jobstats=`cat ${TMP}/glacier-job-$$.search | $grep -F "${search_job}"`
+    jobstats=`cat ${TMP}/glacier-job-$$.search | ${GREP} -F "${search_job}"`
 
 
     echo -n "archive_id=" >> $archiving_file
-    archive_id=`echo -n $jobstats|$awk -F "|" '{print $2}'|tr -d ' '`
+    archive_id=`echo -n $jobstats|${AWK} -F "|" '{print $2}'|tr -d ' '`
     echo "\"$archive_id\"" >> $archiving_file
 
     echo -n "archive_hash=" >> $archiving_file
-    archive_hash=`echo -n $jobstats|$awk -F "|" '{print $3}'|tr -d ' '`
+    archive_hash=`echo -n $jobstats|${AWK} -F "|" '{print $3}'|tr -d ' '`
     echo "\"$archive_hash\"" >> $archiving_file
 
     echo -n "archive_size=" >> $archiving_file
-    archive_size=`echo -n $jobstats|$awk -F "|" '{print $8}'|tr -d ' '`
+    archive_size=`echo -n $jobstats|${AWK} -F "|" '{print $8}'|tr -d ' '`
     echo "\"$archive_size\"" >> $archiving_file
 
 }
@@ -87,7 +87,7 @@ for pool in $pools; do
             rotations=`cat ${jobstatusdir}/sequence/${job}_rotation`
         fi
     
-        jobfixup=`echo $job_name|$sed s,%,.,g`
+        jobfixup=`echo $job_name|${SED} s,%,.,g`
     
         for rotation in $rotations; do
     
@@ -126,14 +126,14 @@ for pool in $pools; do
                         # Collect the inventory record
                         if [ -f ${jobstatusdir}/inventory/${vault} ]; then
                             archive_description="${jobroot}-${jobnum}"
-                            inventory_record=`cat ${jobstatusdir}/inventory/${vault}|$grep "$archive_description"`
+                            inventory_record=`cat ${jobstatusdir}/inventory/${vault}|${GREP} "$archive_description"`
                             if [ "x${inventory_record}" == "x" ]; then
                                 notice "Job $jobfilename not yet inventoried."
                                 break
                             fi
-                            inventory_hash=`echo $inventory_record|$awk -F '","' '{print $4}'`
-                            inventory_id=`echo $inventory_record|$awk -F '","' '{print $1}'|$sed -r 's/^.{1}//'`
-                            inventory_size=`echo $inventory_record|$awk -F '","' '{print $5}'|$awk -F '"' '{print $1}'`
+                            inventory_hash=`echo $inventory_record|${AWK} -F '","' '{print $4}'`
+                            inventory_id=`echo $inventory_record|${AWK} -F '","' '{print $1}'|${SED} -r 's/^.{1}//'`
+                            inventory_size=`echo $inventory_record|${AWK} -F '","' '{print $5}'|${AWK} -F '"' '{print $1}'`
                         else
                             notice "Vault $vault not yet inventoried."
                             break

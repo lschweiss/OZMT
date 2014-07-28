@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-now=`date +%F_%H:%M:%S%z`
+now=`${DATE} +%F_%H:%M:%S%z`
 
 die () {
 
@@ -84,7 +84,7 @@ for pool in $pools; do
             rotations=`cat ${jobstatusdir}/sequence/${job}_rotation`
         fi
     
-        jobfixup=`echo $job_name|sed s,%,.,g`
+        jobfixup=`echo $job_name|${SED} s,%,.,g`
     
         for rotation in $rotations; do
     

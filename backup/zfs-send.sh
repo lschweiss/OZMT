@@ -307,7 +307,7 @@ fi
 
 if [ "$flat_file" == 'false' ]; then
     # Split into pool / folder
-    target_pool=`echo $target_folder | awk -F "/" '{print $1}'`
+    target_pool=`echo $target_folder | ${AWK} -F "/" '{print $1}'`
 fi
 
 re='^[0-9]+$'
@@ -327,7 +327,7 @@ fi
 
 
 if [ "$remote_host" != "" ]; then
-    $timeout 30s $ssh root@${remote_host} mkdir $remote_tmp
+    ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
         error "${job_name}: Cannot connect to remote host at root@${remote_host}"
@@ -352,7 +352,7 @@ if [ $result -ne 0 ]; then
     verify='fail'
 else
     debug "${job_name}: Source zfs folder $source_foldeer verified."
-    zfs list -t snapshot -H -o name -s creation | $grep "^${source_folder}@" > $tmpdir/snapshot.list
+    zfs list -t snapshot -H -o name -s creation | ${GREP} "^${source_folder}@" > $tmpdir/snapshot.list
 fi
 
 ##
@@ -360,7 +360,7 @@ fi
 ##
 
 if [ "$last_snap" != "" ]; then
-    cat $tmpdir/snapshot.list | grep -q "$last_snap"
+    cat $tmpdir/snapshot.list | ${GREP} -q "$last_snap"
     if [ $? -ne 0 ]; then
         die "${job_name}: Last snapshot $last_snap not found in source folder $source_folder"
     else
@@ -368,7 +368,7 @@ if [ "$last_snap" != "" ]; then
     fi
 else
     debug "${job_name}: Last snap not specified.  Looking up last snapshot for folder $source_folder"
-    last_snap=`cat $tmpdir/snapshot.list | $grep "^${source_folder}@" | tail -1`
+    last_snap=`cat $tmpdir/snapshot.list | ${GREP} "^${source_folder}@" | tail -1`
 fi
 
 debug "${job_name}: Last snap set to $last_snap"
@@ -378,7 +378,7 @@ debug "${job_name}: Last snap set to $last_snap"
 ##
 
 if [ "$first_snap" != "origin" ]; then
-    cat $tmpdir/snapshot.list | grep -q "$first_snap"
+    cat $tmpdir/snapshot.list | ${GREP} -q "$first_snap"
     if [ $? -ne 0 ]; then
         die "${job_name}: First snapshot $first_snap not found in source folder $source_folder"
     else
@@ -390,12 +390,12 @@ else
 #        error "${job_name}: Incremental jobs cannot start at the origin unless it is a clone"
 #    fi
     # Determine if this is a clone
-    origin=`zfs get -H origin $source_folder|awk -F " " '{print $3}'`
+    origin=`zfs get -H origin $source_folder|${AWK} -F " " '{print $3}'`
     if [ "$origin" == '-' ]; then
         first_snap_name=""
         first_snap_name="${source_folder}@origin"
     else
-        originfs=`echo $origin | awk -F "@" '{print $1}'`
+        originfs=`echo $origin | ${AWK} -F "@" '{print $1}'`
         debug "${job_name}: Source file system is a clone.  Setting source to ${originfs}@origin"
         first_snap_name="${originfs}@origin"
     fi
@@ -457,10 +457,10 @@ if [ "$remote_host" == "" ]; then
     fi
 else
     # Remote test
-    remote_ssh="$ssh root@$remote_host"
+    remote_ssh="${SSH} root@$remote_host"
     if [ "$flat_file" == 'false' ]; then
         if [ "$replicate" == 'false' ]; then
-            $timeout 2m $remote_ssh zfs list $target_folder &> /dev/null
+            ${TIMEOUT} 2m $remote_ssh zfs list $target_folder &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
                 error "${job_name}: Replicate not specified however target folder $target_folder does not exist on host $remote_host"
@@ -468,7 +468,7 @@ else
             fi
         else
             # Verify pool exists
-            $timeout 2m $remote_ssh zfs list $target_pool &> /dev/null
+            ${TIMEOUT} 2m $remote_ssh zfs list $target_pool &> /dev/null
             result=$?
             if [ $result -ne 0 ]; then
                 error "${job_name}: Replicate specified however target pool $target_pool does not exist on host $remote_host"
@@ -476,7 +476,7 @@ else
             fi
         fi
     else # Flat file
-        $timeout 30s $remote_ssh touch $target_folder &> /dev/null
+        ${TIMEOUT} 30s $remote_ssh touch $target_folder &> /dev/null
         result=$?
         if [ $result -ne 0 ]; then
             error "${job_name}: Cannot create flat file $target_folder on host $remote_host"
@@ -501,7 +501,7 @@ fi
 remote_fifo () {
     local fifo="${remote_tmp}/${1}.fifo"
     debug "${job_name}: Creating remote fifo ${fifo}"
-    $timeout 1m $remote_ssh "mkfifo ${fifo}" || \
+    ${TIMEOUT} 1m $remote_ssh "mkfifo ${fifo}" || \
         die "${job_name}: Could not setup remote fifo $1 on host $remote_host"
     target_fifos="${fifo} $target_fifos"
     result="${fifo}"
@@ -531,7 +531,7 @@ remote_launch () {
 
     echo "$script_content" | $remote_ssh "cat >$script; chmod +x $script"
 
-    $remote_ssh "/usr/bin/screen -d -S \"${job_name}_${name}\" -m $script; screen -ls | $grep \"${job_name}_${name}\" | $grep -o -P \"(\d+)\" > $pidfile"
+    $remote_ssh "/usr/bin/screen -d -S \"${job_name}_${name}\" -m $script; screen -ls | ${GREP} \"${job_name}_${name}\" | ${GREP} -o -P \"(\d+)\" > $pidfile"
 
 }
 
@@ -760,7 +760,7 @@ if [ "$bbcp_streams" -ne 0 ]; then
     bbcp_started=1
     while [ $bbcp_started -ne 1 ]; do
         sleep 0.2
-        cat $tmpdir/bbcp.error | grep -q "bbcp: Creating $tmpdir"
+        cat $tmpdir/bbcp.error | ${GREP} -q "bbcp: Creating $tmpdir"
         bbcp_started=$?
     done
 fi

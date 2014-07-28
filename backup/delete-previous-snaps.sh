@@ -104,9 +104,9 @@ snap_file="$TMP/delete_previous_snaps_$$"
 
 # Generate full list of snapshots
 if [ "$host" == 'localhost' ]; then
-    zfs list -t snapshot -H -o name -s creation | $grep "^${folder}@" > $snap_file
+    zfs list -t snapshot -H -o name -s creation | ${GREP} "^${folder}@" > $snap_file
 else
-    ssh root@$host zfs list -t snapshot -H -o name -s creation | $grep "^${folder}@" > $snap_file
+    ${SSH} root@$host zfs list -t snapshot -H -o name -s creation | ${GREP} "^${folder}@" > $snap_file
 fi
 
 # Parse shapshot list
@@ -130,7 +130,7 @@ while [ $this_snap_num -le $num_snaps ]; do
     fi
 
     # Determine if this is a backup snap
-    echo "${this_snap}" | $grep -q "@${snap_name}_"
+    echo "${this_snap}" | ${GREP} -q "@${snap_name}_"
     if [ $? -eq 0 ]; then
         debug "Deleting snapshot $this_snap"
         if [ "$host" == 'localhost' ]; then
@@ -143,9 +143,9 @@ while [ $this_snap_num -le $num_snaps ]; do
             fi
         else
             if [ "$hold_tag" != '' ]; then
-                ssh root@$host zfs release $recurse "$hold_tag" "$this_snap" 2> /dev/null
+                ${SSH} root@$host zfs release $recurse "$hold_tag" "$this_snap" 2> /dev/null
             fi
-            ssh root@$host zfs destroy $recurse "$this_snap" 2> $TMP/zfs_destroy_snap_$$
+            ${SSH} root@$host zfs destroy $recurse "$this_snap" 2> $TMP/zfs_destroy_snap_$$
             if [ $? -ne 0 ]; then
                 cat $TMP/zfs_destroy_snap_$$
                 warning "Failed to destroy snapshot $this_snap on host $host" $TMP/zfs_destroy_snap_$$

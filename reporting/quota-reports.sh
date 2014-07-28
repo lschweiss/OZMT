@@ -62,7 +62,7 @@ update_last_report () {
 
     # Copy all status lines execept the variable we are dealing with
     while read line; do
-        echo "$line" | $grep -q "^${variable}|"
+        echo "$line" | ${GREP} -q "^${variable}|"
         if [ $? -ne 0 ]; then
             echo "$line" >> "$temp_file"
         fi
@@ -116,7 +116,7 @@ quota_report () {
     local frequency=
     local frequency_human=
     local last_report=
-    local now_secs=`date +%s`
+    local now_secs=`${DATE} +%s`
     local elapsed=
     local emailsubject=
     local emailfile=$TMP/zfs_quota_report_$job_$$
@@ -165,10 +165,10 @@ quota_report () {
         while [ $report -le $quota_reports ]; do
             if [ "${quota_report[$report]}" != "" ]; then
                 triggered=0
-                free_trigger=`echo ${quota_report[$report]} | $awk -F '|' '{print $1}'`
-                alert_type=`echo ${quota_report[$report]} | $awk -F '|' '{print $2}'`
-                destinations=`echo ${quota_report[$report]} | $awk -F '|' '{print $3}'`
-                frequency_human=`echo ${quota_report[$report]} | $awk -F '|' '{print $4}'`
+                free_trigger=`echo ${quota_report[$report]} | ${AWK} -F '|' '{print $1}'`
+                alert_type=`echo ${quota_report[$report]} | ${AWK} -F '|' '{print $2}'`
+                destinations=`echo ${quota_report[$report]} | ${AWK} -F '|' '{print $3}'`
+                frequency_human=`echo ${quota_report[$report]} | ${AWK} -F '|' '{print $4}'`
 
                 debug "Free trigger:            $free_trigger"
                 debug "Alert type:              $alert_type"
@@ -177,16 +177,16 @@ quota_report () {
     
                 case $frequency_human in 
                     *w) # Weeks
-                        frequency=`echo $frequency_human | $sed 's/w/*604800/' | $BC`
+                        frequency=`echo $frequency_human | ${SED} 's/w/*604800/' | $BC`
                         ;;
                     *d) # Days
-                        frequency=`echo $frequency_human | $sed 's/d/*86400/' | $BC`
+                        frequency=`echo $frequency_human | ${SED} 's/d/*86400/' | $BC`
                         ;;
                     *h) # Hours
-                        frequency=`echo $frequency_human | $sed 's/h/*3600/' | $BC`
+                        frequency=`echo $frequency_human | ${SED} 's/h/*3600/' | $BC`
                         ;;
                     *m) # Minutes
-                        frequency=`echo $frequency_human | $sed 's/m/*60/' | $BC`
+                        frequency=`echo $frequency_human | ${SED} 's/m/*60/' | $BC`
                         ;;
                     *)  # Default
                         frequency="$frequency_human"
@@ -200,11 +200,11 @@ quota_report () {
                     
                 case $free_trigger in 
                     *%) # Trigger on percentage                        
-                        trigger_percent=`echo $free_trigger | $awk -F '%' '{print $1}'`
+                        trigger_percent=`echo $free_trigger | ${AWK} -F '%' '{print $1}'`
                         # Check by reference quota
                         if [ $refquota -ne 0 ] ; then
-                            ref_free=`echo "scale=2;100-(${referenced}*100/${refquota})" | $BC | $sed 's/^\./0./'`
-                            debug "\"scale=2;100-(${referenced}*100/${refquota})\" | $BC | $sed 's/^\./0./'"
+                            ref_free=`echo "scale=2;100-(${referenced}*100/${refquota})" | $BC | ${SED} 's/^\./0./'`
+                            debug "\"scale=2;100-(${referenced}*100/${refquota})\" | $BC | ${SED} 's/^\./0./'"
                             if [ $(echo "$ref_free <= $trigger_percent" | $BC) -eq 1 ]; then 
                                 triggered=1
                                 refquota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $refquota 2) reference quota<br>"
@@ -212,7 +212,7 @@ quota_report () {
                         fi
                         # Check by full quota
                         if [ $quota -ne 0 ]; then
-                            percent_free=`echo "scale=2;100-(${used}*100/${quota})" | $BC | $sed 's/^\./0./'`
+                            percent_free=`echo "scale=2;100-(${used}*100/${quota})" | $BC | ${SED} 's/^\./0./'`
                             if [ $(echo "$percent_free <= $trigger_percent" | $BC) -eq 1 ]; then
                                 triggered=1
                                 quota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $quota 2) quota<br>"
@@ -220,8 +220,8 @@ quota_report () {
                         fi
                         ;;
                     *T*) # Trigger on terabytes free
-                        mathline=`echo $free_trigger | $sed 's/TiB/*(1024^4)/' | $sed 's/TB/*(1000^4)/' | $sed 's/T/*(1024^4)/'`
-                        trigger_t=`echo $free_trigger | $awk -F 'T' '{print $1}'`
+                        mathline=`echo $free_trigger | ${SED} 's/TiB/*(1024^4)/' | ${SED} 's/TB/*(1000^4)/' | ${SED} 's/T/*(1024^4)/'`
+                        trigger_t=`echo $free_trigger | ${AWK} -F 'T' '{print $1}'`
                         trigger_bytes=`echo "${mathline}" | $BC`
                         if [ $available -le $trigger_bytes ]; then
                             triggered=1
@@ -229,8 +229,8 @@ quota_report () {
                         fi
                         ;;
                     *G*) # Trigger on gigabytes free
-                        mathline=`echo $free_trigger | $sed 's/GiB/*(1024^3)/' | $sed 's/GB/*(1000^3)/' | $sed 's/G/*(1024^3)/'`
-                        trigger_g=`echo $free_trigger | $awk -F 'G' '{print $1}'`
+                        mathline=`echo $free_trigger | ${SED} 's/GiB/*(1024^3)/' | ${SED} 's/GB/*(1000^3)/' | ${SED} 's/G/*(1024^3)/'`
+                        trigger_g=`echo $free_trigger | ${AWK} -F 'G' '{print $1}'`
                         trigger_bytes=`echo "${mathline}" | $BC`  
                         if [ $available -le $trigger_bytes ]; then
                             triggered=1
@@ -246,23 +246,23 @@ quota_report () {
                             emailfile="${emailfile}.html"
                         fi
                         cat $QUOTA_REPORT_TEMPLATE | \
-                        $sed "s,#HOSTNAME#,$HOSTNAME,g" | \
-                        $sed "s,#ALERT_TYPE#,${alert_type,,},g" | \
-                        $sed "s,#ZFS_FOLDER#,$quota_path,g" | \
-                        $sed "s/#REFERENCED#/$(bytestohuman $referenced 2)/g" | \
-                        $sed "s/#REF_QUOTA#/$(bytestohuman $refquota 2)/g" | \
-                        $sed "s/#LOGICALUSED#/$(bytestohuman $logicalused 2)/g" | \
-                        $sed "s/#LOGICALREFERENCED#/$(bytestohuman $logicalreferenced 2)/g" | \
-                        $sed "s/#QUOTA#/$(bytestohuman $quota 2)/g" | \
-                        $sed "s/#AVAILABLE#/$(bytestohuman $available 2)/g" | \
-                        $sed "s/#USED#/$(bytestohuman $used 2)/g" | \
-                        $sed "s/#USED_DS#/$(bytestohuman $used_ds 2)/g" | \
-                        $sed "s/#USED_SNAP#/$(bytestohuman $used_snap 2)/g" | \
-                        $sed "s/#COMPRESSION#/$compression/g" | \
-                        $sed "s/#COMPRESSRATIO#/$compressratio/g" | \
-                        $sed "s,#REFQUOTA_TRIGGER#,$refquota_trigger,g" | \
-                        $sed "s,#QUOTA_TRIGGER#,$quota_trigger,g" | \
-                        $sed "s,#SIZE_TRIGGER#,$size_trigger,g" > $emailfile
+                        ${SED} "s,#HOSTNAME#,$HOSTNAME,g" | \
+                        ${SED} "s,#ALERT_TYPE#,${alert_type,,},g" | \
+                        ${SED} "s,#ZFS_FOLDER#,$quota_path,g" | \
+                        ${SED} "s/#REFERENCED#/$(bytestohuman $referenced 2)/g" | \
+                        ${SED} "s/#REF_QUOTA#/$(bytestohuman $refquota 2)/g" | \
+                        ${SED} "s/#LOGICALUSED#/$(bytestohuman $logicalused 2)/g" | \
+                        ${SED} "s/#LOGICALREFERENCED#/$(bytestohuman $logicalreferenced 2)/g" | \
+                        ${SED} "s/#QUOTA#/$(bytestohuman $quota 2)/g" | \
+                        ${SED} "s/#AVAILABLE#/$(bytestohuman $available 2)/g" | \
+                        ${SED} "s/#USED#/$(bytestohuman $used 2)/g" | \
+                        ${SED} "s/#USED_DS#/$(bytestohuman $used_ds 2)/g" | \
+                        ${SED} "s/#USED_SNAP#/$(bytestohuman $used_snap 2)/g" | \
+                        ${SED} "s/#COMPRESSION#/$compression/g" | \
+                        ${SED} "s/#COMPRESSRATIO#/$compressratio/g" | \
+                        ${SED} "s,#REFQUOTA_TRIGGER#,$refquota_trigger,g" | \
+                        ${SED} "s,#QUOTA_TRIGGER#,$quota_trigger,g" | \
+                        ${SED} "s,#SIZE_TRIGGER#,$size_trigger,g" > $emailfile
                     else
                         error "Quote report template file not found: $QUOTA_REPORT_TEMPLATE"
                         exit 1
@@ -275,10 +275,10 @@ quota_report () {
                     fi
                     
                     receiver=1
-                    recipient=`echo $destinations | cut -d ';' -f $receiver`
+                    recipient=`echo $destinations | ${CUT} -d ';' -f $receiver`
                     while [ "$recipient" != "" ]; do
                         # Check frequence of reporting
-                        last_report=`cat ${jobstat}/${job} | $grep "${free_trigger}|${recipient}" | cut -d "|" -f 3`
+                        last_report=`cat ${jobstat}/${job} | ${GREP} "${free_trigger}|${recipient}" | ${CUT} -d "|" -f 3`
                         elapsed=$(( now_secs - last_report ))
                         if [ $elapsed -ge $frequency ]; then
                             # Add recipient to receiver list
@@ -293,8 +293,8 @@ quota_report () {
                             debug "Not adding $recipient to report for $quota_path only $elapsed secs since last report.  Requires $frequency."
                         fi    
                         receiver=$(( receiver + 1 ))
-                        recipient=`echo $destinations | cut -d ';' -f $receiver`
-                        echo "$destinations" | grep -q ';' 
+                        recipient=`echo $destinations | ${CUT} -d ';' -f $receiver`
+                        echo "$destinations" | ${GREP} -q ';' 
                         if [ $? -ne 0 ]; then
                             # There is only one recipient.  'cut' will always return it without a separator.
                             recipient=""

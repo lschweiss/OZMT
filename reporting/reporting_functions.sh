@@ -131,7 +131,7 @@ process_message() {
 
     if [ "x${this_report_level}" == "xnow" ]; then
         # Send the email report now
-        message_file=/tmp/process_message_$$
+        message_file=${TMP}/process_message_$$
         case "${this_message_level}" in
             '0') this_subject="DEBUG: ${report_name} $HOSTNAME" ;;
             '1') this_subject="NOTICE: ${report_name} $HOSTNAME" ;;

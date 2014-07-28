@@ -31,11 +31,11 @@ echo -n "Gathering information..."
 ec2-describe-volumes --show-empty-fields > /tmp/ebs-volumes_$$
 echo "Done."
 
-volumeids=`cat /tmp/ebs-volumes_$$ | $grep "TAG" | $grep "${instance_hostname}_/dev/sd" | $cut -f 3`
+volumeids=`cat /tmp/ebs-volumes_$$ | ${GREP} "TAG" | ${GREP} "${instance_hostname}_/dev/sd" | $cut -f 3`
 
 for volumeid in $volumeids; do
     # Get the device attachment point
-    awsdev=`cat /tmp/ebs-volumes_$$ | $grep "TAG" | $grep "$volumeid" | $cut -f 5 | $grep -o -E "sd[f-p][0-9]+"`
+    awsdev=`cat /tmp/ebs-volumes_$$ | ${GREP} "TAG" | ${GREP} "$volumeid" | $cut -f 5 | ${GREP} -o -E "sd[f-p][0-9]+"`
     awsdev="/dev/${awsdev}"
     
     echo "Attaching volume $volumeid to $awsdev on $instanceid" 

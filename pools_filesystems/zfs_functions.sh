@@ -112,9 +112,9 @@ setzfs () {
 
     for option in $options; do
 
-        thisoption=`echo $option | awk -F "=" '{print $1}'`
-        newvalue=`echo $option | awk -F "${thisoption}=" '{print $2}'`
-        currentvalue=`zfs get -H $thisoption $zfsfolder|cut -f3`
+        thisoption=`echo $option | ${AWK} -F "=" '{print $1}'`
+        newvalue=`echo $option | ${AWK} -F "${thisoption}=" '{print $2}'`
+        currentvalue=`zfs get -H $thisoption $zfsfolder|${CUT} -f3`
         
         if [ "$currentvalue" != "$newvalue" ]; then
             echo "$(color cyan)Resetting $(color red)$thisoption $(color cyan)from"
@@ -259,7 +259,7 @@ setupzfs () {
         fi
         
         setzfs "$staging/$pool/$zfspath" "atime=off checksum=sha256 ${stagingoptions}"
-        stagingjobname=`echo "${staging}/${pool}/${zfspath}" | sed s,/,%,g`
+        stagingjobname=`echo "${staging}/${pool}/${zfspath}" | ${SED} s,/,%,g`
         
         echo "crypt=\"$crypt\"" > ${stagingjobdir}/${stagingjobname}
         echo "source_folder=\"$pool/$zfspath\"" >> ${stagingjobdir}/${stagingjobname}
@@ -270,7 +270,7 @@ setupzfs () {
     # Setup EC2 backup
 
     if [ "$backup" == "ec2" ]; then
-        ec2backupjobname=`echo "${backup}/${pool}/${zfspath}" | sed s,/,%,g`
+        ec2backupjobname=`echo "${backup}/${pool}/${zfspath}" | ${SED} s,/,%,g`
         echo "source_folder=\"${pool}/${zfspath}\"" > ${ec2backupjobdir}/${ec2backupjobname}
         echo "target_folder=\"${ec2_zfspool}/${pool}/${zfspath}\"" >> ${ec2backupjobdir}/${ec2backupjobname}
     fi
@@ -284,10 +284,10 @@ setupzfs () {
 
  
     if [ "x$glacier" != "x" ]; then
-        glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | sed s,/,%,g`
+        glacierjobname=`echo "${glacier}/${pool}/${zfspath}" | ${SED} s,/,%,g`
         #TODO: Add logic to make sure this zfs folder is not a decendant of another
         #      that is already being backed up via glacier
-        echo "job_name=\"${pool}/${zfspath}\"" | sed s,/,%,g > ${glacierjobdir}/${glacierjobname}
+        echo "job_name=\"${pool}/${zfspath}\"" | ${SED} s,/,%,g > ${glacierjobdir}/${glacierjobname}
         echo "source_folder=\"${pool}/${zfspath}\"" >> ${glacierjobdir}/${glacierjobname}
         echo "glacier_vault=\"${glacier}\"" >> ${glacierjobdir}/${glacierjobname}
         if [ "x$glacier_rotation" == "x" ]; then
@@ -300,8 +300,8 @@ setupzfs () {
     # Setup Amazon Glacier file level backup
 
     if [ "x$glacier_files" != "x" ]; then
-        glacierjobname=`echo "FILES%${glacier_files}/${pool}/${zfspath}" | sed s,/,%,g`
-        echo "job_name=\"FILES/${pool}/${zfspath}\"" | sed s,/,%,g > ${glacierjobdir}/${glacierjobname}
+        glacierjobname=`echo "FILES%${glacier_files}/${pool}/${zfspath}" | ${SED} s,/,%,g`
+        echo "job_name=\"FILES/${pool}/${zfspath}\"" | ${SED} s,/,%,g > ${glacierjobdir}/${glacierjobname}
         echo "source_folder=\"${pool}/${zfspath}\"" >> ${glacierjobdir}/${glacierjobname}
         echo "glacier_vault=\"${glacier_files}\"" >> ${glacierjobdir}/${glacierjobname}
         if [ "x$glacier_rotation" == "x" ]; then
@@ -318,7 +318,7 @@ setupzfs () {
             echo "$(color magenta)ERROR: target_folder must be define before calling setupzfs$(color)"
             exit 1
         fi
-        blindjobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
+        blindjobname=`echo "${pool}/${zfspath}" | ${SED} s,/,%,g`
         echo "Setting blind backup to $target_folder"
         mkdir -p "$blindbackupjobdir/$blindjobname"
         echo "zfs_folder=\"${pool}/${zfspath}\"" > $blindbackupjobdir/$blindjobname/folders
@@ -336,7 +336,7 @@ setupzfs () {
     fi
 
 
-    jobname=`echo "${pool}/${zfspath}" | sed s,/,%,g`
+    jobname=`echo "${pool}/${zfspath}" | ${SED} s,/,%,g`
 
     # Setup ZFS backup jobs
     if [[ "$backup" == "zfs" || "$zfs_backup" == 'true' ]] ; then
@@ -413,8 +413,8 @@ setupzfs () {
     echo -e "Job\t\tType\t\tQuantity"
     if [ "$snapshots" != "" ]; then
         for snap in $snapshots; do
-            snaptype=`echo $snap|cut -d "|" -f 1`
-            snapqty=`echo $snap|cut -d "|" -f 2`
+            snaptype=`echo $snap|${CUT} -d "|" -f 1`
+            snapqty=`echo $snap|${CUT} -d "|" -f 2`
             echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
             echo $snapqty > $snapjobdir/$snaptype/$jobname
             if [ "$staging" != "" ]; then

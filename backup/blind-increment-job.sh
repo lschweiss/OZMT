@@ -143,11 +143,11 @@ for job in $blind_jobs; do
         fi
 
         latest_snapshot=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            $grep "${snap_grep}" | \
-                            $cut -f 1 | \
-                            tail -n 1 | $cut -d "@" -f 2`
+                            ${GREP} "${snap_grep}" | \
+                            ${CUT} -f 1 | \
+                            tail -n 1 | ${CUT} -d "@" -f 2`
 
-        zfs list -t snapshot -H -o name | $grep -q "^${zfs_folder}@${latest_snapshot}"; result=$?
+        zfs list -t snapshot -H -o name | ${GREP} -q "^${zfs_folder}@${latest_snapshot}"; result=$?
         if [ $result -ne 0 ]; then
             error "Last snapshot ${zfs_source}@${last_snap} does not exist!" 
             exit 1

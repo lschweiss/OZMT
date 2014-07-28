@@ -122,7 +122,7 @@ fi
 zfs_folder="$zval"
 
 # Remote folder parameter
-zfs list -H |cut -f 1 | grep -q "^${zfs_folder}$"
+zfs list -H |${CUT} -f 1 | ${GREP} -q "^${zfs_folder}$"
 if [ $? -eq 1 ]; then
     error "remove-old-snapshots: ZFS folder $zval does not exist!"
     exit 1
@@ -141,18 +141,18 @@ fi
 if [ $days -ne 0 ]; then
     debug "remove-old-snapshots: Removing snapshots older than ${days} days from ${zfs_folder} of snap type ${snap_prefix}"
     snap_list=`zfs list -H -r -t snapshot | \
-        $awk -F " " '{print $1}' | \
-        $grep "${snap_grep}" | \
+        ${AWK} -F " " '{print $1}' | \
+        ${GREP} "${snap_grep}" | \
         sort`
     # Extract the date from each one and see if we should destroy it.
     for snap in $snap_list; do
     
-            snap_date=`echo ${snap}|$grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
+            snap_date=`echo ${snap}|${GREP} -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`
             if [ "x$snap_date" == "x" ]; then
                 debug "Skipping ${snap}, cannot decipher date."
             else
-                snap_seconds=`date --date $snap_date +%s`
-                now_seconds=`date +%s`
+                snap_seconds=`${DATE} --date $snap_date +%s`
+                now_seconds=`${DATE} +%s`
                 elapsed=$(( ${now_seconds} - ${snap_seconds} ))
                 days_elapsed=$((elapsed/86400))
                 if [ "$days_elapsed" -gt "$days" ]; then
@@ -161,11 +161,11 @@ if [ $days -ne 0 ]; then
                         debug "WOULD DO: zfs destroy ${snap}"
                     else
                         notice "remove-old-snapshots: Destroying: ${snap}"
-                        zfs destroy ${snap} &> /tmp/remove_old_snap_$$.txt; result=$?
+                        zfs destroy ${snap} &> ${TMP}/remove_old_snap_$$.txt; result=$?
                         if [ "$result" -ne "0" ]; then
-                            warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$.txt
+                            warning "remove-old-snapshots: Failed to remove ${snap}" ${TMP}/remove_old_snap_$$.txt
                         fi
-                        rm -f /tmp/remove_old_snap_$$.txt
+                        rm -f ${TMP}/remove_old_snap_$$.txt
                     fi
                 else
                     debug "Not destroying ${snap} it is only ${days_elapsed} days old."
@@ -181,8 +181,8 @@ if [ $count -ne 0 ]; then
     # Reverse the order of the snap list from the newest to the oldest
     # Strip off the count of snaps to keep
     delete_list=`zfs list -H -r -t snapshot | \
-        $awk -F " " '{print $1}' | \
-        $grep "${snap_grep}" | \
+        ${AWK} -F " " '{print $1}' | \
+        ${GREP} "${snap_grep}" | \
         sort -r | \
         tail -n +$(( $count + 1 ))`
     for snap in $delete_list; do
@@ -190,11 +190,11 @@ if [ $count -ne 0 ]; then
             debug "WOULD DO: zfs destroy ${snap}"
         else
             notice "remove-old-snapshots: Destroying: ${snap}, keeping ${count} of type ${snap_prefix}"
-            zfs destroy ${snap} &> /tmp/remove_old_snap_$$.txt; result=$?
+            zfs destroy ${snap} &> ${TMP}/remove_old_snap_$$.txt; result=$?
             if [ "$result" -ne "0" ]; then
-                warning "remove-old-snapshots: Failed to remove ${snap}" /tmp/remove_old_snap_$$.txt
+                warning "remove-old-snapshots: Failed to remove ${snap}" ${TMP}/remove_old_snap_$$.txt
             fi
-            rm /tmp/remove_old_snap_$$.txt
+            rm ${TMP}/remove_old_snap_$$.txt
         fi
     done
 fi

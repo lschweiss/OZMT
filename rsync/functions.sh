@@ -17,10 +17,10 @@ locate_snap () {
 
     if [ -d $this_path ]; then
     	if [ "$#" -eq "3" ]; then
-    	    snap=`ls -1 $this_path|$grep $this_date|$grep $preferred_tag|tail -n 1`
+    	    snap=`ls -1 $this_path|${GREP} $this_date|${GREP} $preferred_tag|tail -n 1`
     	fi
     	if [ "$snap" == "" ]; then
-            snap=`ls -1 $this_path|$grep $this_date|tail -n 1`
+            snap=`ls -1 $this_path|${GREP} $this_date|tail -n 1`
     	fi
     else
     	echo "Directory $this_path not found."

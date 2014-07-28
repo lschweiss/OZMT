@@ -186,10 +186,10 @@ if [ "$copymode" != "blind" ]; then
     # Confirm we are using the correct snapshot for the target
     
     last_target_snapname=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            $grep -v "$tools_snapshot_name" | \
-                            $grep "^${zfs_target}@" | \
-                            $cut -f 1 | \
-                            tail -n 1 | $cut -d "@" -f 2`
+                            ${GREP} -v "$tools_snapshot_name" | \
+                            ${GREP} "^${zfs_target}@" | \
+                            ${CUT} -f 1 | \
+                            tail -n 1 | ${CUT} -d "@" -f 2`
     
     debug "Last snapshot of ${zfs_target} is: $last_target_snapname"
     
@@ -204,13 +204,13 @@ if [ "$copymode" != "blind" ]; then
     if [ "$last_snap" == "latest" ]; then
         debug "Finding latest snapshot of $zfs_source"
            last_snap=`zfs list -t snapshot -H -o name,creation -s creation | \
-                            $grep "^${zfs_source}@" | \
-                            $cut -f 1 | \
-                            tail -n 1 | $cut -d "@" -f 2`
+                            ${GREP} "^${zfs_source}@" | \
+                            ${CUT} -f 1 | \
+                            tail -n 1 | ${CUT} -d "@" -f 2`
         debug "Found ${zfs_source}@${last_snap} as the latest snapshot."
     fi
     
-    zfs list -t snapshot -H -o name | $grep -q "^${zfs_source}@${last_snap}"; result=$?
+    zfs list -t snapshot -H -o name | ${GREP} -q "^${zfs_source}@${last_snap}"; result=$?
     if [ $result -ne 0 ]; then
         error "Last snapshot ${zfs_source}@${last_snap} does not exist!" >&2
         exit 1
@@ -234,9 +234,9 @@ if [ -n "$iflag" ]; then
     # Collect all intermediate snapshots in order of snapshot creation
     debug "Collecting intermediate snapshots..."
     gross_snap_list=`zfs list -t snapshot -H -o name,creation -s creation | \
-                        $grep "^${zfs_source}@" | \
-                        $cut -f 1 | \
-                        $cut -d "@" -f 2`
+                        ${GREP} "^${zfs_source}@" | \
+                        ${CUT} -f 1 | \
+                        ${CUT} -d "@" -f 2`
     debug "Done."
     # Trim the list from first to last snapshots
     net_snap_list=""
@@ -369,8 +369,8 @@ copy_file () {
                         sigfile="${file:0:$namelen}.sha256"
                         gpg -r "$gpg_user" --output "$filedest" --decrypt "$file" &> $TMP/blind_inc_error_$$
                         error_val=$?
-                        sourcesha256=`cat ${sigfile}.sha256|$cut -f 1`
-                        destsha256=`sha256sum "$filedest"|$cut -f 1`
+                        sourcesha256=`cat ${sigfile}.sha256|${CUT} -f 1`
+                        destsha256=`sha256sum "$filedest"|${CUT} -f 1`
                         if [ "$sourcesha256" != "$destsha256" ]; then
                             error "SHA256 sum of decrypted file $filedest does not match saved sum in file $sigfile."
                         fi
@@ -594,16 +594,16 @@ long_delete_files () {
     local file=""
 
     # List the files in the current and previous snapshots
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | $grep -v "." | $grep -v ".." > ${TMP}/copy_snap_delete_files_current_$$
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | $grep -v "." | $grep -v ".." > ${TMP}/copy_snap_delete_files_previous_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | ${GREP} -v "." | ${GREP} -v ".." > ${TMP}/copy_snap_delete_files_current_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | ${GREP} -v "." | ${GREP} -v ".." > ${TMP}/copy_snap_delete_files_previous_$$
 
     # Check each file if has been removed but not renamed which is handled individually.
     while read file; do
-        cat ${TMP}/copy_snap_delete_files_current_$$|$grep -q -x "$file";result=$?
+        cat ${TMP}/copy_snap_delete_files_current_$$|${GREP} -q -x "$file";result=$?
         if [ "$result" -ne "0" ]; then
             # The file is no longer in the directory
             # Has this file been renamed?
-            cat ${TMP}/copy_snaplist_$$|$grep -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
+            cat ${TMP}/copy_snaplist_$$|${GREP} -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
             if [ "$result" -ne "0" ]; then
                 # File has been deleted
                 delete_file "${workdir}${file}"
@@ -677,7 +677,7 @@ for snap in $net_snap_list; do
             debug "Collecting diff between ${zfs_source}@${prev_snap} ${zfs_source}@${snap}"
 
             zfs diff -FH ${zfs_source}@${prev_snap} ${zfs_source}@${snap} | \
-                sed 's,\\,\\\\,g' > ${TMP}/copy_snap_filelist_$$
+                ${SED} 's,\\,\\\\,g' > ${TMP}/copy_snap_filelist_$$
 
             file_count=`cat ${TMP}/copy_snap_filelist_$$|wc -l`
 
@@ -692,7 +692,7 @@ for snap in $net_snap_list; do
                 debug "Files remaining: $file_count"
                 changetype=${line:0:1}
                 filetype=${line:2:1}
-                file=`echo "$line"|$cut -f 3`
+                file=`echo "$line"|${CUT} -f 3`
                 stripfolderlen=$(( ${#zfs_source} + 2 ))
                 file="${file:$stripfolderlen}"
                 source_file=`echo -n "/${zfs_source}/.zfs/snapshot/${snap}/${file}"`
@@ -744,7 +744,7 @@ for snap in $net_snap_list; do
                             
                         ;;
                     'R')
-                        newname=`echo "$line"|$cut -f 4`
+                        newname=`echo "$line"|${CUT} -f 4`
                         newname="${newname:$stripfolderlen}"
                         rename_file "$file" "$newname" "$filetype"
                         if [ $? -eq 0 ]; then
@@ -771,7 +771,7 @@ for snap in $net_snap_list; do
                     changetype=${line:0:1}
                     case $changetype in
                         "M"|"+")
-                            file=`echo "$line"|$cut -f 3`
+                            file=`echo "$line"|${CUT} -f 3`
                             stripfolderlen=$(( ${#zfs_source} + 2 ))
                             file="${file:$stripfolderlen}"
                             if [ -z "$dflag" ]; then
@@ -785,7 +785,7 @@ for snap in $net_snap_list; do
                             fi
                             ;;
                         "R")
-                            file=`echo "$line"|$cut -f 4`
+                            file=`echo "$line"|${CUT} -f 4`
                             stripfolderlen=$(( ${#zfs_source} + 2 ))
                             file="${file:$stripfolderlen}"
                             if [ -z "$dflag" ]; then

@@ -29,8 +29,8 @@ die () {
 }
 
 
-echo "Test email from $HOSTNAME" >/tmp/test_email
+echo "Test email from $HOSTNAME" >${TMP}/test_email
 
-./send_email.sh -f "/tmp/test_email" -s "${HOSTNAME}: Test email." -r "$email_to"
+./send_email.sh -f "${TMP}/test_email" -s "${HOSTNAME}: Test email." -r "$email_to"
 
-rm /tmp/test_email
+rm ${TMP}/test_email

@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-now=`date +%F_%H:%M:%S%z`
+now=`${DATE} +%F_%H:%M:%S%z`
 
 die () {
 
@@ -45,7 +45,7 @@ fi
 
 # Collect vaults
 
-$glacier_cmd --output csv lsvault | awk -F '","' '{print $4}' > ${TMP}/glacier_vaults
+$glacier_cmd --output csv lsvault | ${AWK} -F '","' '{print $4}' > ${TMP}/glacier_vaults
 
 
 pools="$(pools)"
@@ -65,7 +65,7 @@ for pool in $pools; do
             if [ "$result" -ne "0" ]; then
                 error "Could not request inventory for ${vault}" $temp
             else
-                inventory_status=`cat $temp|head -1|awk -F '","' '{print $2}'|sed s'/..$//'`
+                inventory_status=`cat $temp|head -1|${AWK} -F '","' '{print $2}'|${SED} s'/..$//'`
                 if [ "$inventory_status" == "Inventory retrieval in progress." ]; then
                     debug "Inventory retrieval in progress for ${vault}"
                 else

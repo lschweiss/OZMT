@@ -135,7 +135,7 @@ if [ ! -z "$dflag" ]; then
 else
     # Default to today's date
     debug "Defaulting to today's date"
-    this_date=`$date +%F`
+    this_date=`${DATE} +%F`
 fi
 debug "Using Date: $this_date"
 
@@ -217,12 +217,12 @@ split_rsync () {
     local try=0
 
     # Function used to run a parallel rsync job
-    debug "rsync -arS --delete --relative \
+    debug "${RSYNC} -arS --delete --relative \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
-            rsync -arS --delete --relative  \
+            ${RSYNC} -arS --delete --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
                 --files-from=${1} $basedir/ $target_folder &> ${1}.log 
     	    rsync_result=$? 
@@ -276,13 +276,13 @@ remove_empty_dirs () {
 
     # Can't do this when using a remote connection
     if [ -z "$eflag" ]; then
-        cat $logfile | $grep -q "cannot delete non-empty directory: "
+        cat $logfile | ${GREP} -q "cannot delete non-empty directory: "
         has_empties=$?
 
         if [ $has_empties -eq 0 ]; then
             empties=`cat $logfile | \
-                     $grep "cannot delete non-empty directory: " | \
-                     $awk -F "cannot delete non-empty directory: " '{print $2}'`
+                     ${GREP} "cannot delete non-empty directory: " | \
+                     ${AWK} -F "cannot delete non-empty directory: " '{print $2}'`
 
             for empty in $empties; do
                 warning "removing empty directory $target/$empty which rsync failed to remove"
@@ -315,15 +315,15 @@ output_stats () {
 
         local indent=`head -c ${#jobname} < /dev/zero | tr '\0' '\040'`
 
-        logs=`ls -1 ${TMP}|$grep ${log_name}|$grep ".log"`
+        logs=`ls -1 ${TMP}|${GREP} ${log_name}|${GREP} ".log"`
 
         for log in ${logs} ; do
             if [ -f ${TMP}/$log ]; then
                 debug "Adding totals for ${TMP}/$log"
-                this_num_files=`cat ${TMP}/$log | $grep "Number of files:" | $awk -F ": " '{print $2}'`
-                this_num_files_trans=`cat ${TMP}/$log | $grep "Number of files transferred:" | $awk -F ": " '{print $2}'`
-                this_total_file_size=`cat ${TMP}/$log | $grep "Total file size:" | $awk -F " " '{print $4}'` 
-                this_total_transfered_size=`cat ${TMP}/$log | $grep "Total transferred file size:" | $awk -F " " '{print $5}'`
+                this_num_files=`cat ${TMP}/$log | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
+                this_num_files_trans=`cat ${TMP}/$log | ${GREP} "Number of files transferred:" | ${AWK} -F ": " '{print $2}'`
+                this_total_file_size=`cat ${TMP}/$log | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
+                this_total_transfered_size=`cat ${TMP}/$log | ${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
                 # Add to totals
                 let "num_files = $num_files + $this_num_files"
                 let "num_files_trans = $num_files_trans + $this_num_files_trans"
@@ -381,7 +381,7 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         if [ "$tflag" != "1" ]; then
             echo "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
                 $basedir/ $target_folder" > ${TMP}/sync_snap_folder_$$.log
-            rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
+            ${RSYNC} -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
                 $basedir/ $target_folder &>> ${TMP}/sync_snap_folder_$$.log
             rsync_result=$?
 
@@ -406,13 +406,13 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
         # Collect lists
         debug "${jobname}: Collecting lists.  Part 1:"
         find $basedir -mindepth $zval -maxdepth $zval -type d | \
-            $grep -x -v ".snapshot"|$grep -x -v ".zfs"|$grep -v ".history" > ${TMP}/sync_folder_list_$$
+            ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
-        cat ${TMP}/sync_folder_list_$$ | $sed "s,${basedir}/,," | $sed 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
+        cat ${TMP}/sync_folder_list_$$ | ${SED} "s,${basedir}/,," | ${SED} 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
         # Add files that may be at a depth less than or equal to the test above
         debug "${jobname}: Collecting lists.  Part 2:"
         find $basedir -maxdepth $zval -type f | \
-            $sed "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+            ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
             
         # Randomize the list to spread across jobs better
 
@@ -467,7 +467,7 @@ else
     
     for folder in $subfolders; do
         if [ "$cflag" == "1" ]; then
-            cat $cval | $grep -q -x "$folder" 
+            cat $cval | ${GREP} -q -x "$folder" 
             if [ "$?" -eq "0" ]; then
                 notice "${source_folder} Skiping CNS folder $folder"
                 exclude_folder=0
@@ -492,7 +492,7 @@ else
                 # Run rsync
                 debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
                 if [ "$tflag" != "1" ]; then
-                    rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
+                    ${RSYNC} -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
                         $basedir/ $target_folder/${folder} &> ${TMP}/sync_folder_$$_${folder}.log
 
                     rsync_result=$?
@@ -544,7 +544,7 @@ fi
 if [ -z "$eval" ]; then
     # We are not pushing to remote host assume zfs snapshot to be taken here
     # Find the zfs folder in case we are not mounted to the same path
-        zfsfolder=`mount|$grep "$target_folder on"|$awk -F " " '{print $3}'`
+        zfsfolder=`mount|${GREP} "$target_folder on"|${AWK} -F " " '{print $3}'`
     debug "zfs snapshot ${zfsfolder}@${snap_label}"
     if [ -f /usr/sbin/zfs ]; then
         zfs list $zfsfolder &>/dev/null

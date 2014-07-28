@@ -33,8 +33,8 @@ fi
 
 
 get_ec2_state () {
-    instance_status=`ec2-describe-instances --show-empty-fields ${instanceid} 2>/dev/null |grep INSTANCE`
-    state=`echo $instance_status|cut -d " " -f 6`
+    instance_status=`ec2-describe-instances --show-empty-fields ${instanceid} 2>/dev/null |${GREP} INSTANCE`
+    state=`echo $instance_status|${CUT} -d " " -f 6`
 }
 
 get_ec2_state
@@ -59,20 +59,20 @@ while [ "$state" != "running" ]; do
 
 done
 
-instance_ip=`echo $instance_status|cut -d " " -f 17`
+instance_ip=`echo $instance_status|${CUT} -d " " -f 17`
 
 # wait for DNS to update
 
-resolved_dns=`host $instance_dns|cut -d " " -f 4`
+resolved_dns=`host $instance_dns|${CUT} -d " " -f 4`
 
 while [ "$resolved_dns" != "$instance_ip" ]; do
     sleep 30
     # Kill Name Service Cache Daemon
-    nscd_pid=`ps -o fname,pid -e |grep nscd|awk -F " " '{print $2}'`
+    nscd_pid=`ps -o fname,pid -e |${GREP} nscd|${AWK} -F " " '{print $2}'`
     if [ $nscd_pid -ne 0 ]; then
         kill -15 $nscd_pid
     fi
-    resolved_dns=`host $instance_dns|cut -d " " -f 4`
+    resolved_dns=`host $instance_dns|${CUT} -d " " -f 4`
 done
 
 

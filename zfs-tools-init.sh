@@ -48,41 +48,52 @@ function DEBUG()
 
 os=`uname`
 
+# Handle depricated zfs-config files format
+GREP=$grep
+SED=$sed
+AWK=$awk
+CUT=$cut
+MUTT=$mutt
+DATE=$date
+RSYNC=$rsync
+SSH=$ssh
+TIMEOUT=$timeout
+
 # Load paths if not defined in configs
-if [ -z $grep ]; then
-    grep=`which grep`
+if [ -z $GREP ]; then
+    GREP=`which grep`
 fi
 
-if [ -z $sed ]; then
-    sed=`which sed`
+if [ -z $SED ]; then
+    SED=`which sed`
 fi
 
-if [ -z $awk ]; then
-    awk=`which awk`
+if [ -z $AWK ]; then
+    AWK=`which awk`
 fi
 
-if [ -z $cut ]; then
-    cut=`which cut`
+if [ -z $CUT ]; then
+    CUT=`which cut`
 fi
 
-if [ -z $mutt ]; then
-    mutt=`which mutt`
+if [ -z $MUTT ]; then
+    MUTT=`which mutt`
 fi
 
-if [ -z $date ]; then
-    date=`which date`
+if [ -z $DATE ]; then
+    DATE=`which date`
 fi
 
-if [ -z $rsync ]; then
-    rsync=`which rsync`
+if [ -z $RSYNC ]; then
+    RSYNC=`which rsync`
 fi
 
-if [ -z $ssh ]; then
-    ssh=`which ssh`
+if [ -z $SSH ]; then
+    SSH=`which ssh`
 fi
 
-if [ -z $timeout ]; then
-    timeout=`which timeout`
+if [ -z $TIMEOUT ]; then
+    TIMEOUT=`which timeout`
 fi
 
 if [ -z $BC ]; then
@@ -138,7 +149,7 @@ binary_error=0
 
 # date
 
-$date --date 2013-11-14 +%s 2>/dev/null 1>/dev/null
+${DATE} --date 2013-11-14 +%s 2>/dev/null 1>/dev/null
 
 if [ $? -ne 0 ]; then
     echo "date function not compatible.  Make sure the path includes a gnu compatible date function or define the variable 'date'."
@@ -147,7 +158,7 @@ fi
 
 # grep
 
-echo 'Today is not 2010-10-01.'|$grep -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' 2> /dev/null 1> /dev/null
+echo 'Today is not 2010-10-01.'|${GREP} -o -e '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' 2> /dev/null 1> /dev/null
 
 if [ $? -ne 0 ]; then
     echo "grep function not compatible.  Make sure the path includes a gnu compatible grep function or define the varible 'grep'."

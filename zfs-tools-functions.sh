@@ -32,18 +32,18 @@ function DEBUG()
 . $TOOLS_ROOT/reporting/reporting_functions.sh
 
 now() {
-    date +"%F %r %Z"
+    ${DATE} +"%F %r %Z"
 }
 
 now_stamp () {
-    date +"%F_%H:%M:%S%z"
+    ${DATE} +"%F_%H:%M:%S%z"
 }
 
 check_key () {
     
     # confirm the key
     poolkey=`cat ${ec2_zfspool}_key.sha512`
-    sha512=`echo $key|sha512sum|cut -d " " -f 1`
+    sha512=`echo $key|sha512sum|${CUT} -d " " -f 1`
     
     if [ "$poolkey" != "$sha512" ]; then
        echo "Invalid encryption key for ${ec2_zfspool}!"
@@ -62,7 +62,7 @@ check_key () {
 ####
 
 tobytes () {
-    $awk '{ ex = index("KMG", substr($1, length($1)))
+    ${AWK} '{ ex = index("KMG", substr($1, length($1)))
            val = substr($1, 0, length($1))
            prod = val * 10^(ex * 3)
            sum += prod
@@ -110,14 +110,14 @@ bytestohuman () {
 pools () {
     # Returns all pools mounted on the system excluding the rpool
 
-    zpool list -H | cut -f 1  | $grep -v "$(rpool)"
+    zpool list -H | ${CUT} -f 1  | ${GREP} -v "$(rpool)"
 
 }
 
 rpool () {
     # Returns the active rpool
 
-    mount|$grep -e "^/ on"| $awk -F " on " '{print $2}'| $awk -F "/" '{print $1}'
+    mount|${GREP} -e "^/ on"| ${AWK} -F " on " '{print $2}'| ${AWK} -F "/" '{print $1}'
 
 }
 
@@ -173,7 +173,7 @@ function wait_for_lock() {
             lockpid=`cat $lockfile`
             # check if it is running
             if [ -e /proc/$lockpid ]; then
-                ps awwx |$grep -v grep | $grep -q "$lockpid "
+                ps awwx |${GREP} -v grep | ${GREP} -q "$lockpid "
                 result=$?
                 if [ "$result" -eq "0" ]; then
                     # Process id exists.  Sleep 1/2 second and try again.

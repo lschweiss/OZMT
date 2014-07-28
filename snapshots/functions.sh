@@ -34,10 +34,10 @@ locate_snap () {
 
     if [ -d $path ]; then
         if [ "$#" -eq "3" ]; then
-            snap=`ls -1 $path|grep $date|grep $preferred_tag`
+            snap=`ls -1 $path|${GREP} $date|${GREP} $preferred_tag`
         fi
         if [ "$snap" == "" ]; then
-            snap=`ls -1 $path|grep $date`
+            snap=`ls -1 $path|${GREP} $date`
         fi
     else
         error "locate_snap: Directory $path not found."

@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-now=`date +%F_%H:%M:%S%z`
+now=`${DATE} +%F_%H:%M:%S%z`
 
 ec2started='false'
 
@@ -66,16 +66,16 @@ for job in $backupjobs; do
 
     # Find previous sucessful snapshot
 
-    snapshots=`ssh root@${instance_dns} zfs list -t snapshot -H -o name -s creation | \
-                $grep "^${target_folder}@" | \
-                $grep "${tools_snapshot_name}"`
+    snapshots=`${SSH} root@${instance_dns} zfs list -t snapshot -H -o name -s creation | \
+                ${GREP} "^${target_folder}@" | \
+                ${GREP} "${tools_snapshot_name}"`
 
     # Determine if there is enough space on the pool for the increment.
     # If not expand the pool first.
 
     if [ "$snapshots" == "" ]; then
         # This must be our first sync
-        required=`zfs list -H ${staging_folder:1} | $cut -f 2`
+        required=`zfs list -H ${staging_folder:1} | ${CUT} -f 2`
         requiredunit=${required#${required%?}}
         # Strip the units
         required="${required%?}"
@@ -85,7 +85,7 @@ for job in $backupjobs; do
         fi  
     fi
 
-    targetfree=`ssh root@${instance_dns} zfs list -H $ec2_zfspool | $cut -f 3`
+    targetfree=`${SSH} root@${instance_dns} zfs list -H $ec2_zfspool | ${CUT} -f 3`
     targetunit=${targetfree#${targetfree%?}}
     # Strip the units
     targetfree="${targetfree%?}"
@@ -151,18 +151,18 @@ for job in $backupjobs; do
                     # Processes report success
                     # Get the md5sum of the staging file
                     echo -n "Calculating md5sum on target staging file..."
-                    cstarget=`ssh root@${instance_dns} "md5sum -b ${target_file} | $cut -d ' ' -f1 " `
+                    cstarget=`${SSH} root@${instance_dns} "md5sum -b ${target_file} | ${CUT} -d ' ' -f1 " `
                     echo "Done."
-                    cssource=`cat $csfile | $cut -d " " -f1`
+                    cssource=`cat $csfile | ${CUT} -d " " -f1`
 
                     if [ "$cssource" == "$cstarget" ]; then
 
                         # create target_folder
-                        ssh root@${instance_dns} "zfs create -p ${target_folder}"
+                        ${SSH} root@${instance_dns} "zfs create -p ${target_folder}"
 
                         # Target is clean, we can now zfs receive the load
                         echo -n "Importing staging file via zfs receive..."
-                        time ssh root@${instance_dns} "openssl aes-256-cbc -d -pass file:$bbcp_key \
+                        time ${SSH} root@${instance_dns} "openssl aes-256-cbc -d -pass file:$bbcp_key \
                             -in ${target_file} | \
                             zfs receive -F -vu -o canmount=off ${target_folder}"
                         receive_result=$?
@@ -200,13 +200,13 @@ for job in $backupjobs; do
                 # Pipe directly to zfs receive on the target
 
                 # Create the named pipe wit the same name on the target
-                ssh root@${instance_dns} "mkfifo $pipe"
+                ${SSH} root@${instance_dns} "mkfifo $pipe"
 
                 # create target_folder
-                ssh root@${instance_dns} "zfs create -p ${target_folder}"
+                ${SSH} root@${instance_dns} "zfs create -p ${target_folder}"
                 
                 # start the zfs receive 
-                ( ssh root@${instance_dns} "cat $pipe | \
+                ( ${SSH} root@${instance_dns} "cat $pipe | \
                     openssl aes-256-cbc -d -pass file:$bbcp_key \
                     mbuffer -q -s 128k -m 128M 2>/dev/null | \
                     zfs receive -F -vu -o canmount=off ${target_folder} ; receive_result=$? )" ) & 
@@ -224,7 +224,7 @@ for job in $backupjobs; do
                 csfile="${TMP}/zfs.${tools_snapshot_name}cksum_${now}"
                 
                 time zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
-                ssh root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
+                ${SSH} root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
                     > ${target_file} " ; result=$?
 
                 if [ $result -ne 0 ]; then
@@ -232,8 +232,8 @@ for job in $backupjobs; do
                     die "Failed to push to instance storage"
                 fi
 
-                ssh root@${instance_dns} "zfs create -p ${target_folder}" && \
-                ssh root@${instance_dns} "zfs receive -F -vu -o canmount=off ${target_folder} < ${target_file}"
+                ${SSH} root@${instance_dns} "zfs create -p ${target_folder}" && \
+                ${SSH} root@${instance_dns} "zfs receive -F -vu -o canmount=off ${target_folder} < ${target_file}"
                 result=$?
 
                 if [ $result -ne 0 ]; then
@@ -243,9 +243,9 @@ for job in $backupjobs; do
             else
                 # Simplest of methods, but has many drawbacks when data becomes sizeable
                 # Any type of error will require manual intervention to correct
-                ssh root@${instance_dns} "zfs create -p ${target_folder}" && \
+                ${SSH} root@${instance_dns} "zfs create -p ${target_folder}" && \
                 zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
-                ssh root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
+                ${SSH} root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \
                     zfs receive -F -vu ${target_folder}"
                 result=$?
 

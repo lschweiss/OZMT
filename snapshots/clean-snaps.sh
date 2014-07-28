@@ -50,7 +50,7 @@ for pool in $pools; do
         jobs=`ls -1 $jobfolder/$snaptype`
         
         for job in $jobs; do
-            zfsfolder=`echo $job|sed 's,%,/,g'`
+            zfsfolder=`echo $job|${SED} 's,%,/,g'`
             keepcount=`cat $jobfolder/$snaptype/$job`
             if [ "${keepcount:0:1}" == "x" ]; then
                 keepcount="${keepcount:1}"

@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-now=`date +%F_%H:%M:%S%z`
+now=`${DATE} +%F_%H:%M:%S%z`
 
 DEBUG="true"
 
@@ -91,7 +91,7 @@ case $# in
         ;;
 esac
 
-destinationfixup=`echo $destinationfs|$sed s,/,%,g`
+destinationfixup=`echo $destinationfs|${SED} s,/,%,g`
 
 # locate job definiton
 for job in $backupjobs; do
@@ -111,7 +111,7 @@ if [ "x$jobname" == "x" ]; then
     die "No job defintion found in $TOOLS_ROOT/backup/jobs/glacier/active/ for $restorefs   Set vault and job environment variables if definition is not available."
 fi
 
-jobname_fixup=`echo $jobname|$sed s,%,.,g`
+jobname_fixup=`echo $jobname|${SED} s,%,.,g`
 
 # TODO: Determine the rotation number
 
@@ -138,7 +138,7 @@ fi
 # Determine last cycle we will attempt to restore
 if [ "$lastcycle" == "latest" ]; then
     # Grab the last cycle in the inventory
-    lastcycle=`cat $inventory_file | tail -1 | $awk -F '","' '{print $2}' | tail --bytes=5`
+    lastcycle=`cat $inventory_file | tail -1 | ${AWK} -F '","' '{print $2}' | tail --bytes=5`
     # Get rid of the newline
     lastcycle=$(( $lastcycle ))
 fi
@@ -146,11 +146,11 @@ fi
 if [ "${#lastcycle}" -gt 4 ]; then
     # We assume this is a date format and will attempt to match an inventory line.
     # If more than one line matches the last match will be used
-    archive_record=`cat $inventory_file | $grep "$lastcycle" | tail -1`
+    archive_record=`cat $inventory_file | ${GREP} "$lastcycle" | tail -1`
     if [ "x$archive_record" == "x" ]; then
         die "Date ($lastcycle) specified for last cycle, but no maching date found in $inventory_file"
     fi
-    lastcycle=`echo $archive_record | $awk -F '","' '{print $2}' | tail --bytes=5`
+    lastcycle=`echo $archive_record | ${AWK} -F '","' '{print $2}' | tail --bytes=5`
     # Get rid of the newline
     lastcycle=$(( $lastcycle ))
 fi
@@ -219,16 +219,16 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
     thisjob="${job_prefix}${working_cycle}"
 
     # Locate archiveID
-    archiveID=`cat $inventory_file|$grep $thisjob|$awk -F '","' '{print $1}'|$awk -F '"' '{print $2}'`
+    archiveID=`cat $inventory_file|${GREP} $thisjob|${AWK} -F '","' '{print $1}'|${AWK} -F '"' '{print $2}'`
 
     cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
 
-    echo $cmd_result|$grep -q "RequestId" ; result=$?
+    echo $cmd_result|${GREP} -q "RequestId" ; result=$?
 
     if [ "$result" -eq "0" ]; then
         debug "Submitted request for $thisjob"
     else
-        request_status=`echo cmd_result|$grep StatusCode|$awk -F '","' '{print $2}'|sed s'/..$//'` 
+        request_status=`echo cmd_result|${GREP} StatusCode|${AWK} -F '","' '{print $2}'|${SED} s'/..$//'` 
         debug "Job status for ${thisjob}: $request_status"
     fi    
 
@@ -268,7 +268,7 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
         thisjob="${job_prefix}${working_cycle}"
 
         # Locate archiveID
-        archiveID=`cat $inventory_file|$grep $thisjob|$awk -F '","' '{print $1}'|$awk -F '"' '{print $2}'`
+        archiveID=`cat $inventory_file|${GREP} $thisjob|${AWK} -F '","' '{print $1}'|${AWK} -F '"' '{print $2}'`
         cmd_result=`$glacier_cmd --output csv getarchive $full_vault_name -- $archiveID`
 
         debug "Checking status."
@@ -279,12 +279,12 @@ while [ "$working_cycle" -le "$lastcycle" ]; do
         $glacier_cmd --output csv getarchive $full_vault_name -- $archiveID > /${TMP}/glacier_cmd_getarchive_$$ || \
             die "glacier-cmd failed to execute getarchive $full_vault_name $archiveID"
 
-        cat /${TMP}/glacier_cmd_getarchive_$$|$grep -q "RequestId" ; result=$?
+        cat /${TMP}/glacier_cmd_getarchive_$$|${GREP} -q "RequestId" ; result=$?
 
         if [ "$result" -eq "0" ]; then
             debug "Submitted request for $thisjob"
         else
-            request_status=`cat /${TMP}/glacier_cmd_getarchive_$$|$grep StatusCode|$awk -F '","' '{print $2}'|$sed s'/..$//'`
+            request_status=`cat /${TMP}/glacier_cmd_getarchive_$$|${GREP} StatusCode|${AWK} -F '","' '{print $2}'|${SED} s'/..$//'`
             debug "Job status for ${thisjob}: $request_status"
         fi
     

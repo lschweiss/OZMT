@@ -55,12 +55,12 @@ grow-vdev () {
     local devnum="$2"
     local complete_file="$3"
 
-    local this_date=`$date +%F`
+    local this_date=`${DATE} +%F`
     local dev="xvd${1}"
-    local phydev=`echo ${phydev[$vdevnum]} | $cut -d " " -f $devnum`
-    local awsdev=`echo ${awsdev[$vdevnum]} | $cut -d " " -f $devnum`
-    local devname=`echo ${devname[$vdevnum]} | $cut -d " " -f $devnum`
-    local cryptname=`echo ${cryptname[$vdevnum]} | $cut -d " " -f $devnum`
+    local phydev=`echo ${phydev[$vdevnum]} | ${CUT} -d " " -f $devnum`
+    local awsdev=`echo ${awsdev[$vdevnum]} | ${CUT} -d " " -f $devnum`
+    local devname=`echo ${devname[$vdevnum]} | ${CUT} -d " " -f $devnum`
+    local cryptname=`echo ${cryptname[$vdevnum]} | ${CUT} -d " " -f $devnum`
 
     local zname=""
 
@@ -80,7 +80,7 @@ grow-vdev () {
     fi
     
     log "Creating new EBS volume for: ${phydev}" "$logfile"
-    volumeid=$(ec2-create-volume -z $zone --size $devsize | $cut -f2)
+    volumeid=$(ec2-create-volume -z $zone --size $devsize | ${CUT} -f2)
     log "Created volume: ${phydev}" "$logfile"
 
     # Tag the new volume with a Name
@@ -96,14 +96,14 @@ grow-vdev () {
 
     # Detach the old volume
     #   Find the volume name
-    oldvolumeid=`cat /tmp/ebs-volumes | $grep "TAG" | $grep "${instance_hostname}_${awsdev}" | $cut -f3`
+    oldvolumeid=`cat /tmp/ebs-volumes | ${GREP} "TAG" | ${GREP} "${instance_hostname}_${awsdev}" | ${CUT} -f3`
     log "Detaching old EBS volume $oldvolumeid from ${awsdev}." "$logfile"
     ec2-detach-volume $oldvolumeid
 
     # Wait for status to be detached
     volumestat=""
     while [ "$volumestat" != "available" ]; do
-        volumestat=`ec2-describe-volumes --show-empty-fields $oldvolumeid | $cut -f 6`
+        volumestat=`ec2-describe-volumes --show-empty-fields $oldvolumeid | ${CUT} -f 6`
     done
 
     # Destroy the old volume
@@ -120,7 +120,7 @@ grow-vdev () {
     log "Waiting for volume $volumeid to be attached." "$logfile"
 
     while [ "$attached" != "0" ]; do
-        ec2-describe-volumes $volumeid | $grep -q "attached"
+        ec2-describe-volumes $volumeid | ${GREP} -q "attached"
         attached=$?
     done
 
@@ -166,7 +166,7 @@ while [ $y -le $devices ]; do
         echo "Waiting for resilver to complete."
         while [ "$resilver_complete" -eq "0" ]; do
             sleep 5
-            $remote zpool status ${ec2_zfspool} | $grep -q "action: Wait for the resilver to complete"
+            $remote zpool status ${ec2_zfspool} | ${GREP} -q "action: Wait for the resilver to complete"
             resilver_complete=$?
             # TODO: Add check that "status: ONLINE"
 

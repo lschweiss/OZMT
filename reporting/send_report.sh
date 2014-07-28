@@ -33,10 +33,10 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
     for report_path in $TOOLS_ROOT/reporting/reports_pending/*/; do
 
-        report=`echo "$report_path"|awk -F "/" '{print $(NF-1)}'`
+        report=`echo "$report_path"|${AWK} -F "/" '{print $(NF-1)}'`
 
         if [ -f "${report_path}report_pending" ]; then
-            report_pending="/tmp/send_report_$report_$$_${index}"
+            report_pending="${TMP}/send_report_$report_$$_${index}"
             index=$(( index + 1 ))
 
             # Move the report to a temporary file to avoid race conditions
