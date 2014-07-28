@@ -104,8 +104,8 @@ for pool in $pools; do
         
                 # Create the vault (must use glacier-cmd as mt-aws-glacier does not
                 # support creating vaults at the time this code was written.
-                $glacier_cmd mkvault $vault &> /tmp/glacier_mk_vault_$$ || \
-                    warning "Could not create vault $vault" /tmp/glacier_mk_vault_$$ 
+                $glacier_cmd mkvault $vault &> ${TMP}/glacier_mk_vault_$$ || \
+                    warning "Could not create vault $vault" ${TMP}/glacier_mk_vault_$$ 
                 debug "backup_to_glacier: Created new Glacier vault $vault"
                 # Initialized the job sequence
                 # So that sorting works as expected and we don't anticipate ever have more than 1000 let 

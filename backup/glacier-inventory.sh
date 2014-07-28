@@ -45,7 +45,7 @@ fi
 
 # Collect vaults
 
-$glacier_cmd --output csv lsvault | awk -F '","' '{print $4}' > /tmp/glacier_vaults
+$glacier_cmd --output csv lsvault | awk -F '","' '{print $4}' > ${TMP}/glacier_vaults
 
 
 pools="$(pools)"
@@ -55,11 +55,11 @@ for pool in $pools; do
     backupjobs=`ls -1 /${pool}/zfs_tools/etc/backup/jobs/glacier/`
     jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
     
-    cat /tmp/glacier_vaults |
+    cat ${TMP}/glacier_vaults |
     while read vault; do
 
         if [ "$vault" != "VaultName" ]; then
-            temp="/tmp/${vault}_inventory_$$"
+            temp="${TMP}/${vault}_inventory_$$"
             $glacier_cmd --output csv inventory ${vault} &> $temp 
                 result=$?
             if [ "$result" -ne "0" ]; then
@@ -76,6 +76,8 @@ for pool in $pools; do
         fi
         
     done # while read vault
+
+    rm -f ${TMP}/glacier_vaults
 
 done # for pool
 

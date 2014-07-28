@@ -107,14 +107,14 @@ for job in $backupjobs; do
             # handing data off to bbcp.   We will decrypt on the receive end with openssl as well.
             
             #Generate an encryption key
-            bbcp_key="/tmp/zfs.${tools_snapshot_name}key_${now}"
+            bbcp_key="${TMP}/zfs.${tools_snapshot_name}key_${now}"
             pwgen -s 63 1 > $bbcp_key
 
             # Send the key file
             scp $bbcp_key root@${instance_dns}:$bbcp_key
 
             # Create the named pipe
-            pipe="/tmp/zfs.${tools_snapshot_name}pipe_${now}"
+            pipe="${TMP}/zfs.${tools_snapshot_name}pipe_${now}"
             mkfifo $pipe
 
             # Start the zfs send
@@ -122,9 +122,9 @@ for job in $backupjobs; do
             # is still trying send
             # We collect our own md5sum, bbcp seems to hang at the end if we ask it to generate one
 
-            csfile="/tmp/zfs.${tools_snapshot_name}cksum_${now}"
+            csfile="${TMP}/zfs.${tools_snapshot_name}cksum_${now}"
             send_result=999
-            result_file="/tmp/zfs.${tools_snapshot_name}send_result_${now}"
+            result_file="${TMP}/zfs.${tools_snapshot_name}send_result_${now}"
             ( zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
             mbuffer -q -s 128k -m 128M 2>/dev/null | \
             openssl aes-256-cbc -pass file:$bbcp_key | tee $pipe | \
@@ -221,7 +221,7 @@ for job in $backupjobs; do
 
             if [ "$inst_store_staging" == "true" ]; then
                 target_file="/data/instancestore/zfs.${tools_snapshot_name}${now}"
-                csfile="/tmp/zfs.${tools_snapshot_name}cksum_${now}"
+                csfile="${TMP}/zfs.${tools_snapshot_name}cksum_${now}"
                 
                 time zfs send -R ${staging_folder:1}@${tools_snapshot_name}${now} | \
                 ssh root@${instance_dns} "mbuffer -q -s 128k -m 128M 2>/dev/null \

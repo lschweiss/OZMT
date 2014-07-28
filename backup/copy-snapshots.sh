@@ -594,22 +594,22 @@ long_delete_files () {
     local file=""
 
     # List the files in the current and previous snapshots
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | $grep -v "." | $grep -v ".." > /tmp/copy_snap_delete_files_current_$$
-    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | $grep -v "." | $grep -v ".." > /tmp/copy_snap_delete_files_previous_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${snap}/${workdir}" | $grep -v "." | $grep -v ".." > ${TMP}/copy_snap_delete_files_current_$$
+    ls -1 -a "/${zfs_source}/.zfs/snapshot/${previous}/${workdir}" | $grep -v "." | $grep -v ".." > ${TMP}/copy_snap_delete_files_previous_$$
 
     # Check each file if has been removed but not renamed which is handled individually.
     while read file; do
-        cat /tmp/copy_snap_delete_files_current_$$|$grep -q -x "$file";result=$?
+        cat ${TMP}/copy_snap_delete_files_current_$$|$grep -q -x "$file";result=$?
         if [ "$result" -ne "0" ]; then
             # The file is no longer in the directory
             # Has this file been renamed?
-            cat /tmp/copy_snaplist_$$|$grep -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
+            cat ${TMP}/copy_snaplist_$$|$grep -q "R\s+F\s+/${zfs_source}/${workdir}${file}\s/.+";result=$?
             if [ "$result" -ne "0" ]; then
                 # File has been deleted
                 delete_file "${workdir}${file}"
             fi
         fi
-    done < "/tmp/copy_snap_delete_files_previous_$$"
+    done < "${TMP}/copy_snap_delete_files_previous_$$"
 
 }
 
@@ -677,9 +677,9 @@ for snap in $net_snap_list; do
             debug "Collecting diff between ${zfs_source}@${prev_snap} ${zfs_source}@${snap}"
 
             zfs diff -FH ${zfs_source}@${prev_snap} ${zfs_source}@${snap} | \
-                sed 's,\\,\\\\,g' > /tmp/copy_snap_filelist_$$
+                sed 's,\\,\\\\,g' > ${TMP}/copy_snap_filelist_$$
 
-            file_count=`cat /tmp/copy_snap_filelist_$$|wc -l`
+            file_count=`cat ${TMP}/copy_snap_filelist_$$|wc -l`
 
             notice "Blind backup of $file_count files started from ${zfs_source}"
 
@@ -757,12 +757,12 @@ for snap in $net_snap_list; do
                         ;;
                 esac
 
-            done < "/tmp/copy_snap_filelist_$$"
+            done < "${TMP}/copy_snap_filelist_$$"
 
             # At this point all the directories we touched need to have their mtime fixed.
             # Process the list backwards so we work from deepest to shallowest directory 
 
-            tac /tmp/copy_snap_filelist_$$ > /tmp/copy_snap_rev_filelist_$$
+            tac ${TMP}/copy_snap_filelist_$$ > ${TMP}/copy_snap_rev_filelist_$$
 
             while read line; do
                 filetype=${line:2:1}
@@ -801,7 +801,7 @@ for snap in $net_snap_list; do
                     esac
                 fi
                             
-            done < "/tmp/copy_snap_rev_filelist_$$"
+            done < "${TMP}/copy_snap_rev_filelist_$$"
 
 
             prev_snap="$snap"
@@ -832,7 +832,7 @@ for snap in $net_snap_list; do
             notice "${zfs_source} Number of files moved/rename: $move_count"
             notice "${zfs_source} Warning count: $warning_count"
 
-            # rm /tmp/copy_snap_filelist_$$
+            # rm ${TMP}/copy_snap_filelist_$$
         
         fi # "$copymode" == "zfs"
 

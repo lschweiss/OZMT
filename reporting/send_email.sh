@@ -60,20 +60,20 @@ fi
 
 if [ "x$message_importance" != "x" ]; then
 
-    echo "Importance:${message_importance}" > /tmp/mutt_message_$$
+    echo "Importance:${message_importance}" > ${TMP}/mutt_message_$$
 
 else 
-    rm -f /tmp/mutt_message_$$
+    rm -f ${TMP}/mutt_message_$$
 
 fi
 
-cat $message_file >> /tmp/mutt_message_$$
+cat $message_file >> ${TMP}/mutt_message_$$
 
 # Gather attachment list
 
 if [ -f ${message_file}_attachments ]; then
 
-    attachments_file="/tmp/report_attachements_$$"
+    attachments_file="${TMP}/report_attachements_$$"
     mv ${message_file}_attachments $attachments_file 
 
 
@@ -128,21 +128,21 @@ fi
 # Send the message    
 if [ "${message_file: -4}" == "html" ]; then
     $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
-        -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$
+        -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 else
     $mutt -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
-        $mutt_options $attach_cmd $message_recipient < /tmp/mutt_message_$$ &> /tmp/mutt_output_$$
+        $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 fi 
 
 result=$?
 
 if [ $result -ne 0 ]; then 
-   echo "Failed to send message /tmp/mutt_message_$$" 
-   cat /tmp/mutt_output_$$
+   echo "Failed to send message ${TMP}/mutt_message_$$" 
+   cat ${TMP}/mutt_output_$$
 fi
 
 
-if [ ! -f /tmp/mutt_message_$$ ]; then
+if [ ! -f ${TMP}/mutt_message_$$ ]; then
     # Message was sent clean up attachments
     if [ -f $attachments_file ]; then
 

@@ -48,8 +48,8 @@ recollect () {
     local archiving_file="$3"
     local jobstats=
 
-    $glacier_cmd search ${search_vault} > /tmp/glacier-job-$$.search
-    jobstats=`cat /tmp/glacier-job-$$.search | $grep -F "${search_job}"`
+    $glacier_cmd search ${search_vault} > ${TMP}/glacier-job-$$.search
+    jobstats=`cat ${TMP}/glacier-job-$$.search | $grep -F "${search_job}"`
 
 
     echo -n "archive_id=" >> $archiving_file

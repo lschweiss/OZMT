@@ -86,25 +86,25 @@ mv ${jobstatusdir}/pending/${job} ${jobstatusdir}/running/${job}
 
 # Start the tar/zfs send
 
-$backup_cmd  2> /tmp/glacier-job-backup-error_$$ | \
-#    mbuffer -q -s 128k -m 16M 2> /tmp/glacier-job-mbuffer-error_$$ | \
-    gzip 2> /tmp/glacier-job-gzip-error_$$ | \
+$backup_cmd  2> ${TMP}/glacier-job-backup-error_$$ | \
+#    mbuffer -q -s 128k -m 16M 2> ${TMP}/glacier-job-mbuffer-error_$$ | \
+    gzip 2> ${TMP}/glacier-job-gzip-error_$$ | \
 #    mbuffer -q -s 128k -m 16M | \
-    gpg -r "$gpg_user" --encrypt 2> /tmp/glacier-job-gpg-error_$$ | \
+    gpg -r "$gpg_user" --encrypt 2> ${TMP}/glacier-job-gpg-error_$$ | \
 #    mbuffer -q -s 128k -m 128M | \
     $glacier_cmd upload ${vault} \
         --stdin \
         --description "${jobroot}-${thisjob}" \
         --name "${jobroot}-${thisjob}" \
-        --partsize 128 &> /tmp/glacier-cmd-output_$$
+        --partsize 128 &> ${TMP}/glacier-cmd-output_$$
 
 result=$?
 
-debug "glacier_job: ${job} ${backuptype} output: " /tmp/glacier-job-backup-error_$$
-#debug "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
-debug "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
-debug "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
-debug "glacier_job: ${job} glacier-cmd output:" /tmp/glacier-cmd-output_$$
+debug "glacier_job: ${job} ${backuptype} output: " ${TMP}/glacier-job-backup-error_$$
+#debug "glacier_job: ${job} mbuffer output: " ${TMP}/glacier-job-mbuffer-error_$$
+debug "glacier_job: ${job} gzip output: " ${TMP}/glacier-job-gzip-error_$$
+debug "glacier_job: ${job} gpg: " ${TMP}/glacier-job-gpg-error_$$
+debug "glacier_job: ${job} glacier-cmd output:" ${TMP}/glacier-cmd-output_$$
 
 
 # Handle job failures or success
@@ -121,11 +121,11 @@ if [ "$result" -ne "0" ]; then
     # submit results
     warning "glacier_job: job ${job} failed will retry"
     # Report output
-    notice "glacier_job: ${job} ${backuptype} output: " /tmp/glacier-job-backup-error_$$
-    #notice "glacier_job: ${job} mbuffer output: " /tmp/glacier-job-mbuffer-error_$$
-    notice "glacier_job: ${job} gzip output: " /tmp/glacier-job-gzip-error_$$
-    notice "glacier_job: ${job} gpg: " /tmp/glacier-job-gpg-error_$$
-    notice "glacier_job: ${job} glacier-cmd output:" /tmp/glacier-cmd-output_$$
+    notice "glacier_job: ${job} ${backuptype} output: " ${TMP}/glacier-job-backup-error_$$
+    #notice "glacier_job: ${job} mbuffer output: " ${TMP}/glacier-job-mbuffer-error_$$
+    notice "glacier_job: ${job} gzip output: " ${TMP}/glacier-job-gzip-error_$$
+    notice "glacier_job: ${job} gpg: " ${TMP}/glacier-job-gpg-error_$$
+    notice "glacier_job: ${job} glacier-cmd output:" ${TMP}/glacier-cmd-output_$$
 
 else
 
@@ -134,8 +134,8 @@ else
 
     # Collect information about the job
 
-    $glacier_cmd search ${vault} > /tmp/glacier-job-$$.search
-    jobstats=`cat /tmp/glacier-job-$$.search | $grep -F "${jobroot}-${thisjob}"`
+    $glacier_cmd search ${vault} > ${TMP}/glacier-job-$$.search
+    jobstats=`cat ${TMP}/glacier-job-$$.search | $grep -F "${jobroot}-${thisjob}"`
 
     echo "archive_name=\"${jobroot}-${thisjob}\"" >> ${jobstatusdir}/archiving/${job}
 
@@ -151,7 +151,7 @@ else
     archive_size=`echo -n $jobstats|$awk -F "|" '{print $8}'|tr -d ' '`
     echo "\"$archive_size\"" >> ${jobstatusdir}/archiving/${job}
 
-    rm /tmp/glacier-job-$$.search
+    rm ${TMP}/glacier-job-$$.search
 
     # submit results
     notice "glacier_job: successully submitted archive for job ${job}"
@@ -159,11 +159,11 @@ else
 fi
 
 if [ "$DEBUG" != "true" ]; then
-    rm /tmp/glacier-job-backup-error_$$
-    #rm /tmp/glacier-job-mbuffer-error_$$
-    rm /tmp/glacier-job-gzip-error_$$
-    rm /tmp/glacier-job-gpg-error_$$
-    rm /tmp/glacier-cmd-output_$$
+    rm ${TMP}/glacier-job-backup-error_$$
+    #rm ${TMP}/glacier-job-mbuffer-error_$$
+    rm ${TMP}/glacier-job-gzip-error_$$
+    rm ${TMP}/glacier-job-gpg-error_$$
+    rm ${TMP}/glacier-cmd-output_$$
 fi
 
 
