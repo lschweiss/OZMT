@@ -141,6 +141,7 @@ if [ $result -ne 0 ]; then
    cat /tmp/mutt_output_$$
 fi
 
+
 if [ ! -f /tmp/mutt_message_$$ ]; then
     # Message was sent clean up attachments
     if [ -f $attachments_file ]; then

@@ -25,8 +25,9 @@ if [ "x$default_report_title" == "x" ]; then
     default_report_title="zfs_tools"
 fi
 
-report_name="default"
+report_name="$default_report_name"
 
+index=1
 
 if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
@@ -35,7 +36,8 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
         report=`echo "$report_path"|awk -F "/" '{print $(NF-1)}'`
 
         if [ -f "${report_path}report_pending" ]; then
-            report_pending="/tmp/send_report_$report_$$"
+            report_pending="/tmp/send_report_$report_$$_${index}"
+            index=$(( index + 1 ))
 
             # Move the report to a temporary file to avoid race conditions
             mv "${report_path}report_pending" "$report_pending"
@@ -48,7 +50,7 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
         
             rm "${report_path}report_level"
     
-            email_subject="${default_report_title} $report report"
+            email_subject="${email_prefix} $report report"
         
             debug "send_report: Sending $report"
         
