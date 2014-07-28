@@ -60,7 +60,6 @@ for pool in $pools; do
             else
                 debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
             fi
-            echo
         done
     
     done
