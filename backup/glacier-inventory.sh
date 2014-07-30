@@ -52,7 +52,7 @@ pools="$(pools)"
 
 for pool in $pools; do
 
-    backupjobs=`ls -1 /${pool}/zfs_tools/etc/backup/jobs/glacier/`
+    #backupjobs=`ls -1 /${pool}/zfs_tools/etc/backup/jobs/glacier/`
     jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
     
     cat ${TMP}/glacier_vaults |
@@ -63,7 +63,7 @@ for pool in $pools; do
             $glacier_cmd --output csv inventory ${vault} &> $temp 
                 result=$?
             if [ "$result" -ne "0" ]; then
-                error "Could not request inventory for ${vault}" $temp
+                warning "Could not request inventory for ${vault}" $temp
             else
                 inventory_status=`cat $temp|head -1|${AWK} -F '","' '{print $2}'|${SED} s'/..$//'`
                 if [ "$inventory_status" == "Inventory retrieval in progress." ]; then

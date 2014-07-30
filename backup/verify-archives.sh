@@ -203,7 +203,7 @@ for pool in $pools; do
                         prev_rotation=$(( rotation - 1 ))
                         
                         if [ -f ${jobstatusdir}/sequence/${job}_${prev_rotation} ]; then
-                            ./clean-glacier-rotation.sh ${job} ${prev_rotation}
+                            ./clean-glacier-rotation.sh ${pool} ${job} ${prev_rotation}
                         fi  
     
     

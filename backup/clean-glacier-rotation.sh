@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -23,7 +23,7 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 die () {
 
-    error "clean-glacier-rotation: $1"
+    warning "clean-glacier-rotation: $1"
     exit 1
 
 }
@@ -43,21 +43,117 @@ else
     report_name="$default_report_name"
 fi
 
-job="$1"
-rotation="$2"
+pool="$1"
+job="$2"
+rotation="$3"
 
-notice "Removing glacier rotation for job $job, rotation $rotation"
+notice "clean-glacier-rotation: Removing glacier rotation for job $job, rotation $rotation on pool $pool"
 
 # Work backwards though rotation we are destroying
 
-# Remove job definitions
+jobstatusdir="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
 
-    # Delete any snapshots remaining
+# Set the sequence to "delete" so no more jobs get created
 
-# Remove completed definitions
+debug "clean-glacier-rotation: Setting status to delete for glacier rotation for job $job, rotation $rotation on pool $pool"
+echo "delete" > ${jobstatusdir}/sequence/${job}_${rotation}
+
+# Make sure there are no running jobs
+
+ls ${jobstatusdir}/running/${job}_${rotation}_???? &> /dev/null 
+if [ $? -eq 0 ]; then
+    notice "clean-glacier-rotation: Aborting removing jobs from $job, rotation $rotation on pool $pool, backup still running"
+    exit 0
+fi
+
+# Cycle through definitions, making sure snapshots have been deleted
+
+definitions=`ls -1 ${jobstatusdir}/definition/${job}_${rotation}_????`
+
+snapshotlist="${TMP}/clean-glacier-rotation_snapshots_$$"
+
+zfs list -t snapshot -H -o name > $snapshotlist
+
+for definition in $definitions; do
+
+    source $definition
+    
+    cat $snapshotlist | ${GREP} -q "$jobsnapname"
+    if [ $? -eq 0 ]; then
+        notice "Destroying snapshot $jobsnapname its rotation is deleting"
+        zfs destroy $jobsnapname &> ${TMP}/clean-glacier-rotation_zfsdestroy_$$ || \
+            error "clean-glacier-rotation: Could not delete snapshot $jobsnapname" \
+                ${TMP}/clean-glacier-rotation_zfsdestroy_$$
+    fi
+
+done
+
+
+# Remove vault archives
+
+source /${pool}/zfs_tools/etc/backup/jobs/glacier/${job}
+
+folder_fixup=`echo $source_folder | ${SED} 's,/,.,g'`
+
+vaultname="${glacier_vault}-${rotation}-${folder_fixup}"
+
+inventoryfile="${jobstatusdir}/inventory/${vaultname}"
+
+cat ${inventoryfile} |
+while read inventory; do
+
+    x=`echo $inventory | ${AWK} -F '","' '{print $1}'`
+    archiveid="${x:1}"
+
+    # Skip the header line
+    if [ "$archiveid" != "ArchiveId" ]; then
+        debug "Removing $archiveid from vault $vaultname"
+        $glacier_cmd rmarchive $vaultname -- $archiveid &> ${TMP}/clean-glacier-rotation_rmarchive_$$ || \
+            warning "clean-glacier-rotation: Could not remove archive $archiveid from vault $vaultname" \
+                ${TMP}/clean-glacier-rotation_rmarchive_$$
+    fi
+
+done
 
 # Destroy Glacier vault
 
-# Destroy rotation reference
+# This will fail until all archiving is complete and inventoried.
+
+$glacier_cmd rmvault $vaultname &> ${TMP}/clean-glacier-rotation_rmvault_$$
+
+if [ $? -ne 0 ]; then
+    warning "clean-glacier-rotation: Could not remove the vault $vaultname" \
+        ${TMP}/clean-glacier-rotation_rmvault_$$
+    exit 0
+else
+    notice "clean-glacier-rotation: Succesfully removed vault $vaultname"
+fi
+
+
+# If we get here the vault has been removed and we can clean everything else up related to this rotation
+
+
+# Remove inventory file
+
+rm -f $inventoryfile
+
+# Remove cycle jobs
+
+statustypes="archiving complete definition failed pending"
+
+for type in $statustypes; do
+    rm -f ${jobstatusdir}/${type}/${job}_${rotation}_???? 2>/dev/null
+done
+
+# Remove the rotation from sequence status
+
+cat ${jobstatusdir}/status/${job}_rotation | ${GREP} -v ${rotation} > ${TMP}/clean-glacier-rotation_rmrotation_$$
+mv ${TMP}/clean-glacier-rotation_rmrotation_$$ ${jobstatusdir}/status/${job}_rotation
+
+rm -f ${jobstatusdir}/status/${job}_${rotation}
+
+
+
+
 
 

@@ -121,6 +121,12 @@ for pool in $pools; do
         
                 # Increment the sequence
                 lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
+                if [ "$lastjob" == "delete" ]; then
+                    # This rotation is undergoing distruction
+                    # Do not continue with backup to it
+                    notice "Skipping increment for ${job}, rotation ${rotation} is undergoing deletion."
+                    continue # rotiations
+                fi
                 thisjob=$(( $lastjob + 1 ))
           
                 notice "backup_to_glacier: new incremental job #${thisjob} for ${source_folder}"
