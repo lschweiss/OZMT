@@ -81,7 +81,7 @@ for definition in $definitions; do
     cat $snapshotlist | ${GREP} -q "$jobsnapname"
     if [ $? -eq 0 ]; then
         notice "Destroying snapshot $jobsnapname its rotation is deleting"
-        zfs destroy $jobsnapname &> ${TMP}/clean-glacier-rotation_zfsdestroy_$$ || \
+        zfs destroy -r $jobsnapname &> ${TMP}/clean-glacier-rotation_zfsdestroy_$$ || \
             error "clean-glacier-rotation: Could not delete snapshot $jobsnapname" \
                 ${TMP}/clean-glacier-rotation_zfsdestroy_$$
     fi
@@ -95,7 +95,11 @@ source /${pool}/zfs_tools/etc/backup/jobs/glacier/${job}
 
 folder_fixup=`echo $source_folder | ${SED} 's,/,.,g'`
 
-vaultname="${glacier_vault}-${rotation}-${folder_fixup}"
+if [ "${job:0:5}" == "FILES" ]; then
+    vaultname="${glacier_vault}-${rotation}-FILES.${folder_fixup}"
+else
+    vaultname="${glacier_vault}-${rotation}-${folder_fixup}"
+fi
 
 inventoryfile="${jobstatusdir}/inventory/${vaultname}"
 

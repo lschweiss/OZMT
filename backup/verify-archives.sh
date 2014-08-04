@@ -96,6 +96,11 @@ for pool in $pools; do
                 debug "No sequence defined for ${job}_${rotation}.  Skipping."
             else
                 lastjob=`cat ${jobstatusdir}/sequence/${job}_${rotation}`
+
+                if [ "$lastjob" == 'delete' ]; then
+                    # Rotation is undergoing deletion.   Try for 14 days to clean it all up
+                    lastjob=$(( $glacier_start_sequence + $glacier_rotation_days + 14 ))
+                fi
                 
                 # Step through sequences confirming the archive job is in the latest inventory.
                 # Delete any sequential snapshot that is no longer needed.
