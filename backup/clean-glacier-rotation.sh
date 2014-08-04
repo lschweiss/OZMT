@@ -28,8 +28,6 @@ die () {
 
 }
 
-backupjobs=`ls -1 $TOOLS_ROOT/backup/jobs/glacier/active/`
-jobstatusdir="$TOOLS_ROOT/backup/jobs/glacier/status"
 
 if [ "x$glacier_logfile" != "x" ]; then
     logfile="$glacier_logfile"
