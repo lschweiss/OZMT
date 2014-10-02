@@ -45,22 +45,26 @@ for pool in $pools; do
 
 
     for snaptype in $snaptypes; do
+
+        if [ -d "$jobfolder/$snaptype" ]; then
     
-        # collect jobs
-        jobs=`ls -1 $jobfolder/$snaptype`
-        
-        for job in $jobs; do
-            zfsfolder=`echo $job|${SED} 's,%,/,g'`
-            keepcount=`cat $jobfolder/$snaptype/$job`
-            if [ "${keepcount:0:1}" == "x" ]; then
-                keepcount="${keepcount:1}"
-            fi
-            if [ "$keepcount" -ne "0" ]; then
-                ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
-            else
-                debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
-            fi
-        done
+            # collect jobs
+            jobs=`ls -1 $jobfolder/$snaptype`
+            
+            for job in $jobs; do
+                zfsfolder=`echo $job|${SED} 's,%,/,g'`
+                keepcount=`cat $jobfolder/$snaptype/$job`
+                if [ "${keepcount:0:1}" == "x" ]; then
+                    keepcount="${keepcount:1}"
+                fi
+                if [ "$keepcount" -ne "0" ]; then
+                    ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
+                else
+                    debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
+                fi
+            done
+
+        fi
     
     done
 
