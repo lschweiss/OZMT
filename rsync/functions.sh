@@ -1,6 +1,9 @@
 #! /bin/bash
 
 locate_snap () {
+
+    # TODO:  This needs to be converted to use getopts
+    
     EXPECTED_ARGS=2
     if [ "$#" -lt "$EXPECTED_ARGS" ]; then
       	echo "Usage: `basename $0` {snapshot_dir} {date} [preferred_tag]"
@@ -10,21 +13,30 @@ locate_snap () {
     fi
 
     local snap=""
-    local this_path=$1
-    local this_date=$2
-    local preferred_tag=$3
+    local this_path="$1"
+    local this_date="$2"
+    local preferred_tag="$3"
+    local host="$4"
 
-
-    if [ -d $this_path ]; then
-    	if [ "$#" -eq "3" ]; then
-    	    snap=`ls -1 $this_path|${GREP} $this_date|${GREP} $preferred_tag|tail -n 1`
-    	fi
-    	if [ "$snap" == "" ]; then
-            snap=`ls -1 $this_path|${GREP} $this_date|tail -n 1`
-    	fi
+    if [ "$host" != "" ]; then
+        snap=`ssh $host ls -1 $this_path|${GREP} $this_date|${GREP} $preferred_tag|tail -n 1`
+        if [ "$snap" == "" ]; then
+            snap=`ssh $host ls -1 $this_path|${GREP} $this_date|tail -n 1`
+        fi
     else
-    	echo "Directory $this_path not found."
-    	return 1
+    
+        if [ -d $this_path ]; then
+        	if [ "$#" -eq "3" ]; then
+        	    snap=`ls -1 $this_path|${GREP} $this_date|${GREP} $preferred_tag|tail -n 1`
+        	fi
+        	if [ "$snap" == "" ]; then
+                snap=`ls -1 $this_path|${GREP} $this_date|tail -n 1`
+        	fi
+        else
+        	echo "Directory $this_path not found."
+        	return 1
+        fi
+
     fi
 
     if [ "${snap}" == "" ]; then

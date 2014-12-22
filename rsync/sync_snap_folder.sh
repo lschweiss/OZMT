@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
@@ -34,6 +34,7 @@ show_usage() {
     echo "  [-s n] Split in to n rsync jobs. Incompatitble with CNS root folders."
     echo "  [-z n] scan n folders deep for split jobs"
     echo "  [-e options] remote shell program.  Passed directly as -e 'options' to rsync"
+    echo "      [-i] SSH is incoming, defaults to outgoing"
     echo "  [-n name] job name.  Defaults to source folder."
     echo "  [-r] dry Run."
     echo
@@ -55,6 +56,7 @@ cflag=
 kflag=
 yflag=
 sflag=
+iflag=
 rflag=
 pflag=
 aflag=
@@ -66,7 +68,7 @@ zval=1
 
 progress=""
 
-while getopts apkrtc:x:d:s:e:z:l:n: opt; do
+while getopts apkirtc:x:d:s:e:z:l:n: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -102,6 +104,8 @@ while getopts apkrtc:x:d:s:e:z:l:n: opt; do
         e)  # Use remote shell
             eflag=1
             eval="$OPTARG";;
+        i)  # Incoming via SSH (Source folder is via ssh)
+            iflag=1;;
         l)  # Dereference symlinks
             lflag=1;;
         ?)  # Show program usage and exit
@@ -151,8 +155,21 @@ shift $(($OPTIND - 1))
 if [ -d $1 ]; then
     source_folder=$1
 else
-    error "${jobname} Source folder $1 does not exist!"
-    exit 1
+    # Check for source via SSH
+    if [ "$iflag" == "1" ]; then
+        # Find hostname and remote source folder
+        IFS=":" read -r source_host remote_source_folder <<< "$1"
+        # check that it exists
+        # TODO: fix this so it can correctly handle spaces in folder names
+        ssh $source_host ls -1 "$remote_source_folder" > /dev/null
+        if [ $? -ne 0 ]; then
+            error "${jobname} Source folder $1 does not exist!"
+            exit 1
+        fi
+    else
+        error "${jobname} Source folder $1 does not exist!"
+        exit 1
+    fi
 fi
 
 # Target folder parameter
@@ -215,6 +232,12 @@ split_rsync () {
 
     local rsync_result=-1
     local try=0
+
+    if [ "$iflag" == "1" ]; then
+        local basedir="${source_host}:${snapdir}/${snap}"
+    else
+        local basedir="${snapdir}/${snap}"
+    fi
 
     # Function used to run a parallel rsync job
     debug "${RSYNC} -arS --delete --relative \
@@ -348,34 +371,61 @@ output_stats () {
 
 
 
-if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]; then
-    if [ -d "${source_folder}/.snapshot" ]; then
-        debug "${jobname}: ${source_folder}/.snapshot found."
-        snapdir="${source_folder}/.snapshot"
-    fi
-    if [ -d "${source_folder}/.zfs/snapshot" ]; then
-        debug "${jobname}: ${source_folder}/.zfs/snapshot found."
-        snapdir="${source_folder}/.zfs/snapshot"
-    fi
-    # Below syntax captures output of 'locate_snap' function
-    snap=`locate_snap "$snapdir" "$this_date" "daily"`
-    # Check the return status of 'locate_snap'
-    if [ $? -eq 0 ] ; then
-        debug "Snapshot folder located: $snap"
-        snap_label="snap-daily_${snap}"
+if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}/.zfs/snapshot" ]]; then
+    if [ "$iflag" == "1" ]; then
+        ssh $source_host ls -1 "${remote_source_folder}/.snapshot" > /dev/null
+        if [ $? -eq 0 ]; then
+            debug "${jobname}: ${remote_source_folder}/.snapshot found."
+            snapdir="${remote_source_folder}/.snapshot"
+        fi
+        ssh $source_host ls -1 "${remote_source_folder}/.zfs/snapshot" > /dev/null
+        if [ $? -eq 0 ]; then
+            debug "${jobname}: ${remote_source_folder}/.zfs/snapshot found."
+            snapdir="${remote_source_folder}/.zfs/snapshot"
+        fi
+        snap=`locate_snap "$snapdir" "$this_date" "daily" "$source_host"`
+        # Check the return status of 'locate_snap'
+        if [ $? -eq 0 ] ; then
+            debug "Snapshot folder located: $snap"
+            snap_label="snap-daily_${snap}"
+        else
+            # If snapshot was not located, output the error message and exit
+            error "${jobname} Could locate snapshot: $snap"
+            exit 1
+        fi
     else
-        # If snapshot was not located, output the error message and exit
-        error "${jobname} Could locate snapshot: $snap"
-        exit 1
+        if [ -d "${source_folder}/.snapshot" ]; then
+            debug "${jobname}: ${source_folder}/.snapshot found."
+            snapdir="${source_folder}/.snapshot"
+        fi
+        if [ -d "${source_folder}/.zfs/snapshot" ]; then
+            debug "${jobname}: ${source_folder}/.zfs/snapshot found."
+            snapdir="${source_folder}/.zfs/snapshot"
+        fi
+        # Below syntax captures output of 'locate_snap' function
+        snap=`locate_snap "$snapdir" "$this_date" "daily"`
+        # Check the return status of 'locate_snap'
+        if [ $? -eq 0 ] ; then
+            debug "Snapshot folder located: $snap"
+            snap_label="snap-daily_${snap}"
+        else
+            # If snapshot was not located, output the error message and exit
+            error "${jobname} Could locate snapshot: $snap"
+            exit 1
+        fi
     fi
 
     notice "${jobname} Starting rsync job(s)"
 
-    basedir="${snapdir}/${snap}"
 
     joblog="${TMP}/sync_folder_$$.log"
     
     if [ "$sflag" != "1" ]; then
+        if [ "$iflag" == "1" ]; then
+            basedir="${source_host}:${snapdir}/${snap}"
+        else
+            basedir="${snapdir}/${snap}"
+        fi
         # Run rsync
         debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
@@ -399,22 +449,41 @@ if [[ -d "${source_folder}/.snapshot" ||  -d "${source_folder}/.zfs/snapshot" ]]
             output_stats "sync_snap_folder_$$" 
         fi
     else
+        ##
+        #
         # Split rsync
-
+        #
+        ##
+    
         notice "${jobname}: Splitting into $sval rsync job(s), scan depth $zval"
+
+        basedir="${snapdir}/${snap}"
 
         # Collect lists
         debug "${jobname}: Collecting lists.  Part 1:"
-        find $basedir -mindepth $zval -maxdepth $zval -type d | \
-            ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
+        if [ "$iflag" == "1" ]; then
+            ssh $source_host find $basedir -mindepth $zval -maxdepth $zval -type d | \
+                ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
+        else
+            find $basedir -mindepth $zval -maxdepth $zval -type d | \
+                ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
+        fi
+
         # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
         cat ${TMP}/sync_folder_list_$$ | ${SED} "s,${basedir}/,," | ${SED} 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
+
         # Add files that may be at a depth less than or equal to the test above
         debug "${jobname}: Collecting lists.  Part 2:"
-        find $basedir -maxdepth $zval -type f | \
-            ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+
+        if [ "$iflag" == "1" ]; then
+            ssh $source_host find $basedir -maxdepth $zval -type f | \
+                ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+        else
+            find $basedir -maxdepth $zval -type f | \
+                ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+        fi
             
-        # Randomize the list to spread across jobs better
+        # Randomize the list to better spread the load across jobs 
 
         cat ${TMP}/sync_folder_list_$$_trim | sort -R > ${TMP}/sync_folder_list_$$_rand
         
