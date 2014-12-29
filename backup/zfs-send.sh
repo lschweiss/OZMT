@@ -146,7 +146,7 @@ show_usage() {
     echo "  [-K {file} ]        Generate a md5 sum.  Store it in remote {file}."
     echo "  [-L]                Overide default log file location."
     echo "  [-R]                Overide default report name."
-    echo "  [-n]                Name fore this job."
+    echo "  [-n]                Name for this job."
 }
 
 # Minimum number of arguments needed by this program
@@ -180,7 +180,7 @@ flat_file='false'
 gen_chksum=
 job_name='zfs_send'
 
-while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R: opt; do
+while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -719,7 +719,7 @@ fi
 if [ "$mbuffer_transport_use" == 'true' ]; then
     # Target end
     if [ "$remote_host" != "" ] ; then
-        debug "${job_name}: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
+        debug "${job_name}: Gathering remote listening port for mbuffer"
         # Collect listening port from remote pool
         $remote_ssh "/opt/zfstools/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
         if [ $? != 0 ]; then

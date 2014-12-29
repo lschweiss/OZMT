@@ -42,6 +42,7 @@ fi
 
 if [ ! -d $connection_port_pool ]; then
     # Assuming this the first time running, initialize our pool
+    debug "Connection port pool does not exist.  Creating."
     mkdir -p ${connection_port_pool}/available
     mkdir -p ${connection_port_pool}/inuse
 
@@ -50,6 +51,7 @@ if [ ! -d $connection_port_pool ]; then
 
     current=$connection_port_start
     while [ $current -le $connection_port_end ]; do
+        debug "Adding port $current to available pool"
         touch ${connection_port_pool}/available/$current
         current=$(( current + 1 ))
     done
