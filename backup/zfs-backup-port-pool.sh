@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -59,14 +59,18 @@ else
     # confirm all 'inuse' ports are alive.   If not return them to the available pool
     ports=`ls -1 ${connection_port_pool}/inuse`
     for port in $ports; do
-        
-        IFS=";" 
-        read -r pid command < "${connection_port_pool}/inuse/${port}" 
 
-        if [[ "$command" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command" ]]; then
-            # Port usage is dead return to the pool
-            rm ${connection_port_pool}/inuse/${port}
-            touch ${connection_port_pool}/available/${port}
+        if test `find "${connection_port_pool}/inuse/$port" -mmin +2`; then
+            # Port was assigned more that 2 minutes ago.  Test if it is use.
+            IFS=";" 
+            read -r pid command < "${connection_port_pool}/inuse/${port}" 
+
+            if [[ "$command" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command" ]]; then
+                # Port usage is dead return to the pool
+                debug "Returning dead port ${port} to the available pool"
+                rm ${connection_port_pool}/inuse/${port}
+                touch ${connection_port_pool}/available/${port}
+            fi
         fi
     done
 fi
@@ -91,9 +95,13 @@ get_port () {
             return 1
         fi
         mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port}
-        if [ $? -eq 0 ]; then
+        if [ $? -ne 0 ]; then
+            warning "Could not capture port reference {connection_port_pool}/available/${port}"
             # Another process took our port first
             port=
+        else
+            # Update modification time
+            touch ${connection_port_pool}/inuse/${port}
         fi
     done
 
