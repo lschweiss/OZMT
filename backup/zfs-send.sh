@@ -133,10 +133,12 @@ show_usage() {
     echo "                      -i and -I are mutually exclusive.  The last one specfied will be honored."
     echo "  [-d]                Delete snapshots on the target that do not exist on the source."
     echo "  [-p {prop_string} ] Reset properties on target"
-    echo "  [-h host]           Send to a remote host.  Defaults to via SSH."
-    echo "  [-m]                Use mbuffer."
+    echo "  [-h host]           Send to a remote host.  Defaults to via mbuffer."
+    echo "  [-S]                Use ssh transport."
+    echo "  [-M]                Use mbuffer transport."
     echo "  [-b n]              Use BBCP, n connections.  "
     echo "     [-e]             Encrypt traffic w/ openssl.  Only for BBCP."
+    echo "  [-m]                Use mbuffer."
     echo "  [-g n]              Compress with gzip level n."
     echo "  [-z n]              Compress with LZ4.  Specify 1 for standard LZ4.  Specify 4 - 9 for LZ4HC compression level."
     echo "  [-F]                Target is a flat file.  No zfs receive will be used."
@@ -167,15 +169,18 @@ receive_options='-vu'
 target_prop=
 remote_host=
 mbuffer_use='false'
+mbuffer_transport_use='false'
+ssh_use='false'
 bbcp_streams=0
 bbcp_encrypt='false'
+transport_selected='false'
 gzip_level=0
 lz4_level=0
 flat_file='false'
 gen_chksum=
 job_name='zfs_send'
 
-while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:K:L:R: opt; do
+while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -222,8 +227,19 @@ while getopts s:t:f:l:riIdp:h:mb:eg:z:Fk:K:L:R: opt; do
             mbuffer_use='true'
             debug "${job_name}: Using mbuffer"
             ;;
+        M)  # Use mbuffer transport
+            mbuffer_transport_use='true'
+            transport_selected='true'
+            debug "${job_name}: Using mbuffer trasnport"
+            ;;    
+        S)  # Use SSH transport
+            ssh_use='true'
+            transport_selected='true'
+            debug "${job_name}: Using ssh transport"
+            ;;
         b)  # Use BBCP
             bbcp_streams="$OPTARG"
+            transport_selected='true'
             debug "${job_name}: Using BBCP, $bbcp_streams connections."
             ;;
         e)  # Encrypt BBCP traffic
@@ -327,6 +343,10 @@ fi
 
 
 if [ "$remote_host" != "" ]; then
+    if [ "$transport_selected" == 'false' ]; then
+        error "${job_name} Remote host specified, but no viable transport selected."    
+        verify='fail'
+    fi        
     ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
@@ -518,6 +538,18 @@ local_fifo () {
 
 remote_launch () {
 
+    # Posible better approach:
+
+    # http://stackoverflow.com/questions/12647382/get-the-pid-of-a-process-started-with-nohup-via-ssh
+
+    #  ~# ssh someone@somewhere 'nohup sleep 30 > out 2> err < /dev/null & echo $!'
+    #  someone@somewhere's password:
+    #  14193
+    #
+
+    # Remote ssh command becomes:
+    # $remote_ssh "nohup $2 > out 2> err < /dev/null& echo $! > $pidfile"
+
     local name="$1"
     local script_content="$2"
     local script="$remote_tmp/${name}.script"
@@ -681,6 +713,34 @@ fi
 
 
 ##
+# mbuffer transport - Receive end
+##
+
+if [ "$mbuffer_transport_use" == 'true' ]; then
+    # Target end
+    if [ "$remote_host" != "" ] ; then
+        debug "${job_name}: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
+        # Collect listening port from remote pool
+        $remote_ssh "/opt/zfstools/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
+        if [ $? != 0 ]; then
+            error "${job_name}: Could not retrieve remote listening port for mbuffer transport."
+            exit 1
+        fi
+
+        $remote_port=`cat ${TMP}/$$_remote_port`
+        rm ${TMP}/$$_remote_port        
+        
+        remote_launch "mbuffer" "/opt/csw/bin/mbuffer -I ${remote_host}:${remote_port} -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log \
+            2> $remote_tmp/mbuffer.error \
+            | cat > $target_fifo ; \
+            echo \$? > $remote_tmp/mbuffer.errorlevel"
+        remote_watch="mbuffer_transport $remote_watch"
+        sleep 3
+    fi
+fi
+
+
+##
 # Remote components are all running.
 # Launch remote watch script
 ##
@@ -780,6 +840,31 @@ if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ]; then
     local_watch="ssh $local_watch"
     sleep 3
 fi
+
+##
+# mbuffer transport
+##
+
+if [ "$mbuffer_transport_use" == 'true' ]; then
+    local_fifo mbuffer
+    target_mbuffer_fifo="$result"
+    # Source end
+    if [ "$remote_host" != "" ] ; then
+        debug "${job_name}: Starting local mbuffer from $target_mbuffer_fifo to ${remote_host}:${remote_port}"
+        ( cat $target_mbuffer_fifo | /opt/csw/bin/mbuffer \
+            -O ${remote_host}:${remote_port} -q -s 128k -m 128M --md5 \
+            -l $tmpdir/mbuffer_transport.log \
+            2> $tmpdir/mbuffer_transport.error ; \
+            echo $? > $tmpdir/mbuffer_trasnport.errorlevel ) &
+            echo $! ? $tmpdir/mbuffer_transport.pid
+            target_fifo="$target_mbuffer_fifo"
+            local_watch="mbuffer_transport $local_watch"
+            sleep 3
+     fi
+fi
+
+
+
 
 ##
 # OpenSSL Encrypt
