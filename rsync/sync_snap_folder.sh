@@ -476,19 +476,36 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
         debug "${jobname}: Collecting lists.  Part 2:"
 
         if [ "$iflag" == "1" ]; then
-            ssh $source_host find $basedir -maxdepth $zval -type f | \
+            ssh $source_host find $basedir -maxdepth $zval \! -type d | \
                 ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
         else
-            find $basedir -maxdepth $zval -type f | \
+            find $basedir -maxdepth $zval \! -type d | \
                 ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
         fi
-            
+
+        # Remove exclusions
+
+        if [ "$xflag" == "1" ]; then
+            if [ -f "$xval" ]; then
+                # Fix up excludes
+                while read line; do
+                    echo "${basedir}/$line" >> ${TMP}/sync_folder_list_$$_exclude_list
+                    debug "${jobname}: Excluding $line"
+                    cat ${TMP}/sync_folder_list_$$_trim|${GREP} -v "^${line}" > \
+                        ${TMP}/sync_folder_list_$$_trim_exclude
+                    mv ${TMP}/sync_folder_list_$$_trim_exclude ${TMP}/sync_folder_list_$$_trim
+                done < $xval
+                extra_options="$extra_options --exclude-from=${TMP}/sync_folder_list_$$_exclude_list"
+            else
+                warning "${jobname}: Exclusion file $xval not found"
+            fi
+        fi        
+ 
         # Randomize the list to better spread the load across jobs 
 
         cat ${TMP}/sync_folder_list_$$_trim | sort -R > ${TMP}/sync_folder_list_$$_rand
         
        
-        # TODO: Remove excluded folders/files  Note: move the .histroy exclusion from above. 
         
 #        echo "Check the folder list: ${TMP}/sync_folder_list_$$_trim"
 #        read pause
