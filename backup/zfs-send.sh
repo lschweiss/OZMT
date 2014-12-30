@@ -229,17 +229,17 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n opt; do
             ;;
         M)  # Use mbuffer transport
             mbuffer_transport_use='true'
-            transport_selected='true'
+            transport_selected='mbuffer'
             debug "${job_name}: Using mbuffer trasnport"
             ;;    
         S)  # Use SSH transport
             ssh_use='true'
-            transport_selected='true'
+            transport_selected='ssh'
             debug "${job_name}: Using ssh transport"
             ;;
         b)  # Use BBCP
             bbcp_streams="$OPTARG"
-            transport_selected='true'
+            transport_selected='bbcp'
             debug "${job_name}: Using BBCP, $bbcp_streams connections."
             ;;
         e)  # Encrypt BBCP traffic
@@ -707,7 +707,7 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     remote_launch "openssl" "openssl aes-256-cbc -d -pass file:$bbcp_key <$target_ssl_fifo 1> $target_fifo \
         2> $remote_tmp/openssl.error ; echo \$? > $remote_tmp/openssl.errorlevel"
     remote_watch="openssl $remote_watch"
-    sleep 2
+    sleep 1
     target_fifo="$target_ssl_fifo"
 fi
 
@@ -736,7 +736,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
             | cat > $target_fifo ; \
             echo \$? > $remote_tmp/mbuffer_transport.errorlevel"
         remote_watch="mbuffer_transport $remote_watch"
-        sleep 1m
+        sleep 1
     fi
 fi
 
@@ -800,72 +800,72 @@ MONITOR
 fi
 
 
-##
-# BBCP
-##
 
-if [ "$bbcp_streams" -ne 0 ]; then
-    # Source FIFO
-    local_fifo bbcp
-    target_bbcp_fifo="$result"
-    debug "${job_name}: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
-    ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" 1> $tmpdir/bbcp.log \
-        2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
-    echo $! > $tmpdir/bbcp.pid
-    target_fifo="$target_bbcp_fifo"
-    local_watch="bbcp $local_watch"
-    if [ -t 1 ]; then
-        tail -f $tmpdir/bbcp.error &
-    fi  
-    # Wait for bbcp pipe to be setup
-    bbcp_started=1
-    while [ $bbcp_started -ne 1 ]; do
-        sleep 0.2
-        cat $tmpdir/bbcp.error | ${GREP} -q "bbcp: Creating $tmpdir"
-        bbcp_started=$?
-    done
-fi
-    
+case $transport_selected in
 
-##
-# SSH
-##
+    bbcp)
+        ##
+        # BBCP
+        ##
+        
+        # Source FIFO
+        local_fifo bbcp
+        target_bbcp_fifo="$result"
+        debug "${job_name}: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
+        ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
+            1> $tmpdir/bbcp.log \
+            2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
+        echo $! > $tmpdir/bbcp.pid
+        target_fifo="$target_bbcp_fifo"
+        local_watch="bbcp $local_watch"
+        if [ -t 1 ]; then
+            tail -f $tmpdir/bbcp.error &
+        fi  
+        # Wait for bbcp pipe to be setup
+        bbcp_started=1
+        while [ $bbcp_started -ne 1 ]; do
+            sleep 0.2
+            cat $tmpdir/bbcp.error | ${GREP} -q "bbcp: Creating $tmpdir"
+            bbcp_started=$?
+        done
+    ;;
 
-if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ] && [ "$ssh_use" == 'true' ]; then
-    local_fifo ssh
-    target_ssh_fifo="$result"
-    debug "${job_name}: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
-    ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
-    echo $! > $tmpdir/ssh.pid
-    target_fifo="$target_ssh_fifo"
-    local_watch="ssh $local_watch"
-    sleep 3
-fi
+    ssh)
+        ##
+        # SSH
+        ##
+        
+        local_fifo ssh
+        target_ssh_fifo="$result"
+        debug "${job_name}: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
+        ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
+        echo $! > $tmpdir/ssh.pid
+        target_fifo="$target_ssh_fifo"
+        local_watch="ssh $local_watch"
+        sleep 3
+    ;;
 
-##
-# mbuffer transport
-##
-
-if [ "$mbuffer_transport_use" == 'true' ]; then
-    local_fifo mbuffer_transport
-    target_mbuffer_transport_fifo="$result"
-    # Source end
-    if [ "$remote_host" != "" ] ; then
-        debug "${job_name}: Starting local mbuffer from $target_mbuffer_fifo to ${remote_host}:${remote_port}"
-        ( cat $target_mbuffer_fifo | /opt/csw/bin/mbuffer \
+    mbuffer)
+        ##
+        # mbuffer transport
+        ##
+        
+        local_fifo source_mbuffer_transport
+        source_mbuffer_transport_fifo="$result"
+        # Source end
+        debug "${job_name}: Starting local mbuffer from $source_mbuffer_transport_fifo to ${remote_host}:${remote_port}"
+        ( cat $source_mbuffer_transport_fifo | /opt/csw/bin/mbuffer \
             -O ${remote_host}:${remote_port} -q -s 128k -m 128M \
             -l $tmpdir/mbuffer_transport.log \
             2> $tmpdir/mbuffer_transport.error ; \
             echo $? > $tmpdir/mbuffer_transport.errorlevel ) &
-            echo $! > $tmpdir/mbuffer_transport.pid
-            target_fifo="$target_mbuffer_transport_fifo"
-            local_watch="mbuffer_transport $local_watch"
-            sleep 3
-     fi
-fi
+        echo $! > $tmpdir/mbuffer_transport.pid
+        target_fifo="$source_mbuffer_transport_fifo"
+        local_watch="mbuffer_transport $local_watch"
+        sleep 3
+    ;;
 
-
-
+esac
 
 ##
 # OpenSSL Encrypt
