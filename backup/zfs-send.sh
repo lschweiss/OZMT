@@ -727,15 +727,16 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
             exit 1
         fi
 
-        $remote_port=`cat ${TMP}/$$_remote_port`
+        remote_port=`cat ${TMP}/$$_remote_port`
         rm ${TMP}/$$_remote_port        
         
-        remote_launch "mbuffer" "/opt/csw/bin/mbuffer -I ${remote_host}:${remote_port} -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log \
-            2> $remote_tmp/mbuffer.error \
+        remote_launch "mbuffer_transport" "/opt/csw/bin/mbuffer -I ${remote_port} -q -s 128k -m 128M \
+            -l $remote_tmp/mbuffer_transport.log \
+            2> $remote_tmp/mbuffer_transport.error \
             | cat > $target_fifo ; \
-            echo \$? > $remote_tmp/mbuffer.errorlevel"
+            echo \$? > $remote_tmp/mbuffer_transport.errorlevel"
         remote_watch="mbuffer_transport $remote_watch"
-        sleep 3
+        sleep 1m
     fi
 fi
 
@@ -830,7 +831,7 @@ fi
 # SSH
 ##
 
-if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ]; then
+if [ "$bbcp_streams" -eq 0 ] && [ "$remote_host" != "" ] && [ "$ssh_use" == 'true' ]; then
     local_fifo ssh
     target_ssh_fifo="$result"
     debug "${job_name}: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
@@ -846,18 +847,18 @@ fi
 ##
 
 if [ "$mbuffer_transport_use" == 'true' ]; then
-    local_fifo mbuffer
-    target_mbuffer_fifo="$result"
+    local_fifo mbuffer_transport
+    target_mbuffer_transport_fifo="$result"
     # Source end
     if [ "$remote_host" != "" ] ; then
         debug "${job_name}: Starting local mbuffer from $target_mbuffer_fifo to ${remote_host}:${remote_port}"
         ( cat $target_mbuffer_fifo | /opt/csw/bin/mbuffer \
-            -O ${remote_host}:${remote_port} -q -s 128k -m 128M --md5 \
+            -O ${remote_host}:${remote_port} -q -s 128k -m 128M \
             -l $tmpdir/mbuffer_transport.log \
             2> $tmpdir/mbuffer_transport.error ; \
-            echo $? > $tmpdir/mbuffer_trasnport.errorlevel ) &
-            echo $! ? $tmpdir/mbuffer_transport.pid
-            target_fifo="$target_mbuffer_fifo"
+            echo $? > $tmpdir/mbuffer_transport.errorlevel ) &
+            echo $! > $tmpdir/mbuffer_transport.pid
+            target_fifo="$target_mbuffer_transport_fifo"
             local_watch="mbuffer_transport $local_watch"
             sleep 3
      fi
