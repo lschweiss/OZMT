@@ -156,10 +156,6 @@ setupzfs () {
     fi
    
     while getopts z:o:s:b:S:p:riIq:t: opt; do
-        if [ "$opt" != "z" ]; then
-            notice "Adding option $opt to new config"
-            echo "    -${opt} \"$OPTARG\" \\" >> ${TMP}/zfs_setup_config_options_$$
-        fi
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -238,8 +234,8 @@ setupzfs () {
     else
         options="$properties"
         if [ "$gen_new_pool_config" == 'true' ]; then
-            cat ${TMP}/zfs_setup_config_options_$$ >> $config_file
-            rm ${TMP}/zfs_setup_config_options_$$
+            search=`echo $zfspath | ${SED} 's,\/,\\\/,g'`
+            ${SED} -n "/^setupzfs -z \"${search}\"/,/^$/p" /${pool}/zfs_tools/etc/pool-filesystems >> $config_file
         fi
     fi
 

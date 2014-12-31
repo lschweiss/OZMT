@@ -50,6 +50,7 @@ for pool in $pools; do
             ls -1At --color=never /${pool}/zfs_tools/etc/pool-filesystems | \
                 ${SED} '/\.last_setup_run/q' | \
                 ${GREP} -v ".last_setup_run" | \
+                sort | \
                 tee ${TMP}/pool-filesystems.update
 
             folders=`cat ${TMP}/pool-filesystems.update`
