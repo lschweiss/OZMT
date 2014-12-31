@@ -250,4 +250,4 @@ if [ "x$TMP" == "x" ]; then
     TMP="/tmp"
 fi
 
-
+mkdir -p ${TMP}

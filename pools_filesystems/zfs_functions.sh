@@ -146,12 +146,27 @@ setupzfs () {
     local quota_reports=0
     local trend_reports=0
     local OPTIND=1
+
+    if [ "$gen_new_pool_config" == 'true' ]; then
+        if [ ! -f "/${pool}/zfs_tools/etc/filesystem_template" ]; then
+            notice "Converting setup config using template" 
+        else
+            warning "/${pool}/zfs_tools/etc/filesystem_template does not exist.  Create this file for automatic config conversion."
+        fi
+    fi
    
     while getopts z:o:s:b:S:p:riIq:t: opt; do
+        if [ "$opt" != "z" ]; then
+            echo "    -${opt} \"$OPTARG\" \\" > /${TMP}/zfs_setup_config_options_$$
+        fi
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
                 debug "ZFS path set to: $zfspath"
+                if [ "$gen_new_pool_config" == 'true' ]; then
+                    config_file="/${pool}/zfs_tools/etc/pool-filesystems.new/$(echo $zfspath | ${SED} s,/,%,g)"
+                    cp "/${pool}/zfs_tools/etc/filesystem_template" "$config_file"
+                fi
                 ;;
             o)  # Add an zfs property
                 properties="$properties $OPTARG"
@@ -221,6 +236,10 @@ setupzfs () {
 
     else
         options="$properties"
+        if [ "$gen_new_pool_config" == 'true' ]; then
+            cat /${TMP}/zfs_setup_config_options_$$ >> $config_file
+            rm /${TMP}/zfs_setup_config_options_$$
+        fi
     fi
 
     snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
