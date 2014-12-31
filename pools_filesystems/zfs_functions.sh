@@ -251,7 +251,8 @@ setupzfs () {
     mkdir -p $snapjobdir
     mkdir -p $backupjobdir
 
-    if [ -e "/$pool/$zfspath" ]; then
+    zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
+    if [ $? -eq 0 ]; then
         echo "${pool}/${zfspath} already exists, resetting options"
         setzfs "${pool}/${zfspath}" "$options"
     else
