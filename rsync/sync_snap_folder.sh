@@ -81,7 +81,8 @@ while getopts apkirtc:x:d:s:e:z:l:n: opt; do
             cval="$OPTARG";;
         k)  # Use checksum comparison
             kflag=1;;
-        a)  # Turn on attachements
+        a)  # Turn on verbose and attachements
+            DEBUG=true
             aflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
