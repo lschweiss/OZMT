@@ -148,7 +148,7 @@ setupzfs () {
     local OPTIND=1
 
     if [ "$gen_new_pool_config" == 'true' ]; then
-        if [ ! -f "/${pool}/zfs_tools/etc/filesystem_template" ]; then
+        if [ -f "/${pool}/zfs_tools/etc/filesystem_template" ]; then
             notice "Converting setup config using template" 
         else
             warning "/${pool}/zfs_tools/etc/filesystem_template does not exist.  Create this file for automatic config conversion."
@@ -157,7 +157,8 @@ setupzfs () {
    
     while getopts z:o:s:b:S:p:riIq:t: opt; do
         if [ "$opt" != "z" ]; then
-            echo "    -${opt} \"$OPTARG\" \\" > /${TMP}/zfs_setup_config_options_$$
+            notice "Adding option $opt to new config"
+            echo "    -${opt} \"$OPTARG\" \\" >> ${TMP}/zfs_setup_config_options_$$
         fi
         case $opt in
             z)  # Set zfspath
@@ -237,8 +238,8 @@ setupzfs () {
     else
         options="$properties"
         if [ "$gen_new_pool_config" == 'true' ]; then
-            cat /${TMP}/zfs_setup_config_options_$$ >> $config_file
-            rm /${TMP}/zfs_setup_config_options_$$
+            cat ${TMP}/zfs_setup_config_options_$$ >> $config_file
+            rm ${TMP}/zfs_setup_config_options_$$
         fi
     fi
 
