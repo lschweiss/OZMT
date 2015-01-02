@@ -81,7 +81,8 @@ while getopts apkirtc:x:d:s:e:z:l:n: opt; do
             cval="$OPTARG";;
         k)  # Use checksum comparison
             kflag=1;;
-        a)  # Turn on attachements
+        a)  # Turn on verbose and attachements
+            DEBUG=true
             aflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
@@ -158,7 +159,9 @@ else
     # Check for source via SSH
     if [ "$iflag" == "1" ]; then
         # Find hostname and remote source folder
-        IFS=":" read -r source_host remote_source_folder <<< "$1"
+        IFS=":" 
+        read -r source_host remote_source_folder <<< "$1"
+        unset IFS
         # check that it exists
         # TODO: fix this so it can correctly handle spaces in folder names
         ssh $source_host ls -1 "$remote_source_folder" > /dev/null
@@ -444,6 +447,7 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
                 error "${basedir} Job failed with error code $rsync_result" ${TMP}/sync_snap_folder_$$.log
             fi
             if [ "$aflag" == "1" ]; then
+                cat ${TMP}/sync_snap_folder_$$.log
                 notice "$basedir complete logs attached." ${TMP}/sync_snap_folder_$$.log
             fi
             output_stats "sync_snap_folder_$$" 

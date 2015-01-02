@@ -29,9 +29,9 @@ report_name="$default_report_name"
 
 index=1
 
-if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
+if [ -d "$report_spool" ]; then
 
-    for report_path in $TOOLS_ROOT/reporting/reports_pending/*/; do
+    for report_path in ${report_spool}/*/; do
 
         report=`echo "$report_path"|${AWK} -F "/" '{print $(NF-1)}'`
 
@@ -84,7 +84,7 @@ if [ -d "$TOOLS_ROOT/reporting/reports_pending" ]; then
 
 else
 
-    warning "No report files found: $TOOLS_ROOT/reporting/reports_pending" 
+    echo "No report files found: $report_spool" 
 
 fi
     

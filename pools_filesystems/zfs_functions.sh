@@ -37,6 +37,9 @@ Usage:
 
   setupzfs functions are to be used in /{pool}/zfs_tools/etc/pool_filesystems
 
+  setupreplication sets up ssh key distribution and name mapping.   This needs to be run before any replicated 
+    file systems are defined.   
+
   setupzfs: 
   Depricated:
       setupzfs {zfs_path} {zfs_options} {snapshots} 
@@ -45,6 +48,41 @@ Usage:
     setupzfs -z {zfs_path} 
       [-o {zfs_option)]           Set zfs property (repeatable) 
       [-s {snapshot|count}]       Set snapshot policy and count (repeatable)
+      [-R {target|mode|options|freqency}] 
+                                  Set a replication target (repeatable)
+                                    Target is in the form:
+                                      {host}:{zfs_folder}
+                                        host is the fix hostname or ip associated with the replication target
+                                        this should reside on a backend network or VLAN for locally connected hosts
+                                    Mode is one of the following:
+                                      m     mbuffer transport
+                                      s     ssh tunnel
+                                      b     bbcp transport
+                                    Options is specified by include any, all or none of the following:
+                                      l     lz4 compress the stream
+                                      g     gzip compress the stream
+                                      o     encrypt the stream with openssl
+                                    Frequency is in the form of ####{unit}
+                                      Acceptable units are:
+                                      m     minutes
+                                      h     hours
+                                      d     days
+                                      w     weeks
+
+                                    Requires zpool feature bookmarks
+
+                                    All replication targets in receive mode will have snapshot and quota jobs 
+                                    suspended automatically.  
+
+                                    Replication status is stored in ${pool}/var/db/replication/${zfsfolder}
+
+                                    The folder definition must be the same on all replication points.   
+
+                                    Each time a zfs folder under replication's configuration is updated, all 
+                                    target's configuration for the coresponding folder will updated.
+
+        [-V {vIP}]                  The virtual IP that follows this dataset.
+
       [-b {backup_target}]        zfs send/receive target
                                   {pool}/{zfs_folder} or 
                                   {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured.
@@ -83,6 +121,27 @@ Usage:
     zfs-config. 
 
     The variables "ALL_QUOTA_REPORTS" and "ALL_TREND_REPORTS" can contain an email address to BCC all reports to.
+
+    setupreplication:
+
+      setup_replication.sh: Wrapper script for setupreplication function.  Used to manually run replication configuration functions
+        from the shell or external scripts.
+
+      setupreplication
+        [-m {target|hostname}]      Target vIP to hostname mapping (repeatable)
+                                      For each target a mapping of host(s) which the vIP may be on.
+                                      There will be one entry for each host that this dataset can reside on.
+                                        For example a primary and DR site.  The primary site has two host for an HA pool.
+                                            -m dr-replication01|dr-host
+                                            -m pr-replication01|pr-host01
+                                            -m pr-replication01|pr-host02
+        [-M {target}                Remove a target vIP mapping.
+                                      This will remove all entries with the referenced vIP.   
+                                        Using the above example
+                                          -M pr-replication01 
+                                        would remove both the pr-host01 and pr-host02 entries.
+  
+
 
 EOF_USAGE
 }
@@ -130,7 +189,167 @@ setzfs () {
 
 }
 
+# Test an IP address for validity:
+# Usage:
+#      valid_ip IP_ADDRESS
+#      if [[ $? -eq 0 ]]; then echo good; else echo bad; fi
+#   OR
+#      if valid_ip IP_ADDRESS; then echo good; else echo bad; fi
+#
+function valid_ip()
+{
+    local  ip=$1
+    local  stat=1
 
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    unset IFS
+    return $stat
+}
+
+islocal () {
+
+    local host="$1"
+    local ip=
+
+    # Is this a raw IP address?
+
+    if valid_ip $host; then
+        ip="$host"
+    else
+        # See if it's in /etc/hosts
+        getent hosts $host | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
+        if [ $? -eq 0 ]; then
+            ip=`cat ${TMP}/islocal_host_$$`
+        else
+            # Try DNS
+            dig +short $host > ${TMP}/islocal_host_$$
+            if [ $? -eq 0 ]; then
+                ip=`cat ${TMP}/islocal_host_$$`
+            else
+                echo "$host is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
+                return 1
+            fi
+        fi
+    fi
+    # See if we own it.
+
+#    echo -n "Checking if $ip is local..."
+
+    case $os in
+        'SunOS')
+            ifconfig -a | ${GREP} -q -F "inet $ip"
+            if [ $? -eq 0 ]; then
+                # echo "yes."
+                return 0
+            else
+                # echo "no."
+                return 1
+            fi
+            ;;
+        'Linux')
+            ifconfig -a | ${GREP} -q -F "inet addr:$ip"
+            if [ $? -eq 0 ]; then
+                # echo "yes."
+                return 0
+            else
+                # echo "no."
+                return 1
+            fi
+            ;;
+    esac
+
+}
+
+
+setupreplication () {
+
+    local target_maps=
+    local OPTIND=1
+    local mapdir=/var/zfs_tools/replication/maps
+    if [ -f /var/zfs_tools/replication/hosts ]; then
+        local rep_hosts=`cat /var/zfs_tools/replication/hosts`
+    else
+        echo "/var/zfs_tools/replication/hosts does not exist."
+        echo "Please populate this file with the host names of all replication hosts including this one."
+        return 1
+    fi
+    local vip=
+    local host=
+    local rep_host=
+
+    while getopts m:M: opt; do
+        case $opt in
+            m) # Add a new mapping
+                IFS='|'
+                read -r vip host <<< "$OPTARG"
+                unset IFS
+                # We must be able to connect via ssh to both the vip and the host provided
+                echo "Validating ${vip} and ${host}..."
+                if islocal $vip; then
+                    echo "$vip is local."
+                else 
+                    timeout 5s ssh root@${vip} echo "$vip connected successfully."
+                    if [ $? -ne 0 ]; then
+                        echo "Cannot connect via ssh to ${vip}.  Please verify ssh pairing is configured."
+                        return 1
+                    fi
+                fi
+                if islocal $host; then
+                    echo "$host is local."
+                else
+                    timeout 5s ssh root@${host} echo "$host connected successfully."
+                    if [ $? -ne 0 ]; then
+                        echo "Cannot connect via ssh to ${vip}.  Please verify ssh pairing is configured."
+                        return 1
+                    fi
+                fi
+                for rep_host in $rep_hosts; do
+                    echo "Adding $vip mapping to $rep_host"
+                    if islocal $rep_host; then
+                        mkdir -p ${mapdir}
+                        echo "$host" >> ${mapdir}/${vip}
+                    else
+                        # echo "Connecting remotely to $rep_host"
+                        ssh root@${rep_host} "mkdir -p ${mapdir};echo \"$host\" >> ${mapdir}/${vip}"
+                    fi
+                done
+                ;;
+            M) # Remove a mapping
+                vip="$OPTARG"
+                if [ -f "${mapdir}/${vip}" ]; then
+                    for rep_host in $rep_hosts; do
+                        echo "Removing $vip mapping from $rep_host"
+                        if islocal $rep_host; then
+                            rm -f ${mapdir}/${vip}
+                        else
+                            ssh root@${rep_host} "rm -f ${mapdir}/${vip}"
+                        fi
+                    done
+                else
+                    echo "$vip is not a current mapping"
+                    return 1
+                fi
+                ;;
+            ?)  # Show program usage and exit
+                show_usage
+                return 1
+                ;;
+            :)  # Mandatory arguments not specified
+                error "setupreplication: Option -$OPTARG requires an argument."
+                return 1
+                ;;
+        esac
+    done
+
+}
 
 setupzfs () {
 
@@ -138,6 +357,8 @@ setupzfs () {
     local options=
     local properties=
     local snapshots=
+    local replication_targets=
+    local vip=
     local backup_target=
     local zfs_backup=
     local target_properties=
@@ -146,12 +367,24 @@ setupzfs () {
     local quota_reports=0
     local trend_reports=0
     local OPTIND=1
+
+    if [ "$gen_new_pool_config" == 'true' ]; then
+        if [ -f "/${pool}/zfs_tools/etc/filesystem_template" ]; then
+            notice "Converting setup config using template" 
+        else
+            warning "/${pool}/zfs_tools/etc/filesystem_template does not exist.  Create this file for automatic config conversion."
+        fi
+    fi
    
-    while getopts z:o:s:b:S:p:riIq:t: opt; do
+    while getopts z:o:s:R:V:b:S:p:riIq:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
                 debug "ZFS path set to: $zfspath"
+                if [ "$gen_new_pool_config" == 'true' ]; then
+                    config_file="/${pool}/zfs_tools/etc/pool-filesystems.new/$(echo $zfspath | ${SED} s,/,%,g)"
+                    cp "/${pool}/zfs_tools/etc/filesystem_template" "$config_file"
+                fi
                 ;;
             o)  # Add an zfs property
                 properties="$properties $OPTARG"
@@ -160,6 +393,13 @@ setupzfs () {
             s)  # Add a snapshot policy
                 snapshots="$snapshots $OPTARG"
                 debug "Adding snapshot policy: $OPTARG"
+                ;;
+            R)  # Add a replication target
+                replication_targets="$replication_target $OPTARG"
+                debug "Adding replication target: $OPTARG"
+                ;;
+            V)  # vIP associated with this dataset
+                vip="$OPTARG"
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
@@ -221,6 +461,10 @@ setupzfs () {
 
     else
         options="$properties"
+        if [ "$gen_new_pool_config" == 'true' ]; then
+            search=`echo $zfspath | ${SED} 's,\/,\\\/,g'`
+            ${SED} -n "/^setupzfs -z \"${search}\"/,/^$/p" /${pool}/zfs_tools/etc/pool-filesystems >> $config_file
+        fi
     fi
 
     snapjobdir="/${pool}/zfs_tools/etc/snapshots/jobs"
@@ -235,7 +479,8 @@ setupzfs () {
     mkdir -p $snapjobdir
     mkdir -p $backupjobdir
 
-    if [ -e "/$pool/$zfspath" ]; then
+    zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
+    if [ $? -eq 0 ]; then
         echo "${pool}/${zfspath} already exists, resetting options"
         setzfs "${pool}/${zfspath}" "$options"
     else
@@ -423,5 +668,124 @@ setupzfs () {
         done
     fi
     echo
+    
+
+    # Create replication target maps before the jobs
+
+    if [ "$target_maps" != "" ]; then
+        mapdir="/${pool}/zfs_tools/etc/replication/maps"
+        if [ -d ${mapdir}/${jobname} ]; then
+            rm -rf ${mapdir}/${jobname}
+        fi
+        mkdir -p ${mapdir}/${jobname}
+
+        for map in $target_maps; do
+            IFS='|'
+            read -r target_vip target_hostname <<< "$map"
+            unset IFS
+            echo "$target_hostname" >> ${mapdir}/${jobname}/${target_vip}            
+         done
+    fi
+
+
+    # Create replication jobs
+
+    replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
+
+    if [ "$replication_targets" != "" ]; then
+        if [[ "$replication" != '-' || "$replication" != "$zfspath" ]]; then
+            error "Replication is already defined on parent zfs folder $replication"
+            error "Remove replication from that folder before adding it to this folder ($zfspath)"
+            return 1
+        fi         
+
+        mkdir -p /${pool}/zfs_tools/etc/replication/jobs/${jobname}
+        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definition,pending,running,complete,failed,sequence}
+        mkdir -p /${pool}/zfs_tools/var/replication/primary/${jobname}
+
+        for target_def in $replication_targets; do
+            IFS='|' 
+            read -r target mode options frequency <<< "${target_def}"
+            unset IFS
+            # Test access to target
+            timeout 5s ssh root@target "echo Hello from $target"
+            if [ $? -ne 0 ]; then
+                error "Cannot connect to target host at $target, ignore this if the target is down."
+            fi
+            target_job="/${pool}/zfs_tools/etc/replication/jobs/${jobname}/$(foldertojob $target)"
+
+            echo "target=\"${target}\"" >> $target_job
+            echo "mode=\"${mode}\"" >> $target_job
+            echo "options=\"${options}\"" >> $target_job
+            echo "frequency=\"${frequency}\"" >> $target_job
+        done
+        zfs set ${zfs_replication_property}=${zfspath} ${pool}/${zfspath}
+        replication=`zfs get -H -o value $zfs_replication_property $zfspath`
+    fi
+   
+
+    # Syncronize all replication targets
+
+    if [ "$replication" != "-" ]; then
+        # Get target(s) from parent definition
+        parent_jobname="$(foldertojob $replication)"
+        replication_targets=`ls -1 /${pool}/zfs_tools/etc/replication/jobs/${parent_jobname}`
+        for replication_target in $replication_targets; do
+            source /${pool}/zfs_tools/etc/replication/jobs/${replication_target}
+            # Determine the host and pool
+            t_host=`echo "$target" | ${AWK} -F '/' '{print $1}'`
+            t_pool=`echo "$target" | ${AWK} -F '/' '{print $2}'`
+                  
+            # push a copy of this definition
+            # Rsync is used to only update if the definition changes.  Its verbose output
+            #   will list the definition being updated if it sync'd.  This will cause the
+            #   trigger of a run to happen only if there were changes, short circuiting the 
+            #   potential for an endless loop.
+            if ! islocal $t_host; then
+                rsync -cv -e ssh /${pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath) \
+                    root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath) > \
+                    ${TMP}/setup_filesystem_replication_$$
+                if [ $? -ne 0 ]; then
+                    error "Could not replicate definition to $t_host"
+                else
+                    cat ${TMP}/setup_filesystem_replication_$$ | \
+                        grep -q -F "/${pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath)"
+                    if [ $? -eq 0 ]; then
+                        echo "Target config updated on ${t_host}.  Triggering setup run."
+                        ssh root@${t_host} "/opt/zfstools/pools_filesystems/setup-filesystems.sh"
+                    fi
+                fi
+            fi
+
+        done
+    fi
+
+    if [[ "$replication" == "$zfspath" && "$replication_targets" == "" ]]; then
+            # Previous replication job for this path has been removed.   Remove the job definitions.
+                rm -rf /${pool}/zfs_tools/etc/replication/jobs/${jobname}
+                rm -rf /${pool}/zfs_tools/var/replication/primary/${jobname}
+
+            # TODO: Remove replication bookmarks
+
+
+
+            
+
+    fi
+
+
+    
+
+    # Define vIP
+
+    if [ "$vip" != "" ]; then
+        mkdir -p /${pool}/zfs_tools/etc/replication/vip
+        echo "$vip" > /${pool}/zfs_tools/etc/replication/vip/${jobname}
+    fi
+    
+
+
+
+
 }
 

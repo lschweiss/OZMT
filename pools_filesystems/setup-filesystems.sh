@@ -21,7 +21,7 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-rm $TOOLS_ROOT/snapshots/jobs/*/*
+rm $TOOLS_ROOT/snapshots/jobs/*/* 2> /dev/null
 
 #rm -rf $TOOLS_ROOT/backup/jobs/*
 
@@ -33,14 +33,38 @@ pools="$(pools)"
 
 for pool in $pools; do
 
-    if [ -f "/$pool/zfs_tools/etc/pool-filesystems" ] ; then
+    if [ -f "/${pool}/zfs_tools/etc/pool-filesystems" ] ; then
+        warning "Using depricated configuration. Creating new configuration in /${pool}/zfs_tools/etc/pool-filesystems.new"
+        mkdir "/${pool}/zfs_tools/etc/pool-filesystems.new"
+        gen_new_pool_config='true'
         notice "Setting up pool $pool"
         rm /${pool}/zfs_tools/etc/snapshots/jobs/*/* 2> /dev/null
         rm /${pool}/zfs_tools/etc/backup/jobs/*/* 2> /dev/null
         rm /${pool}/zfs_tools/etc/reports/jobs/*/* 2> /dev/null
-        source /$pool/zfs_tools/etc/pool-filesystems
+        source /${pool}/zfs_tools/etc/pool-filesystems
     else 
-        warning "No file system configuration found for $pool"
+        if [ -d "/${pool}/zfs_tools/etc/pool-filesystems" ]; then
+            notice "Setting up pool $pool"
+            failures=0
+            # Determine which definitions have changed since last run 
+            ls -1At --color=never /${pool}/zfs_tools/etc/pool-filesystems | \
+                ${SED} '/\.last_setup_run/q' | \
+                ${GREP} -v ".last_setup_run" | \
+                sort | \
+                tee ${TMP}/pool-filesystems.update
+
+            folders=`cat ${TMP}/pool-filesystems.update`
+            for folder in $folders; do
+                rm /${pool}/zfs_tools/etc/{snapshots,backup,reports,replication}/jobs/*/${pool}%${folder} 2> /dev/null
+                source /${pool}/zfs_tools/etc/pool-filesystems/${folder}
+            done
+            if [ $failures -eq 0 ]; then
+                debug "All changes successful for pool $pool"
+                touch /${pool}/zfs_tools/etc/pool-filesystems/.last_setup_run
+            fi
+        else
+            warning "No file system configuration found for $pool"
+        fi
     fi
 
 done
