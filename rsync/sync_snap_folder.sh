@@ -445,6 +445,7 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
                 error "${basedir} Job failed with error code $rsync_result" ${TMP}/sync_snap_folder_$$.log
             fi
             if [ "$aflag" == "1" ]; then
+                cat ${TMP}/sync_snap_folder_$$.log
                 notice "$basedir complete logs attached." ${TMP}/sync_snap_folder_$$.log
             fi
             output_stats "sync_snap_folder_$$" 
