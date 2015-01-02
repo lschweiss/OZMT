@@ -143,6 +143,10 @@ if [ "$QUOTA_REPORT_TEMPLATE" == "" ]; then
     QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
 fi
 
+if [ "$zfs_replication_property" == "" ]; then
+    zfs_replication_property="edu.wustl.nrg:replication"
+fi
+
 # Test essential binaries
 
 binary_error=0
@@ -242,8 +246,14 @@ if [ "$skiptypes" == "" ]; then
     skiptypes="mid-day hourly 30min 15min 5min min"
 fi
 
+# Reporting defaults
+
 if [ "x$default_report_name" == "x" ]; then
     default_report_name="default"
+fi
+
+if [ "x$report_spool" == "x" ]; then
+    report_spool="/var/zfs_tools/reporting/pending"
 fi
 
 if [ "x$TMP" == "x" ]; then

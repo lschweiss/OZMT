@@ -64,7 +64,7 @@ else
             # Port was assigned more that 2 minutes ago.  Test if it is use.
             IFS=";" 
             read -r pid command < "${connection_port_pool}/inuse/${port}" 
-
+            unset IFS
             if [[ "$command" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command" ]]; then
                 # Port usage is dead return to the pool
                 debug "Returning dead port ${port} to the available pool"

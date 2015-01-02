@@ -101,6 +101,14 @@ bytestohuman () {
 
 }
 
+foldertojob () {
+    ${SED} 's,/,%,g' <<< "${1}"
+}
+
+jobtofolder () {
+    ${SED} 's,%,/,g' <<< "${1}"
+}
+
 ####
 #
 # Pool and file system functions

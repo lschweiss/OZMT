@@ -159,7 +159,9 @@ else
     # Check for source via SSH
     if [ "$iflag" == "1" ]; then
         # Find hostname and remote source folder
-        IFS=":" read -r source_host remote_source_folder <<< "$1"
+        IFS=":" 
+        read -r source_host remote_source_folder <<< "$1"
+        unset IFS
         # check that it exists
         # TODO: fix this so it can correctly handle spaces in folder names
         ssh $source_host ls -1 "$remote_source_folder" > /dev/null
