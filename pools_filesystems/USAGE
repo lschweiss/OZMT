@@ -59,7 +59,21 @@ Usage:
                                     A replication snapshot is only deleted when all possible replication jobs using it are
                                     completed successfully.
 
-        [-V {vIP}]                  The virtual IP that follows this dataset.
+        [-V {vIP|routes|host/ipif,host/ipif,host/ipif...}] (repeatable)               
+                                  The virtual IP that follows this dataset.  Can be in the form of a hostname or raw IP address.
+                                  
+                                  Routes is a comma separated list of static routes to add with this vIP.
+                                    can be host or net routes
+                                      host:
+                                        Hxx.xx.xx.xx/{gateway}        Host route indicated by starting with an 'H'
+                                      net:
+                                        xx.xx.xx.xx/mask/{gateway}    Mask can be of the form bits i.e. 24 or fully expanded
+                                                                      such as 255.255.255.0
+  
+                                  Map the vIP for this zfs folder to {ipif} network interface while on {host}
+                                    host can be * for any host if the network interface has the same name on all hosts
+                                    which service this data set.  
+                                  Multiple host/ipif mappings can be associated
 
       [-b {backup_target}]        zfs send/receive target
                                   {pool}/{zfs_folder} or

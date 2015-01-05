@@ -257,7 +257,7 @@ setupzfs () {
     local properties=
     local snapshots=
     local replication_targets=
-    local vip=
+    local vip=0
     local backup_target=
     local zfs_backup=
     local target_properties=
@@ -298,7 +298,8 @@ setupzfs () {
                 debug "Adding replication target: $OPTARG"
                 ;;
             V)  # vIP associated with this dataset
-                vip="$OPTARG"
+                vip=$(( vip + 1 ))
+                vip[$vip]="$OPTARG"
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
@@ -591,6 +592,17 @@ setupzfs () {
     # Create replication jobs
 
     replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
+    if [ "$replication" != '-' ]; then
+        replication_source_reported=`zfs get -H -o source ${zfs_replication_property} ${pool}/${zfspath}`
+        if [ "$replication_source_reported" == "local" ]; then
+            replication_source="$zfspath"
+        else
+            replication_source=`echo $replication_source_reported | ${AWK} -F "inherited from " '{print $2}'`
+        fi
+    else
+        replication_source="-"
+    fi
+        
 
     if [ "$replication_targets" != "" ]; then
         if [[ "$replication" != '-' || "$replication" != "$zfspath" ]]; then
@@ -647,8 +659,9 @@ setupzfs () {
 
         done
         # Tag the zfs folder as replicated.
-        zfs set ${zfs_replication_property}=${zfspath} ${pool}/${zfspath}
-        replication=`zfs get -H -o value $zfs_replication_property $zfspath`
+        zfs set ${zfs_replication_property}=on ${pool}/${zfspath}
+        replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
+        replication_source="${zfspath}"
     fi
    
 
@@ -656,14 +669,16 @@ setupzfs () {
 
     if [ "$replication" != "-" ]; then
         # Get target(s) from parent definition
-        parent_jobname="$(foldertojob $replication)"
+        parent_jobname="$(foldertojob $replication_source)"
         replication_targets=`ls -1 /${pool}/zfs_tools/etc/replication/jobs/definition/${parent_jobname}`
         for replication_target in $replication_targets; do
             source /${pool}/zfs_tools/etc/replication/jobs/definition/${replication_target}
             # Determine the host and pool
             IFS=":"
             read -r t_host t_folder <<< "$target"
-            t_pool=`echo "$t_folder" | ${AWK} -F '/' '{print $1}'`
+            IFS="/"
+            read -r t_pool t_path <<< "$t_folder"
+            unset IFS
                   
             # push a copy of this definition
             # Rsync is used to only update if the definition changes.  Its verbose output
@@ -671,10 +686,21 @@ setupzfs () {
             #   trigger of a run to happen only if there were changes, short circuiting the 
             #   potential for an endless loop.
 
-            debug "Pushing configuration for $simple_jobname to host $t_host pool $t_pool"
+            # Convert zfspath to target path.
+            if [ "$replication_source" != "$zfspath" ]; then
+                sub_path=`echo "$zfspath" | ${SED} "s,${replication_source},,g"`
+                full_t_path="${tpath}${sub_path}"
+            else
+                full_t_path="$zfspath"
+            fi
+              
+                
+                
+
+            debug "Pushing configuration for $simple_jobname to host $t_host pool $t_pool folder $full_t_path"
 
             rsync -cptgov -e ssh /${pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath) \
-                root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath) > \
+                root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/$(foldertojob ${t_pool}${full_t_path}) > \
                 ${TMP}/setup_filesystem_replication_$$
             if [ $? -ne 0 ]; then
                 error "Could not replicate definition to $t_host"
@@ -683,40 +709,45 @@ setupzfs () {
                     grep -q -F "/${pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath)"
                 if [ $? -eq 0 ]; then
                     echo "Target config updated on ${t_host}.  Triggering setup run."
-                    ssh root@${t_host} "/opt/zfstools/pools_filesystems/setup-filesystems.sh"
+                    ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
                 fi
             fi
 
         done
     fi
 
-    if [[ "$replication" == "$zfspath" && "$replication_targets" == "" ]]; then
+    if [[ "$replication_source" == "$zfspath" && "$replication_targets" == "" ]]; then
         # Previous replication job for this path has been removed.   Remove the job definitions.
         debug "Removing previous replication job ${simple_jobname}"
         rm -rf /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
         rm -rf /${pool}/zfs_tools/var/replication/primary/${simple_jobname}
 
         # TODO: Remove replication bookmarks
-
-
-
-            
-
+         
     fi
 
-
-    
 
     # Define vIP
 
-    if [ "$vip" != "" ]; then
-        mkdir -p /${pool}/zfs_tools/etc/replication/vip
-        echo "$vip" > /${pool}/zfs_tools/etc/replication/vip/${simple_jobname}
+    mkdir -p /${pool}/zfs_tools/etc/replication/vip
+
+    if [ $vip -ne 0 ]; then
+        if [ "$replication_targets" == "" ]; then
+        warning "VIP assigned without replication definition.  This VIP will always be activated."
+        fi
+        rm -f /${pool}/zfs_tools/etc/replication/vip/${simple_jobname} 2> /dev/null
+        x=1
+        while [ $x -le $vip ]; do
+            # Break down the vIP definition
+            IFS='|'
+            read -r vIP routes ipifs <<< "${vip[$x]}"
+            unset IFS
+            # TODO: validate vIP, routes and interfaces 
+
+            debug "Adding vIP $vIP to folder definition $simple_jobname"
+            echo "${vip[$x]}" >> /${pool}/zfs_tools/etc/replication/vip/${simple_jobname}
+        done
     fi
     
-
-
-
-
 }
 
