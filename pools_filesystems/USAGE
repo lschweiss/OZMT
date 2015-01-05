@@ -1,0 +1,120 @@
+Usage:
+  Included with the execution of setup-filesystems.sh
+
+  setupzfs functions are to be used in /{pool}/zfs_tools/etc/pool_filesystems
+
+  setupreplication sets up ssh key distribution and name mapping.   This needs to be run before any replicated
+    file systems are defined.
+
+  setupzfs:
+  Depricated:
+      setupzfs {zfs_path} {zfs_options} {snapshots}
+
+  Prefered:
+    setupzfs -z {zfs_path}
+      [-o {zfs_option)]           Set zfs property (repeatable)
+      [-s {snapshot|count}]       Set snapshot policy and count (repeatable)
+      [-R {target1|target2|mode|options|freqency}]
+                                  Set a replication pair between target1 and target2 (repeatable)
+                                    Target is in the form:
+                                      {host}:{folder}
+                                        host is the fix hostname or ip associated with the replication target
+                                        this should reside on a backend network or VLAN for locally connected hosts.
+                                        In an HA environment this should be a vIP associated with the pool not
+                                        the replication folder.
+                                    Folder is the zfs folder that is being replicated. It includes the pool name 
+                                      associated with the target.
+                                    Mode is one of the following:
+                                      m     mbuffer transport
+                                      s     ssh tunnel
+                                      b     bbcp transport
+                                    Options is specified by include any, all or none of the following:
+                                      l     lz4 compress the stream
+                                      g     gzip compress the stream
+                                      o     encrypt the stream with openssl
+                                    Frequency is in the form of ####{unit}
+                                      Acceptable units are:
+                                      m     minutes
+                                      h     hours
+                                      d     days
+                                      w     weeks
+
+                                    Requires zpool feature bookmarks
+
+                                    All replication targets in receive mode will have snapshot and quota jobs
+                                    suspended automatically.
+
+                                    Replication status is stored in ${pool}/var/db/replication/${zfsfolder}
+
+                                    The folder definition must be the same on all replication points.
+
+                                    Each time a zfs folder under replication's configuration is updated, all
+                                    target's configuration for the coresponding folder will updated.
+
+                                    Replication can happen in a chain or tree format.  Be careful that loops cannot be formed.
+
+                                    Replication snapshots are generated on the primary target and replicated to all available
+                                    targets associated as a replication pair.
+
+                                    A replication snapshot is only deleted when all possible replication jobs using it are
+                                    completed successfully.
+
+        [-V {vIP}]                  The virtual IP that follows this dataset.
+
+      [-b {backup_target}]        zfs send/receive target
+                                  {pool}/{zfs_folder} or
+                                  {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured.
+        [-S {job_schedules}         {job_schedules} ties the backup job to snapshot schedules.   Can be any
+                                    snapshot policy available on the system.   This parameter is repeatable.
+        [-p {target_properties}]    Properties to reset on the target zfs folder. (repeatable)
+        [-r]                        Use a replication stream, which will include all child zfs folders and snapshots.
+        [-i]                        Use an incremental stream
+        [-I]                        Use an incremental stream with all intermediary snapshots
+                                    -i and -I are mutually exclusive.
+      [-q "{free}|{alert_type}|{destination}|{frequency}"]
+                                  Send a quota alert at {free} to {destination} every {frequency} seconds.
+                                    {alert_type} can be any adjective, typically "warning", or "critical"
+                                    {free} can be xx% or in GB, TB.
+                                    (repeatable)
+      [-t "{trend}|{scope}|{alert_type}|{destination}|{frequency}]
+                                  Send a trend alert when daily usage varies more than {trend} percent over a scope
+                                    of {scope} days.   Send the alert every {frequency} seconds.
+                                    Alert goes to {destination}.
+                                    (repeatable)
+
+    {destination}       Destination can be one or more email addresses separated by ;
+
+    {frequency}         Frequency of a report.  Defaults to seconds unless a unit is specified (m,h,d,w)
+
+    Seconds
+
+    1800        30 Minutes
+    3600        60 Minutes
+    21600       6 Hours
+    43200       12 Hours
+    86400       24 Hours
+
+
+    Quota and trend alerts can have a default set in the variables "QUOTA_REPORT" and "TREND_REPORT" in the pool_filesystems config or
+    zfs-config.
+
+    The variables "ALL_QUOTA_REPORTS" and "ALL_TREND_REPORTS" can contain an email address to BCC all reports to.
+
+    setupreplication:
+
+      setup_replication.sh: Wrapper script for setupreplication function.  Used to manually run replication configuration functions
+        from the shell or external scripts.
+
+      setupreplication
+        [-m {target|hostname}]      Target vIP to hostname mapping (repeatable)
+                                      For each target a mapping of host(s) which the vIP may be on.
+                                      There will be one entry for each host that this dataset can reside on.
+                                        For example a primary and DR site.  The primary site has two host for an HA pool.
+                                            -m dr-replication01|dr-host
+                                            -m pr-replication01|pr-host01
+                                            -m pr-replication01|pr-host02
+        [-M {target}                Remove a target vIP mapping.
+                                      This will remove all entries with the referenced vIP.
+                                        Using the above example
+                                          -M pr-replication01
+                                        would remove both the pr-host01 and pr-host02 entries.

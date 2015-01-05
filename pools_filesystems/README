@@ -10,5 +10,4 @@ Place the following in your root crontab:
 0 0 1 1,7 *     /{path_to_tools}/snapshots/process_snaps.sh bi-annual
 0 0 1 1 *       /{path_to_tools}/snapshots/process_snaps.sh annual
 
-
-
+2,17,32,47 * * * *   /{path_to_tools}/snapshots/clean-snaps.sh 1>/dev/null
