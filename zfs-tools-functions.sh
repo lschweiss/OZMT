@@ -27,9 +27,9 @@ function DEBUG()
 }
 
 
-. $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
+source $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
 
-. $TOOLS_ROOT/reporting/reporting_functions.sh
+source $TOOLS_ROOT/reporting/reporting_functions.sh
 
 now() {
     ${DATE} +"%F %r %Z"

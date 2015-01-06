@@ -271,6 +271,7 @@ split_rsync () {
             fi
 
             if [ "$aflag" == "1" ]; then
+                cat ${1}.log
                 notice "${jobname} split job ${1} logs attached" ${1}.log
             fi
 
