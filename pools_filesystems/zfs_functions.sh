@@ -256,7 +256,10 @@ setupzfs () {
     local options=
     local properties=
     local snapshots=
+    local replication=
+    local replication_source=
     local replication_targets=
+    local replication_source_pool=
     local vip=0
     local backup_target=
     local zfs_backup=
@@ -392,7 +395,7 @@ setupzfs () {
     i=1
     check_folder=`echo "$zfspath"|cut -d "/" -f ${i}`
     while [ "$check_folder" != "$zfspath" ]; do
-        replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder}`
+        replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder} 2>/dev/null`
         if [ "$replication" == 'on' ]; then
             debug "Parent replication is ON"
             parent_replication='on'
@@ -404,16 +407,15 @@ setupzfs () {
 
     if [ "$parent_replication" == 'on' ]; then
         # Determine if this is the source or target of replication
-        replication_source=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${check_folder})`
-        debug "Replication source: $replication_source"
+        replication_source_pool=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${check_folder})`
+        debug "Replication source: $replication_source_pool"
     fi
 
     
     # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
     # of this folder will be done with zfs receive.
 
-    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source" == "$pool" ]]; then
-    
+    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source_pool" == "$pool" ]]; then
         zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
         if [ $? -eq 0 ]; then
             echo "${pool}/${zfspath} already exists, resetting options"
@@ -423,8 +425,8 @@ setupzfs () {
             zfs create -p $pool/$zfspath
             setzfs "${pool}/${zfspath}" "$options"
         fi
-
     fi
+        
 
     if [ "x$staging" != "x" ]; then
         if [ ! -e "/$staging" ]; then
@@ -625,7 +627,7 @@ setupzfs () {
 
     # Create replication jobs
 
-    replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
+    replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath} 2>/dev/null`
     if [ "$replication" != '-' ]; then
         replication_source_reported=`zfs get -H -o source ${zfs_replication_property} ${pool}/${zfspath}`
         if [ "$replication_source_reported" == "local" ]; then
