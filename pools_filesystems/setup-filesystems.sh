@@ -44,6 +44,7 @@ for pool in $pools; do
         source /${pool}/zfs_tools/etc/pool-filesystems
     else 
         if [ -d "/${pool}/zfs_tools/etc/pool-filesystems" ]; then
+            rm ${TMP}/setup_filesystem_replication_targets 2>/dev/null
             notice "Setting up pool $pool"
             failures=0
             # Determine which definitions have changed since last run 
@@ -62,6 +63,15 @@ for pool in $pools; do
                 debug "All changes successful for pool $pool"
                 touch /${pool}/zfs_tools/etc/pool-filesystems/.last_setup_run
             fi
+            # Update replication targets
+            if [ -f ${TMP}/setup_filesystem_replication_targets ]; then
+                t_list=`cat ${TMP}/setup_filesystem_replication_targets|sort -u`
+                for t in $t_list; do
+                    debug "Target config updated on ${t_host}.  Triggering setup run."
+                    ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+                done
+            fi
+            
         else
             warning "No file system configuration found for $pool"
         fi

@@ -397,6 +397,8 @@ setupzfs () {
             parent_replication='on'
             break
         fi
+        i=$(( i + 1 ))
+        check_folder="${check_folder}/$(echo "$zfspath"|cut -d "/" -f ${i})"
     done
 
     if [ "$parent_replication" == 'on' ]; then
@@ -408,7 +410,7 @@ setupzfs () {
     # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
     # of this folder will be done with zfs receive.
 
-    if [ [ "$parent_replication" == 'off' ] || [ "$parent_replication" == 'on' && "$replication_source" == "$pool" ] ]; then
+    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source" == "$pool" ]]; then
     
         zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
         if [ $? -eq 0 ]; then
@@ -750,32 +752,39 @@ setupzfs () {
                 full_t_path="$zfspath"
             fi
             target_simple_jobname="$(foldertojob $full_t_path)"
-              
-            debug "Pushing configuration for $simple_jobname to host $t_host pool $t_pool folder $full_t_path"
 
-            ${RSYNC} -cptgov -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname} \
-                root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
-                ${TMP}/setup_filesystem_replication_$$
-            if [ $? -ne 0 ]; then
-                error "Could not replicate definition to $t_host"
-            else
-                echo "Rsync output:"
-                cat ${TMP}/setup_filesystem_replication_$$
-                cat ${TMP}/setup_filesystem_replication_$$ | \
-                    grep -q -F "$simple_jobname"
-                if [ $? -eq 0 ]; then
-                    echo "$t_host" >> ${TMP}/setup_filesystem_replication_targets_$$
+            sync_jobname="$simple_jobname"
+
+            echo "${sync_jobname}"|grep -q "%"
+            sub_folder=$?
+
+            sub_folder=0
+            while [ $sub_folder -eq 0 ]; do
+                debug "Pushing configuration for $sync_jobname to host $t_host pool $t_pool folder $target_simple_jobname"
+
+                ${RSYNC} -cptgov -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                    root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
+                    ${TMP}/setup_filesystem_replication_$$
+                if [ $? -ne 0 ]; then
+                    error "Could not replicate definition to $t_host"
+                else
+                    echo "Rsync output:"
+                    cat ${TMP}/setup_filesystem_replication_$$
+                    cat ${TMP}/setup_filesystem_replication_$$ | \
+                        grep -q -F "$simple_jobname"
+                    if [ $? -eq 0 ]; then
+                        echo "$t_host" >> ${TMP}/setup_filesystem_replication_targets
+                    fi
                 fi
-            fi
-        done
-        if [ -f ${TMP}/setup_filesystem_replication_targets_$$ ]; then
-            t_list=`cat ${TMP}/setup_filesystem_replication_targets_$$|sort -u`
-            for t in $t_list; do
-                debug "Target config updated on ${t_host}.  Triggering setup run."
-                ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+                echo "${sync_jobname}"|grep -q "%"
+                sub_folder=$?
+                if [ $sub_folder -eq 0 ]; then
+                    sync_jobname=`echo $sync_jobname|${SED} 's/\(.*\)%.*/\1/'`
+                    target_simple_jobname=`echo $target_simple_jobname|${SED} 's/\(.*\)%.*/\1/'`
+                fi
             done
-        fi
-        
+
+        done
     fi
 
     if [[ "$replication_source" == "$zfspath" && "$replication_targets" == "" ]]; then
