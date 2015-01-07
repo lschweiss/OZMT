@@ -394,6 +394,7 @@ setupzfs () {
     while [ "$check_folder" != "$zfspath" ]; do
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder}`
         if [ "$replication" == 'on' ]; then
+            debug "Parent replication is ON"
             parent_replication='on'
             break
         fi
@@ -404,6 +405,7 @@ setupzfs () {
     if [ "$parent_replication" == 'on' ]; then
         # Determine if this is the source or target of replication
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${check_folder})`
+        debug "Replication source: $replication_source"
     fi
 
     
@@ -651,7 +653,11 @@ setupzfs () {
         mkdir -p /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
         mkdir -p /${pool}/zfs_tools/var/replication/source
         if [ ! -f /${pool}/zfs_tools/var/replication/source/${simple_jobname} ]; then
-            echo "$pool" > /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+            if [ "$default_source_pool" != "" ]; then
+                echo "$default_source_pool" > /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+            else
+                error "New replication configuration for $simple_jobname, but no default source pool set."
+            fi
         fi
 
         for target_def in $replication_targets; do
@@ -768,8 +774,6 @@ setupzfs () {
                 if [ $? -ne 0 ]; then
                     error "Could not replicate definition to $t_host"
                 else
-                    echo "Rsync output:"
-                    cat ${TMP}/setup_filesystem_replication_$$
                     cat ${TMP}/setup_filesystem_replication_$$ | \
                         grep -q -F "$simple_jobname"
                     if [ $? -eq 0 ]; then
