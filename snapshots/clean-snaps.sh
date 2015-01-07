@@ -53,11 +53,37 @@ for pool in $pools; do
             
             for job in $jobs; do
                 zfsfolder=`echo $job|${SED} 's,%,/,g'`
+                #Make sure we are not a replication target
+                case $(replication_source $zfsfolder) in
+                    'ERROR')
+                        # zfsfolder does not exist
+                        snap_this_folder='false'
+                        ;;
+                    'NONE')
+                        # No replication
+                        snap_this_folder='true'
+                        ;;
+                    "$pool")
+                        # This is a source folder
+                        snap_this_folder='true'
+                        ;;
+                    *)
+                        # This is a target folder
+                        snap_this_folder='false'
+                        ;;
+                esac
+                if [ "$snap_this_folder" == 'false' ]; then
+                    # We should not delete snapshot this folder
+                    continue
+                fi
+
                 keepcount=`cat $jobfolder/$snaptype/$job`
                 if [ "${keepcount:0:1}" == "x" ]; then
                     keepcount="${keepcount:1}"
                 fi
                 if [ "$keepcount" -ne "0" ]; then
+                    
+                    # Remove snapshots
                     ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
                 else
                     debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"

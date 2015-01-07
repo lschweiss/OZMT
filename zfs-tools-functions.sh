@@ -129,6 +129,53 @@ rpool () {
 
 }
 
+replication_source () {
+
+    # Can receive one or two parameters
+    
+    # 1: replication_source pool/zfs_folder
+    # 2: replication_source pool zfs_folder
+
+    if [ "$2" == "" ]; then
+        local zfsfolder="${1}"
+    else
+        local zfsfolder="${1}/${2}"
+    fi
+
+    local replication=
+    local replication_source_reported=
+    local replication_source_full=
+    local replication_source_pool=
+
+    replication=`zfs get -H -o value $zfs_replication_property $zfsfolder 2>/dev/null`
+    if [ "$replication" == "" ]; then
+        # ZFS folder does not exist on this pool yet
+        echo "ERROR"
+        return 1
+    fi
+    if [ "$replication" == "on" ]; then
+        # Make sure we are the source, not the target
+        replication_source_reported=`zfs get -H -o source ${zfs_replication_property} ${zfsfolder}`
+        if [ "$replication_source_reported" == "local" ]; then
+
+            replication_source_full="$zfsfolder"
+        else
+            replication_source_full=`echo $replication_source_reported |  ${AWK} -F "inherited from " '{print $2}' `
+        fi
+        IFS="/"
+        read -r junk replication_source <<< "$replication_source_full"
+        unset IFS
+        replication_source_pool=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${replication_source})`
+        echo "$replication_source_pool"
+        return 0
+    else
+        echo "NONE"
+        return 0
+    fi
+
+
+}
+
 init_lock () {
 
     local lockfile="${1}.lock"
