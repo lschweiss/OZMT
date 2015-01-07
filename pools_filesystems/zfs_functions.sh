@@ -275,7 +275,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:R:V:b:S:p:riIq:t: opt; do
+    while getopts z:o:s:R:V:P:b:S:p:riIq:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -300,6 +300,9 @@ setupzfs () {
             V)  # vIP associated with this dataset
                 vip=$(( vip + 1 ))
                 vip[$vip]="$OPTARG"
+                ;;
+            P)  # Default source pool
+                default_source_pool="$OPTARG"
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
@@ -382,14 +385,41 @@ setupzfs () {
     jobname=`echo "${pool}/${zfspath}" | ${SED} s,/,%,g`
     simple_jobname=`echo "${zfspath}" | ${SED} s,/,%,g`
 
-    zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
-    if [ $? -eq 0 ]; then
-        echo "${pool}/${zfspath} already exists, resetting options"
-        setzfs "${pool}/${zfspath}" "$options"
-    else
-        echo "Creating ${pool}/${zfspath} and setting options"
-        zfs create -p $pool/$zfspath
-        setzfs "${pool}/${zfspath}" "$options"
+
+    # Determine if this is a subfolder of a replicated folder
+    # Examine each folder level above this one
+    parent_replication='off'
+    i=1
+    check_folder=`echo "$zfspath"|cut -d "/" -f ${i}`
+    while [ "$check_folder" != "$zfspath" ]; do
+        replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder}`
+        if [ "$replication" == 'on' ]; then
+            parent_replication='on'
+            break
+        fi
+    done
+
+    if [ "$parent_replication" == 'on' ]; then
+        # Determine if this is the source or target of replication
+        replication_source=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${check_folder})`
+    fi
+
+    
+    # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
+    # of this folder will be done with zfs receive.
+
+    if [ [ "$parent_replication" == 'off' ] || [ "$parent_replication" == 'on' && "$replication_source" == "$pool" ] ]; then
+    
+        zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
+        if [ $? -eq 0 ]; then
+            echo "${pool}/${zfspath} already exists, resetting options"
+            setzfs "${pool}/${zfspath}" "$options"
+        else
+            echo "Creating ${pool}/${zfspath} and setting options"
+            zfs create -p $pool/$zfspath
+            setzfs "${pool}/${zfspath}" "$options"
+        fi
+
     fi
 
     if [ "x$staging" != "x" ]; then
@@ -617,7 +647,10 @@ setupzfs () {
         mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definition,pending,running,complete,failed,sequence}
         rm -rf /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
         mkdir -p /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
-        mkdir -p /${pool}/zfs_tools/var/replication/primary/${simple_jobname}
+        mkdir -p /${pool}/zfs_tools/var/replication/source
+        if [ ! -f /${pool}/zfs_tools/var/replication/source/${simple_jobname} ]; then
+            echo "$pool" > /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+        fi
 
         for target_def in $replication_targets; do
             echo "Configuring $target_def"
@@ -686,6 +719,7 @@ setupzfs () {
         
         parent_jobname="$(foldertojob $replication_source)"
         echo "Parent jobname: $parent_jobname"
+        rm ${TMP}/setup_filesystem_replication_targets_$$ 2>/dev/null
         replication_targets=`ls -1 /${pool}/zfs_tools/etc/replication/jobs/definition/${parent_jobname}`
         for replication_target in $replication_targets; do
             source /${pool}/zfs_tools/etc/replication/jobs/definition/${parent_jobname}/${replication_target}
@@ -715,31 +749,40 @@ setupzfs () {
             else
                 full_t_path="$zfspath"
             fi
+            target_simple_jobname="$(foldertojob $full_t_path)"
               
             debug "Pushing configuration for $simple_jobname to host $t_host pool $t_pool folder $full_t_path"
 
             ${RSYNC} -cptgov -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname} \
-                root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $full_t_path) > \
+                root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                 ${TMP}/setup_filesystem_replication_$$
             if [ $? -ne 0 ]; then
                 error "Could not replicate definition to $t_host"
             else
+                echo "Rsync output:"
+                cat ${TMP}/setup_filesystem_replication_$$
                 cat ${TMP}/setup_filesystem_replication_$$ | \
-                    grep -q -F "/${pool}/zfs_tools/etc/pool-filesystems/$(foldertojob $zfspath)"
+                    grep -q -F "$simple_jobname"
                 if [ $? -eq 0 ]; then
-                    echo "Target config updated on ${t_host}.  Triggering setup run."
-                    ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+                    echo "$t_host" >> ${TMP}/setup_filesystem_replication_targets_$$
                 fi
             fi
-
         done
+        if [ -f ${TMP}/setup_filesystem_replication_targets_$$ ]; then
+            t_list=`cat ${TMP}/setup_filesystem_replication_targets_$$|sort -u`
+            for t in $t_list; do
+                debug "Target config updated on ${t_host}.  Triggering setup run."
+                ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+            done
+        fi
+        
     fi
 
     if [[ "$replication_source" == "$zfspath" && "$replication_targets" == "" ]]; then
         # Previous replication job for this path has been removed.   Remove the job definitions.
         debug "Removing previous replication job ${simple_jobname}"
         rm -rf /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
-        rm -rf /${pool}/zfs_tools/var/replication/primary/${simple_jobname}
+        rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
 
         # TODO: Remove replication bookmarks
          

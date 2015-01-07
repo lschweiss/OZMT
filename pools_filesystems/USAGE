@@ -59,6 +59,8 @@ Usage:
                                     A replication snapshot is only deleted when all possible replication jobs using it are
                                     completed successfully.
 
+      [-P {pool}]                 Default {pool} to be primary. Only effective when first creating replicaiton.
+
       [-V {vIP|route1,route2,...|host1/ipif1,host2/ipif2,...}] (repeatable)               
                                   The virtual IP that follows this dataset.  Can be in the form of a hostname or raw IP address.
                                   
@@ -77,7 +79,8 @@ Usage:
     
                                   Typically associated with a replication configuration, but not necessarily.    
 
-      [-b {backup_target}]        zfs send/receive target
+
+      [-b {backup_target}]        zfs send/receive target (depricated, being replaced by replication))
                                   {pool}/{zfs_folder} or
                                   {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured.
         [-S {job_schedules}         {job_schedules} ties the backup job to snapshot schedules.   Can be any
