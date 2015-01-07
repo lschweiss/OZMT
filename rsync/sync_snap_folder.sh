@@ -347,10 +347,13 @@ output_stats () {
         for log in ${logs} ; do
             if [ -f ${TMP}/$log ]; then
                 debug "Adding totals for ${TMP}/$log"
-                this_num_files=`cat ${TMP}/$log | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
-                this_num_files_trans=`cat ${TMP}/$log | ${GREP} "Number of files transferred:" | ${AWK} -F ": " '{print $2}'`
-                this_total_file_size=`cat ${TMP}/$log | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
-                this_total_transfered_size=`cat ${TMP}/$log | ${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
+                this_num_files=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
+                if echo "$this_num_files"|grep -q "reg"; then
+                    this_num_files=`echo "$this_num_files"|awk -F "(reg" '{print $1}'`
+                fi
+                this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files transferred:" | ${AWK} -F ": " '{print $2}'`
+                this_total_file_size=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
+                this_total_transfered_size=`cat ${TMP}/$log | ${SED} 's/,//g' |${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
                 # Add to totals
                 let "num_files = $num_files + $this_num_files"
                 let "num_files_trans = $num_files_trans + $this_num_files_trans"
