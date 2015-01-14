@@ -1,4 +1,11 @@
-EC2 ZFS tools
+
+NOTICE: This project has moved to https://bitbucket.org/ozmt/ozmt
+
+The focus has moved from EC2 related functions to management of OpenZFS in general.
+A new project name has been coined: Open Zfs Mangement Tools (OZMT)  It contains 
+pool, replication, backup, and snapshot management scripts. 
+
+EC2 ZFS tools, historical reference:
 
 A collection of tools to setup a ZFS pool of EBS devices on EC2.
 
