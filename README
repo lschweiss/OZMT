@@ -1,0 +1,84 @@
+Open Zfs Management Tools (OZMT)
+
+A collection of tools for managing ZFS pools and 
+folders on various OpenZFS platforms.
+
+Historically started as aws_zfs_tools on bitbucket for 
+managing backup replications to ZFS on Linux on EC2.  
+Evolved over time to manage many aspects of ZFS.
+
+Entirely in bash scripting for portability and ease of extendibility.   
+
+Active Features:
+1.  ZFS folder management
+2.  Snapshot management
+3.  ZFS folder replication
+    a.  Fail over / Fail back
+    b.  Virtual IP (vIP) migration to follow the 
+        replication source
+    c.  Currently receives triggers from RSF-1 
+        for vIP failover.  
+4.  Backup to Amazon Glacier via ZFS send
+5.  Reporting
+    a.  Reports on all activity via email.   Tunable 
+        on how much is emailed and when.
+    b.  Capable of sending alerts when approaching 
+        quotas and referenced quotas.  
+6.  Parallel rsync replication for migrating from 
+    other storage platforms.
+    a.  Has specific work for BlueArc/HNAS
+    b.  Minor tweaks need to make more generic.  
+        Specifically finding the snapshot folder. 
+
+Planned Features:
+1.  Documentation/Wiki
+2.  Job launching service to replace cronjobs
+3.  Drive handling tools
+4.  Replication with Samba shares, supporting multiple 
+    Samba servers each attached to different domains.  
+5.  Performance reporting
+6.  Integrated HA
+(Not necessarily in that order)
+
+Inactive Features:
+1.  ZFS backup to EC2 - Being integrated in to replication
+2.  ZFS backup w/ pre-staged encryption - Too often broken 
+    by zfs diff not working properly
+
+Getting started:
+1.  mkdir /opt/ozmt
+2.  cd /opt/ozmt
+3.  hg clone https://bitbucket.org/ozmt/ozmt .
+4.  mkdir /etc/ozmt
+5.  cp config.example /etc/ozmt/config
+6.  Customize the config for your system:
+    vim /etc/ozmt/config
+7.  Setup email reporting
+    cp reporting.muttrc.example /etc/ozmt/reporting.muttrc
+    vim /etc/ozmt/reporting.muttrc
+8.  Initialize your pools
+    ./initialize-pool.sh
+9.  Configure folder definitions
+    vim /{pool}/zfs_tools/etc/pool-filesystems/*
+10. Apply configuration changes
+    /opt/ozmt/pool_filesystems/setup-filesystems.sh
+11. Setup cron jobs
+    crontab -e
+
+Sample crontab:
+
+0,15,30,45 * * * *  /opt/ozmt/snapshots/process-snaps.sh 15min 1>/dev/null
+0 * * * *           /opt/ozmt/snapshots/process-snaps.sh hourly 1>/dev/null
+0 12 * * *          /opt/ozmt/snapshots/process-snaps.sh mid-day 1>/dev/null
+0 0 * * *           /opt/ozmt/snapshots/process-snaps.sh daily 1>/dev/null
+0 1 * * *           /opt/ozmt/snapshots/process-snaps.sh daily-delayed 1>/dev/null
+0 0 * * 1,2,3,4,5   /opt/ozmt/snapshots/process-snaps.sh weekday 1>/dev/null
+0 18 * * 1,2,3,4,5  /opt/ozmt/snapshots/process-snaps.sh weekday-evening 1>/dev/null
+0 0 * * 0           /opt/ozmt/snapshots/process-snaps.sh weekly 1>/dev/null
+0 0 1 * *           /opt/ozmt/snapshots/process-snaps.sh monthly 1>/dev/null
+0 0 1 1 *           /opt/ozmt/snapshots/process-snaps.sh bi-annual 1>/dev/null
+0 0 1 7 *           /opt/ozmt/snapshots/process-snaps.sh bi-annual 1>/dev/null
+0   0 1 1 *         /opt/ozmt/snapshots/process-snaps.sh annual 1>/dev/null
+2,17,32,47 * * * *  /opt/ozmt/snapshots/clean-snaps.sh 1>/dev/null
+* * * * *           /opt/ozmt/replication/schedule-replication.sh
+
