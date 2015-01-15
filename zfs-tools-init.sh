@@ -48,6 +48,14 @@ else
     fi 
 fi 
 
+if [ ! -d /etc/ozmt ]; then
+    mkdir -p /etc/ozmt
+    if [ -f /root/zfs-config.sh ]; then
+        mv /root/zfs-config.sh /etc/ozmt/config
+        echo "# moved to /etc/ozmt/config" > /root/zfs-config.sh
+    fi
+fi
+
 _DEBUG="on"
 function DEBUG()
 {

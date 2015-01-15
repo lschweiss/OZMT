@@ -660,7 +660,8 @@ if [ "$mbuffer_use" == 'true' ]; then
         target_mbuffer_fifo="$result"
         debug "${job_name}: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
         remote_launch "mbuffer" \ 
-            "cat $target_mbuffer_fifo | /opt/csw/bin/mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log" \
+            "cat $target_mbuffer_fifo | \
+            $mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log" \
             "$target_fifo"
             "$remote_tmp/mbuffer.error"
         remote_watch="mbuffer $remote_watch"
@@ -678,7 +679,7 @@ if [ "$gzip_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" !=
     target_gzip_fifo="$result"
     debug "${job_name}: Starting remote gzip decompression from $target_gzip_fifo to $target_fifo"
     remote_launch "gunzip" \
-        "cat $target_gzip_fifo | gzip -d --stdout" \
+        "cat $target_gzip_fifo | $gzip -d --stdout" \
         "$target_fifo" \
         "$remote_tmp/gunzip.error"
     remote_watch="gunzip $remote_watch"
@@ -741,7 +742,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
     if [ "$remote_host" != "" ] ; then
         debug "${job_name}: Gathering remote listening port for mbuffer"
         # Collect listening port from remote pool
-        $remote_ssh "/opt/zfstools/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
+        $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
         if [ $? != 0 ]; then
             error "${job_name}: Could not retrieve remote listening port for mbuffer transport."
             exit 1
@@ -751,7 +752,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         rm ${TMP}/$$_remote_port        
         
         remote_launch "mbuffer_transport" \
-            "/opt/csw/bin/mbuffer -I ${remote_port} -q -s 128k -m 128M -l $remote_tmp/mbuffer_transport.log" \
+            "$mbuffer -I ${remote_port} -q -s 128k -m 128M -l $remote_tmp/mbuffer_transport.log" \
             "$target_fifo" \
             "$remote_tmp/mbuffer_transport.error" 
         remote_watch="mbuffer_transport $remote_watch"
@@ -873,7 +874,8 @@ case $transport_selected in
         source_mbuffer_transport_fifo="$result"
         # Source end
         debug "${job_name}: Starting local mbuffer from $source_mbuffer_transport_fifo to ${remote_host}:${remote_port}"
-        ( cat $source_mbuffer_transport_fifo | /opt/csw/bin/mbuffer \
+        ( cat $source_mbuffer_transport_fifo | \
+            $mbuffer \
             -O ${remote_host}:${remote_port} -q -s 128k -m 128M \
             -l $tmpdir/mbuffer_transport.log \
             2> $tmpdir/mbuffer_transport.error ; \
