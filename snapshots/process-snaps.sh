@@ -63,7 +63,8 @@ snap_job () {
     local stamp=
 
     # Test the folder exists
-    zfs get -H -o creation ${zfsfolder} 1>/dev/null 2>/dev/null
+    debug "Pool: $pool   Folder: $folder   Job: $job  zfsfolder: $zfsfolder"
+    zfs get -H -o value creation ${zfsfolder} 1>/dev/null 2>/dev/null
     if [ $? -ne 0 ]; then
         # Nothing else to check, skip it.
         debug "No ZFS folder for snapshot job $jobfolder/$snaptype/$job"
@@ -71,9 +72,9 @@ snap_job () {
     fi
 
     # Make sure we should clean this folder
-    replication=`zfs get -H -o $zfs_replication_property ${zfsfolder} 2>/dev/null`
+    replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
     if [ "$replication" == "on" ]; then
-        replication_dataset=`zfs get -H -o $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
+        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         if [ "$replication_source" == "${pool}:${folder}" ]; then
             snap_this_folder='true'
@@ -116,6 +117,7 @@ for pool in $pools; do
     if [ -d $jobfolder/$snaptype ]; then
         jobs=`ls -1 $jobfolder/$snaptype`
         for job in $jobs; do
+            debug "Running $snaptype snapshot jobs for $job"
             snap_job "$snaptype" "$job" &
         done
     else 

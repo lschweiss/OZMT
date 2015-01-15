@@ -543,14 +543,15 @@ setupzfs () {
     done
 
     # Create the jobs
-    echo "Creating jobs for ${pool}/${zfspath}:"
+    echo "Creating snapshot jobs for ${pool}/${zfspath}:"
+    echo "snapshots: $snapshots"
     echo -e "Job\t\tType\t\tQuantity"
     if [ "$snapshots" != "" ]; then
         for snap in $snapshots; do
             snaptype=`echo $snap|${CUT} -d "|" -f 1`
             snapqty=`echo $snap|${CUT} -d "|" -f 2`
             echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
-            echo "${snapqty}\"" > $snapjobdir/$snaptype/$jobname
+            echo "${snapqty}" > $snapjobdir/$snaptype/$jobname
             if [ "$staging" != "" ]; then
                 echo "x${snapqty}" > $snapjobdir/$snaptype/${stagingjobname}
             fi

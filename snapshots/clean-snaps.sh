@@ -57,14 +57,14 @@ clean_job () {
     local clean_this_folder='false'
 
     # Make sure we should clean this folder
-    replication=`zfs get -H -o $zfs_replication_property ${zfsfolder} 2>/dev/null`
+    replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
     if [ "$replication" == "on" ]; then
-        replication_dataset=`zfs get -H -o $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
+        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         if [ "$replication_source" == "${pool}:${folder}" ]; then
             clean_this_folder='true'
         else
-            replication_endpoints=`zfs get -H -o $zfs_replication_endpoints_property ${zfsfolder} 2>/dev/null`
+            replication_endpoints=`zfs get -H -o value $zfs_replication_endpoints_property ${zfsfolder} 2>/dev/null`
             if [ $replication_endpoints -gt 2 ]; then
                 clean_this_folder='true'
             fi
@@ -82,7 +82,7 @@ clean_job () {
         keepcount="${keepcount:1}"
     fi
 
-    if [ "$keepcount" -ne "0" ]; then
+    if [[ "$keepcount" != "" && $keepcount -ne 0 ]]; then
     # Remove snapshots
         ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
     else
