@@ -46,54 +46,6 @@ else
     background='&'
 fi
 
-update_job_status () {
-
-    # TODO: Make this thread safe so jobs can be made multipart.
-
-    # Takes three input parameters.
-    # 1: Job status file
-    # 2: Variable to update or add
-    # 3: Content of the variable
-
-    local line=
-    local temp_file="$TMP/update_job_status_$$"
-
-    # Minimum number of arguments needed by this function
-    local MIN_ARGS=3
-
-    if [ "$#" -lt "$MIN_ARGS" ]; then
-        error "update_job_status called with too few arguments.  $*"
-        exit 1
-    fi
-
-    local status_file="$1"
-    local variable="$2"
-    local value="$3"
-
-    rm -f "$temp_file"
-
-    wait_for_lock "$status_file" 5
-
-    # Copy all status lines execept the variable we are dealing with
-    while read line; do
-        echo "$line" | ${GREP} -q "^local ${variable}="
-        if [ $? -ne 0 ]; then
-            echo "$line" >> "$temp_file"
-        fi
-    done < "$status_file"
-
-    # Add our variable
-    echo "local ${variable}=\"${value}\"" >> "$temp_file"
-
-    # Replace the status file with the updated file
-    mv "$temp_file" "$status_file"
-
-    release_lock "$status_file"
-
-    return 0
-
-
-}
 
 release_holds () {
 
@@ -232,7 +184,7 @@ zfsjob () {
         fi
     fi
     
-    update_job_status "$jobstat" "job_running" "$$"
+    update_job_status "$jobstat" "job_running" "$$" local
 
 
     # Generate full list of snapshots
@@ -348,13 +300,13 @@ zfsjob () {
                 if [ $? -ne 0 ]; then
                     # Send failed
                     error "Failed to send first snapshot ${this_snap}.  Aborting."
-                    update_job_status "$jobstat" "job_running" ""
+                    update_job_status "$jobstat" "job_running" "" local
                     release_holds "$holds"
                     return 1
                 else
                     found_start='true'
                     debug "Sent ${this_snap} to $target_folder"
-                    update_job_status "$jobstat" "last_increment_snap" "${this_snap}"
+                    update_job_status "$jobstat" "last_increment_snap" "${this_snap}" local
                     last_increment_snap="${this_snap}"
                     release_holds "$holds"
                 fi
@@ -382,12 +334,12 @@ zfsjob () {
                     if [ $? -ne 0 ]; then
                         # Send failed
                         error "Failed to send from $last_complete_snap to ${this_snap}.  Aborting."
-                        update_job_status "$jobstat" "job_running" ""
+                        update_job_status "$jobstat" "job_running" "" local
                         release_holds "$holds"
                         return 1
                     else
                         debug "Sent from $last_increment_snap to ${this_snap} to $target_folder"
-                        update_job_status "$jobstat" "last_increment_snap" "${this_snap}"                       
+                        update_job_status "$jobstat" "last_increment_snap" "${this_snap}" local
                         last_increment_snap="${this_snap}"
                         release_holds "$holds"
                     fi
@@ -395,7 +347,7 @@ zfsjob () {
             fi
 
             if [ "$job_snap" == 'true' ]; then
-                update_job_status "$jobstat" "last_complete_snap" "${this_snap}"
+                update_job_status "$jobstat" "last_complete_snap" "${this_snap}" local
                 last_complete_snap="${this_snap}"
                 ./delete-previous-snaps.sh -f "$backup_source" -n "$job_backup_snaptag" \
                     -t "$job_backup_snaptag" -l "$last_complete_snap" & #$background
@@ -422,7 +374,7 @@ zfsjob () {
        
     done 
    
-    update_job_status "$jobstat" "job_running" ""
+    update_job_status "$jobstat" "job_running" "" local
     
     rm $TMP/zfsjob.snaplist.$$
 

@@ -14,17 +14,20 @@ Usage:
     setupzfs -z {zfs_path}
       [-o {zfs_option)]           Set zfs property (repeatable)
       [-s {snapshot|count}]       Set snapshot policy and count (repeatable)
+      [-n {name}]                 Name for this dataset.   Required for replication.
       [-R {target1|target2|mode|options|freqency}] (repeatable)
                                   Set a replication pair between target1 and target2 (repeatable)
                                     Target is in the form:
-                                      {host}:{folder}
-                                        host is the fix hostname or ip associated with the replication target
-                                        this should reside on a backend network or VLAN for locally connected hosts.
+                                      {pool}:{folder}
+                                        pool is name of the pool associated with the replication target.  It must
+                                        have a vIP of the same name and should reside on a backend network or 
+                                        VLAN for locally connected hosts.
                                         In an HA environment this should be a vIP associated with the pool not
                                         the replication folder.
-                                    Folder is the zfs folder that is being replicated. It includes the pool name 
+                                    Folder is the zfs folder that is being replicated. It does not include the pool name 
                                       associated with the target.
                                     Mode is one of the following:
+                                      L     local replication within the same pool
                                       m     mbuffer transport
                                       s     ssh tunnel
                                       b     bbcp transport
@@ -39,7 +42,9 @@ Usage:
                                       d     days
                                       w     weeks
 
-                                    Requires zpool feature bookmarks
+                                    Each pool needs to have a vIP associated with it and resolvable via 
+                                    /etc/hosts or DNS.  This means pools with replicated datasets must not 
+                                    have the same name.   
 
                                     All replication targets in receive mode will have snapshot and quota jobs
                                     suspended automatically.
@@ -59,26 +64,37 @@ Usage:
                                     A replication snapshot is only deleted when all possible replication jobs using it are
                                     completed successfully.
 
-      [-P {pool}]                 Default {pool} to be primary. Only effective when first creating replicaiton.
+        [-F {pool:zfs folder}]    Default full ZFS path to be primary. Only effective when first creating replicaiton.
 
-      [-V {vIP|route1,route2,...|host1/ipif1,host2/ipif2,...}] (repeatable)               
+        [-L]                      Failures Limit before halting replication.
+
+                                    can be a positive integer or time in the same form as Frequency
+
+                                    Defaults to 5, unless override specified in zfs-config with 'zfs_replication_failure_limit'
+
+
+      [-V {vIP/netmask},{pool}|route1,route2,...|host1/ipif1,host2/ipif2,...}] (repeatable)               
                                   The virtual IP that follows this dataset.  Can be in the form of a hostname or raw IP address.
-                                  
-                                  Routes is a comma separated list of static routes to add with this vIP.
-                                    can be host or net routes
-                                      host:
-                                        Hxx.xx.xx.xx/{gateway}        Host route indicated by starting with an 'H'
-                                      net:
-                                        xx.xx.xx.xx/mask/{gateway}    Mask can be of the form bits i.e. 24 or fully expanded
-                                                                      such as 255.255.255.0
-  
-                                  Map the vIP for this zfs folder to {ipif} network interface while on {host}
-                                    host can be * for any host if the network interface has the same name on all hosts
-                                    which service this data set.  
-                                  Multiple host/ipif mappings can be associated
-    
-                                  Typically associated with a replication configuration, but not necessarily.    
+                                    
+                                    Each vIP must be unique.
 
+                                    By default a vIP is associated with the active replication target.  If ",{pool}" is
+                                    specified, the vIP will be fixed to a specific pool.
+                                  
+                                    Routes is a comma separated list of static routes to add with this vIP.
+                                      can be host or net routes
+                                        host:
+                                          Hxx.xx.xx.xx/{gateway}        Host route indicated by starting with an 'H'
+                                        net:
+                                          xx.xx.xx.xx/mask/{gateway}    Mask can be of the form bits i.e. 24 or fully expanded
+                                                                        such as 255.255.255.0
+  
+                                    Map the vIP for this zfs folder to {ipif} network interface while on {host}
+                                      host can be * for any host if the network interface has the same name on all hosts
+                                      which service this data set.  
+                                    Multiple host/ipif mappings can be associated
+    
+                                    Typically associated with a replication configuration, but not necessarily.    
 
       [-b {backup_target}]        zfs send/receive target (depricated, being replaced by replication))
                                   {pool}/{zfs_folder} or

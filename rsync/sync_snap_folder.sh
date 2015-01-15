@@ -349,7 +349,7 @@ output_stats () {
                 debug "Adding totals for ${TMP}/$log"
                 this_num_files=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
                 if echo "$this_num_files"|grep -q "reg"; then
-                    this_num_files=`echo "$this_num_files"|awk -F "(reg" '{print $1}'`
+                    this_num_files=`echo "$this_num_files"|awk -F " " '{print $1}'`
                 fi
                 this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files transferred:" | ${AWK} -F ": " '{print $2}'`
                 this_total_file_size=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 

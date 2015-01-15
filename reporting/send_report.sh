@@ -84,7 +84,10 @@ if [ -d "$report_spool" ]; then
 
 else
 
-    echo "No report files found: $report_spool" 
+    if [ -t 1 ]; then
+        # Stay quite when running as a cron job
+        echo "No report files found: $report_spool" 
+    fi
 
 fi
     

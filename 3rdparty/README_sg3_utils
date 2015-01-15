@@ -1,0 +1,13 @@
+To install:
+
+tar zxvf sg3_utils-1.37.tgz
+cd sg3_utils-1.37
+./configure --prefix=/usr
+make
+make install
+
+
+OmniOS:
+Make sure you have gcc installed and in your path.  It is installed in /opt/gcc-4.x.x/bin
+As of this writing version 1.39 of sg3 utils has been release but does not build on OmniOS.
+

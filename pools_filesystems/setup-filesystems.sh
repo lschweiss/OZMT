@@ -27,6 +27,9 @@ rm $TOOLS_ROOT/snapshots/jobs/*/* 2> /dev/null
 
 . ./zfs_functions.sh
 
+# Stop infinite loop
+rm "${TMP}/setup_filesystem_replication_children" 2>/dev/null
+
 pools="$(pools)"
 
 # TODO: Add checks to make sure we don't do this while jobs can be disturbed. (Job start times)
@@ -44,6 +47,7 @@ for pool in $pools; do
         source /${pool}/zfs_tools/etc/pool-filesystems
     else 
         if [ -d "/${pool}/zfs_tools/etc/pool-filesystems" ]; then
+            ls -lhat /${pool}/zfs_tools/etc/pool-filesystems
             rm ${TMP}/setup_filesystem_replication_targets 2>/dev/null
             notice "Setting up pool $pool"
             failures=0
@@ -58,6 +62,10 @@ for pool in $pools; do
             for folder in $folders; do
                 rm /${pool}/zfs_tools/etc/{snapshots,backup,reports,replication}/jobs/*/${pool}%${folder} 2> /dev/null
                 source /${pool}/zfs_tools/etc/pool-filesystems/${folder}
+                if [ $? -ne 0 ]; then
+                    error "Configuration for ${pool}/$(jobtofolder $folder) has failed."
+                    failures=$(( failures + 1 ))
+                fi
             done
             if [ $failures -eq 0 ]; then
                 debug "All changes successful for pool $pool"
@@ -66,10 +74,11 @@ for pool in $pools; do
             # Update replication targets
             if [ -f ${TMP}/setup_filesystem_replication_targets ]; then
                 t_list=`cat ${TMP}/setup_filesystem_replication_targets|sort -u`
-                for t in $t_list; do
+                for t_host in $t_list; do
                     debug "Target config updated on ${t_host}.  Triggering setup run."
                     ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
                 done
+                rm ${TMP}/setup_filesystem_replication_targets
             fi
             
         else
@@ -78,4 +87,15 @@ for pool in $pools; do
     fi
 
 done
+
+if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
+    children=`cat "${TMP}/setup_filesystem_replication_children"`
+    cat ${TMP}/setup_filesystem_replication_children
+    sleep 1
+    for child in $children; do
+        touch ${child}
+    done
+    notice "Re-running to force sync of children of replicated folder."
+    ./setup-filesystems.sh
+fi
 

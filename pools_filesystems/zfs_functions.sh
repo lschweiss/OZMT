@@ -75,98 +75,6 @@ setzfs () {
 
 }
 
-# Test an IP address for validity:
-# Usage:
-#      valid_ip IP_ADDRESS
-#      if [[ $? -eq 0 ]]; then echo good; else echo bad; fi
-#   OR
-#      if valid_ip IP_ADDRESS; then echo good; else echo bad; fi
-#
-function valid_ip()
-{
-    local  ip=$1
-    local  stat=1
-
-    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        OIFS=$IFS
-        IFS='.'
-        ip=($ip)
-        IFS=$OIFS
-        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
-            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
-        stat=$?
-    fi
-    unset IFS
-    return $stat
-}
-
-
-# Given a hostname or IP address determine if it local to this host
-# Usage:
-#     islocal hostname
-#   OR
-#     islocal fqdn
-#   OR
-#     islocal xxx.xxx.xxx.xxx
-#   
-# Checks /etc/hosts followed by dig for matches.
-# Returns 0 if local, 1 if not 
-islocal () {
-
-    local host="$1"
-    local ip=
-
-    # Is this a raw IP address?
-
-    if valid_ip $host; then
-        ip="$host"
-    else
-        # See if it's in /etc/hosts
-        getent hosts $host | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
-        if [ $? -eq 0 ]; then
-            ip=`cat ${TMP}/islocal_host_$$`
-        else
-            # Try DNS
-            dig +short $host > ${TMP}/islocal_host_$$
-            if [ $? -eq 0 ]; then
-                ip=`cat ${TMP}/islocal_host_$$`
-            else
-                echo "$host is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
-                return 1
-            fi
-        fi
-    fi
-    # See if we own it.
-
-#    echo -n "Checking if $ip is local..."
-
-    # TODO: Support FreeBSD & OSX
-
-    case $os in
-        'SunOS')
-            ifconfig -a | ${GREP} -q -F "inet $ip"
-            if [ $? -eq 0 ]; then
-                # echo "yes."
-                return 0
-            else
-                # echo "no."
-                return 1
-            fi
-            ;;
-        'Linux')
-            ifconfig -a | ${GREP} -q -F "inet addr:$ip"
-            if [ $? -eq 0 ]; then
-                # echo "yes."
-                return 0
-            else
-                # echo "no."
-                return 1
-            fi
-            ;;
-    esac
-
-}
-
 
 setupreplication () {
 
@@ -256,10 +164,13 @@ setupzfs () {
     local options=
     local properties=
     local snapshots=
+    local dataset_name=
     local replication=
     local replication_source=
     local replication_targets=
+    local replication_count=0
     local replication_source_pool=
+    local replication_failure_limit=
     local vip=0
     local backup_target=
     local zfs_backup=
@@ -268,7 +179,14 @@ setupzfs () {
     local backup_schedules=
     local quota_reports=0
     local trend_reports=0
+    local child=
+    local children=
     local OPTIND=1
+
+
+    if [ -t 1 ]; then
+        echo;echo;echo
+    fi
 
     if [ "$gen_new_pool_config" == 'true' ]; then
         if [ -f "/${pool}/zfs_tools/etc/filesystem_template" ]; then
@@ -278,7 +196,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:R:V:P:b:S:p:riIq:t: opt; do
+    while getopts z:o:s:n:R:V:F:L:b:S:p:riIq:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -296,16 +214,27 @@ setupzfs () {
                 snapshots="$snapshots $OPTARG"
                 debug "Adding snapshot policy: $OPTARG"
                 ;;
+            n)  # Dataset name
+                dataset_name="$OPTARG"
+                debug "Setting name to: $dataset_name"
+                ;;
             R)  # Add a replication target
                 replication_targets="$replication_target $OPTARG"
+                replication_count=$(( replication_count + 1 ))
                 debug "Adding replication target: $OPTARG"
                 ;;
             V)  # vIP associated with this dataset
                 vip=$(( vip + 1 ))
                 vip[$vip]="$OPTARG"
+                debug "Adding vIP ${vip[$vip]}"
                 ;;
-            P)  # Default source pool
-                default_source_pool="$OPTARG"
+            F)  # Default source pool
+                default_source_folder="$OPTARG"
+                debug "Setting default replication source folder to: $default_source_folder"
+                ;;
+            L)  # Replication failure limit
+                replication_failure_limit="$OPTARG"
+                debug "Setting replication failure limit to: $replication_failure_limit"
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
@@ -389,33 +318,56 @@ setupzfs () {
     simple_jobname=`echo "${zfspath}" | ${SED} s,/,%,g`
 
 
+
+    if [ "$dataset_name" != "" ]; then
+        # Test for valid characters
+        ${GREP} -qv '[^0-9A-Za-z\$\%\(\)\=\+\-\#\:\{\}]' <<< $dataset_name
+        if [ $? -ne 0 ]; then
+            debug "Dataset name $dataset_name passes character test"
+        else
+            error "Dataset name $dataset_name contains invalid characters."
+        fi
+    fi
+
+    # Replication requirements
+
+    if [[ "$replication_targets" != "" && "$dataset_name" == "" ]]; then
+        error "Replication defined without defining a dataset name '-n'"
+        return 1
+    fi
+
     # Determine if this is a subfolder of a replicated folder
     # Examine each folder level above this one
+    echo "Checking for parent replication"
     parent_replication='off'
     i=1
     check_folder=`echo "$zfspath"|cut -d "/" -f ${i}`
-    while [ "$check_folder" != "$zfspath" ]; do
+    until [ "$check_folder" == "$zfspath" ]; do
+        echo "Checking folder: ${pool}/$check_folder  i=$i"
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder} 2>/dev/null`
         if [ "$replication" == 'on' ]; then
-            debug "Parent replication is ON"
+            debug "Parent replication is ON, parent: $check_folder"
             parent_replication='on'
+            replication_parent="$check_folder"
             break
         fi
         i=$(( i + 1 ))
         check_folder="${check_folder}/$(echo "$zfspath"|cut -d "/" -f ${i})"
+        echo "check_folder: $check_folder  zfspath: $zfspath"
     done
 
     if [ "$parent_replication" == 'on' ]; then
+        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${pool}/${check_folder} `
         # Determine if this is the source or target of replication
-        replication_source_pool=`cat /${pool}/zfs_tools/var/replication/source/$(foldertojob ${check_folder})`
-        debug "Replication source: $replication_source_pool"
+        replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
+        debug "Replication source: $replication_source"
     fi
 
     
     # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
     # of this folder will be done with zfs receive.
 
-    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source_pool" == "$pool" ]]; then
+    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source" == "${pool}:${zfspath}" ]]; then
         zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
         if [ $? -eq 0 ]; then
             echo "${pool}/${zfspath} already exists, resetting options"
@@ -598,14 +550,24 @@ setupzfs () {
             snaptype=`echo $snap|${CUT} -d "|" -f 1`
             snapqty=`echo $snap|${CUT} -d "|" -f 2`
             echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
-            echo $snapqty > $snapjobdir/$snaptype/$jobname
+            echo "${snapqty}\"" > $snapjobdir/$snaptype/$jobname
             if [ "$staging" != "" ]; then
                 echo "x${snapqty}" > $snapjobdir/$snaptype/${stagingjobname}
             fi
         done
     fi
     echo
-    
+   
+####
+####
+##
+## Replication
+##
+####
+####
+
+
+ 
 
     # Create replication target maps before the jobs
 
@@ -626,50 +588,65 @@ setupzfs () {
 
 
     # Create replication jobs
+    replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"    
 
     replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath} 2>/dev/null`
     if [ "$replication" != '-' ]; then
         replication_source_reported=`zfs get -H -o source ${zfs_replication_property} ${pool}/${zfspath}`
         if [ "$replication_source_reported" == "local" ]; then
-            replication_source="$zfspath"
+            replication_parent="${zfspath}"
         else
-            replication_source_full=`echo $replication_source_reported |  ${AWK} -F "inherited from " '{print $2}' `
+            replication_parent_full=`echo $replication_source_reported |  ${AWK} -F "inherited from " '{print $2}' `
             IFS="/"
-            read -r junk replication_source <<< "$replication_source_full"
+            read -r junk replication_parent <<< "$replication_parent_full"
             unset IFS
         fi
+        replication_dataset_name=`zfs get -H -o value $zfs_replication_dataset_property ${pool}/${zfspath} 2>/dev/null`
     else
-        replication_source="-"
+        replication_parent="-"
     fi
-        
+    
+
+    # TODO: new requirements:  Need to support more than one replicaiton pair.
+    #       No target host specification.  Pool names must resolve to an IP or vIP.
+    #       New variable: targets, containing all pool/folder targets for this dataset
+    #           If more than two targets are active snapshot deletion becomes a post
+    #           sync process across all inactive targets.
+    
 
     if [ "$replication_targets" != "" ]; then
-        if [[ "$replication_source" != '-' && "$replication_source" != "$zfspath" ]]; then
-            error "Replication is already defined on parent zfs folder $replication"
-            error "Remove replication from that folder before adding it to this folder ($zfspath)"
-            return 1
+        if [[ "$replication_source" != '-' && "$replication_source" != "${pool}:${zfspath}" ]]; then
+            warning "Replication is already defined on parent zfs dataset $replication_parent"
         fi         
 
-        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definition,pending,running,complete,failed,sequence}
-        rm -rf /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
-        mkdir -p /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
+        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,complete,failed,suspended,status}
+        rm -rf "${replication_job_dir}/definitions/${simple_jobname}"
+        mkdir -p "${replication_job_dir}/definitions/${simple_jobname}"
         mkdir -p /${pool}/zfs_tools/var/replication/source
-        if [ ! -f /${pool}/zfs_tools/var/replication/source/${simple_jobname} ]; then
-            if [ "$default_source_pool" != "" ]; then
-                echo "$default_source_pool" > /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+        source_tracker="/${pool}/zfs_tools/var/replication/source/${dataset_name}"
+        if [ ! -f ${source_tracker} ]; then
+            # TODO: validate the default_source_folder
+            if [ "$default_source_folder" != "" ]; then
+                echo "$default_source_folder" > "$source_tracker"
             else
-                error "New replication configuration for $simple_jobname, but no default source pool set."
+                error "New replication configuration for $simple_jobname, but no default source folder set."
+                return 1
             fi
         fi
 
+        if [ "$replication_failure_limit" == "" ]; then
+            replication_failure_limit="default"
+        fi
+
         for target_def in $replication_targets; do
+            target_job=
             echo "Configuring $target_def"
             IFS='|' 
             read -r targetA targetB mode options frequency <<< "${target_def}"
             IFS=":"
             # Split targets into host and folder
-            read -r targetA_host targetA_folder <<< "$targetA"
-            read -r targetB_host targetB_folder <<< "$targetB"
+            read -r targetA_pool targetA_folder <<< "$targetA"
+            read -r targetB_pool targetB_folder <<< "$targetB"
             unset IFS
 
             echo "targetA: $targetA"
@@ -677,48 +654,89 @@ setupzfs () {
             echo "mode: $mode"
             echo "options: $options"
             echo "freq: $frequency"
-            echo "$targetA_host"
+            echo "$targetA_pool"
             echo "$targetA_folder"
-            echo "$targetB_host"
+            echo "$targetB_pool"
             echo "$targetB_folder"
 
-            # Create jobs for local folder
-
-            if islocal $targetA_host; then
-                # Test access to targetB_host
-                timeout 5s ssh root@${targetB_host} "echo Hello from ${targetB_host}"
-                if [ $? -ne 0 ]; then
-                    error "Cannot connect to target host at ${targetB_host}, ignore this if the target is down."
+            if [ "$mode" == 'L' ]; then
+                # This is a local replication with source and target on the same host
+                # There will be two definitions for this dataset at two zfs paths
+                if [ "$targetA_pool" != "$targetB_pool" ]; then
+                    error "Local replication specified with different pools.  Use mbuffer transport, even if on the same host."
+                    return 1
                 fi
-                # Create a job for this replication pair
-                debug "Creating replication job between this host $targetA_host and host $targetB_host for $targetA_folder"
-                target_job="/${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}/${targetB_host}"
-                echo "target=\"${targetB}\"" >> $target_job
-                echo "mode=\"${mode}\"" >> $target_job
-                echo "options=\"${options}\"" >> $target_job
-                echo "frequency=\"${frequency}\"" >> $target_job
-            fi
-
-            if islocal $targetB_host; then
-                # Test access to targetA_host
-                timeout 5s ssh root@${targetA_host} "echo Hello from ${targetA_host}"
-                if [ $? -ne 0 ]; then
-                    error "Cannot connect to target host at ${targetA_host}, ignore this if the target is down."
+                debug "Creating replication job between $targetA_folder for $targetB_folder on this host."
+                # Create jobs for this folder definition
+                if [ "$targetA_folder" == "$zfspath" ]; then
+                    target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetB_pool}:$(foldertojob $targetB_folder)"
+                    echo "target=\"${targetB}\"" > $target_job
+                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
+                    echo "target_pool=\"${targetB_pool}\"" >> $target_job
+                    echo "target_folder=\"${targetB_folder}\"" >> $target_job
                 fi
-                # Create a job for this replication pair
-                debug "Creating replication job between this host $targetB_host and host $targetA_host for $targetB_folder"
-                target_job="/${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}/${targetA_host}"
-                echo "target=\"${targetA}\"" >> $target_job
-                echo "mode=\"${mode}\"" >> $target_job
-                echo "options=\"${options}\"" >> $target_job
-                echo "frequency=\"${frequency}\"" >> $target_job
-            fi
+                if [ "$targetB_folder" == "$zfspath" ]; then
+                    target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetA_pool}:$(foldertojob $targetA_folder)"
+                    echo "target=\"${targetA}\"" > $target_job
+                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
 
+                    echo "target_pool=\"${targetA_pool}\"" >> $target_job
+                    echo "target_folder=\"${targetA_folder}\"" >> $target_job
+                fi
+            else
+                # Remote replication
+                # Create jobs for local folder
+
+                if islocal $targetA_pool; then
+                    # Test access to targetB_pool
+                    timeout 5s ssh root@${targetB_pool} "echo Hello from ${targetB_pool}"
+                    if [ $? -ne 0 ]; then
+                        error "Cannot connect to target host at ${targetB_pool}, ignore this if the target is down."
+                    fi
+                    # Create a job for this replication pair
+                    debug "Creating replication job between this host $targetA_pool and host $targetB_pool for $targetA_folder"
+                    target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetB_pool}"
+                    echo "target=\"${targetB}\"" > $target_job
+                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
+                    echo "target_pool=\"${targetB_pool}\"" >> $target_job
+                    echo "target_folder=\"${targetB_folder}\"" >> $target_job
+                fi
+    
+                if islocal $targetB_pool; then
+                    # Test access to targetA_pool
+                    timeout 5s ssh root@${targetA_pool} "echo Hello from ${targetA_pool}"
+                    if [ $? -ne 0 ]; then
+                        error "Cannot connect to target host at ${targetA_pool}, ignore this if the target is down."
+                    fi
+                    # Create a job for this replication pair
+                    debug "Creating replication job between this host $targetB_pool and host $targetA_pool for $targetB_folder"
+                    target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetA_pool}"
+                    echo "target=\"${targetA}\"" > $target_job
+                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetA_folder)\"" >> $target_job
+                    echo "target_pool=\"${targetA_pool}\"" >> $target_job
+                    echo "target_folder=\"${targetA_folder}\"" >> $target_job
+                fi
+    
+                if [ "$target_job" != '' ]; then
+                    echo "dataset_name=\"$dataset_name\"" >> $target_job
+                    echo "pool=\"${pool}\"" >> $target_job
+                    echo "folder=\"${zfspath}\"" >> $target_job 
+                    echo "source_tracker=\"${source_tracker}\"" >> $target_job
+                    echo "replication_count=\"${replication_count}\"" >> $target_job
+                    echo "mode=\"${mode}\"" >> $target_job
+                    echo "options=\"${options}\"" >> $target_job
+                    echo "frequency=\"${frequency}\"" >> $target_job
+                    echo "failure_limit=\"${replication_failure_limit}\"" >> $target_job
+                fi
+
+            fi # if $mode
         done
         # Tag the zfs folder as replicated.
         zfs set ${zfs_replication_property}=on ${pool}/${zfspath}
+        zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
+        zfs set ${zfs_replication_endpoints_property}=${replication_count} ${pool}/${zfspath}
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
-        replication_source="${zfspath}"
+        replication_parent="${zfspath}"
     fi
    
 
@@ -727,17 +745,20 @@ setupzfs () {
     if [ "$replication" == "on" ]; then
         # Get target(s) from parent definition
         
-        parent_jobname="$(foldertojob $replication_source)"
-        echo "Parent jobname: $parent_jobname"
+        if [ "$parent_replication" == 'on' ]; then
+            parent_jobname="$(foldertojob $replication_parent)"
+            echo "Replication parent jobname: $parent_jobname"
+        else
+            parent_jobname="${simple_jobname}"
+            echo "Replication jobname: $parent_jobname"
+        fi
         rm ${TMP}/setup_filesystem_replication_targets_$$ 2>/dev/null
-        replication_targets=`ls -1 /${pool}/zfs_tools/etc/replication/jobs/definition/${parent_jobname}`
+        replication_targets=`ls -1 ${replication_job_dir}/definitions/${parent_jobname}`
         for replication_target in $replication_targets; do
-            source /${pool}/zfs_tools/etc/replication/jobs/definition/${parent_jobname}/${replication_target}
-            # Determine the host and pool
+            source ${replication_job_dir}/definitions/${parent_jobname}/${replication_target}
+            # Determine the pool and the zfs path of the target
             IFS=":"
-            read -r t_host t_folder <<< "$target"
-            IFS="/"
-            read -r t_pool t_path <<< "$t_folder"
+            read -r t_pool t_path <<< "$target"
             unset IFS
                   
             # push a copy of this definition
@@ -746,16 +767,11 @@ setupzfs () {
             #   trigger of a run to happen only if there were changes, short circuiting the 
             #   potential for an endless loop.
 
-            # Convert zfspath to target path.
-            IFS="/"
-            read -r junk tpath <<< "$target"
-            unset IFS
-        
-            if [ "$replication_source" != "$tpath" ]; then
-                echo "Replication source: $replication_source"
+            if [ "$replication_parent" != "$t_path" ]; then
+                echo "Replication source: $replication_parent"
                 echo "zfspath:            $zfspath"
-                sub_path=`echo "$zfspath" | ${SED} "s,${replication_source},,g"`
-                full_t_path="${tpath}${sub_path}"
+                sub_path=`echo "$zfspath" | ${SED} "s,${replication_parent},,g"`
+                full_t_path="${t_path}${sub_path}"
             else
                 full_t_path="$zfspath"
             fi
@@ -763,56 +779,86 @@ setupzfs () {
 
             sync_jobname="$simple_jobname"
 
-            echo "${sync_jobname}"|grep -q "%"
-            sub_folder=$?
+            # Recursively push defintions up to the root so all necessary defintions are replicated
+            # Only push missing definitions
 
             sub_folder=0
             while [ $sub_folder -eq 0 ]; do
-                debug "Pushing configuration for $sync_jobname to host $t_host pool $t_pool folder $target_simple_jobname"
+                debug "Pushing configuration for $sync_jobname to pool $t_pool folder $target_simple_jobname"
 
-                ${RSYNC} -cptgov -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
-                    root@${t_host}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
+                # Don't update existing parent folders only add missing ones
+                if [ "$simple_jobname" != "${sync_jobname}" ]; then
+                    ignore="--ignore-existing"
+                else
+                    ignore=""
+                fi
+
+                ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                    root@${t_pool}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                     ${TMP}/setup_filesystem_replication_$$
                 if [ $? -ne 0 ]; then
-                    error "Could not replicate definition to $t_host"
+                    error "Could not replicate definition to $t_pool"
                 else
                     cat ${TMP}/setup_filesystem_replication_$$ | \
                         grep -q -F "$simple_jobname"
                     if [ $? -eq 0 ]; then
-                        echo "$t_host" >> ${TMP}/setup_filesystem_replication_targets
+                        echo "$t_pool" >> ${TMP}/setup_filesystem_replication_targets
                     fi
                 fi
-                echo "${sync_jobname}"|grep -q "%"
-                sub_folder=$?
+
+                echo "${sync_jobname}" | ${GREP} -q "%"
+                if [ $? -eq 0 ]; then
+                    echo "target_simple_jobname" | ${GREP} -q "%"
+                    sub_folder=$?
+                else
+                    sub_folder=1
+                fi
                 if [ $sub_folder -eq 0 ]; then
                     sync_jobname=`echo $sync_jobname|${SED} 's/\(.*\)%.*/\1/'`
                     target_simple_jobname=`echo $target_simple_jobname|${SED} 's/\(.*\)%.*/\1/'`
                 fi
             done
-
         done
+        # Trigger any child folders to also be re-examined and synced.
+        # This is most important when replication is added to an existing zfs folder to assure all child folders
+        # are synced to all targets.
+        children=`ls -1 /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname}%*`
+        for child in $children; do
+            echo "${child}" >> "${TMP}/setup_filesystem_replication_children"
+        done
+        echo "Replication children definitions:"
+        cat ${TMP}/setup_filesystem_replication_children
+
     fi
 
-    if [[ "$replication_source" == "$zfspath" && "$replication_targets" == "" ]]; then
+    if [[ "$replication_parent" == "$zfspath" && "$replication_targets" == "" ]]; then
         # Previous replication job for this path has been removed.   Remove the job definitions.
         debug "Removing previous replication job ${simple_jobname}"
-        rm -rf /${pool}/zfs_tools/etc/replication/jobs/definition/${simple_jobname}
+        rm -rf ${replication_job_dir}/definitions/${simple_jobname}
         rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
 
-        # TODO: Remove replication bookmarks
+        # TODO: Remove replication snapshots
+
+
+
+
          
     fi
 
 
     # Define vIP
 
-    mkdir -p /${pool}/zfs_tools/etc/replication/vip
+    mkdir -p /${pool}/zfs_tools/var/replication/vip
 
     if [ $vip -ne 0 ]; then
         if [ "$replication_targets" == "" ]; then
         warning "VIP assigned without replication definition.  This VIP will always be activated."
         fi
-        rm -f /${pool}/zfs_tools/etc/replication/vip/${simple_jobname} 2> /dev/null
+        rm -f ${TMP}/previous_vip_$$ 2> /dev/null
+        if [ -f "/${pool}/zfs_tools/var/replication/vip/${simple_jobname}" ]; then
+            mv "/${pool}/zfs_tools/var/replication/vip/${simple_jobname}" ${TMP}/previous_vip_$$
+        fi
+        
         x=1
         while [ $x -le $vip ]; do
             # Break down the vIP definition
@@ -821,10 +867,18 @@ setupzfs () {
             unset IFS
             # TODO: validate vIP, routes and interfaces 
 
+
+
+
             debug "Adding vIP $vIP to folder definition $simple_jobname"
-            echo "${vip[$x]}" >> /${pool}/zfs_tools/etc/replication/vip/${simple_jobname}
+            echo "${vip[$x]}" >> /${pool}/zfs_tools/var/replication/vip/${simple_jobname}
             x=$(( x + 1 ))
         done
+
+        # TODO: Post process changes from ${TMP}/previous_vip_$$.  
+        #       Remove any vIP no longer defined, update changes routes, etc.
+        #       In short, any vIP that changes, remove it and recreate it.
+
     fi
     
 }

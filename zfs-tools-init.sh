@@ -20,23 +20,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+# Search all the historical places the config has been kept
+
+if [ -f /etc/ozmt/config ]; then
+    source /etc/ozmt/config
+fi
+
+# All other locations are depricated at the release of OZMT:
+
 if [ -f /etc/zfs-tools-config ]; then
-    . /etc/zfs-tools-config
+    source /etc/zfs-tools-config
 fi
 
 if [ -f /etc/sysconfig/zfs-tools-config ]; then
-    . /etc/sysconfig/zfs-tools-config
+    source /etc/sysconfig/zfs-tools-config
 else 
     if [ -f /etc/sysconfig/zfs-config ]; then 
-        . /etc/sysconfig/zfs-config
+        source /etc/sysconfig/zfs-config
     fi
 fi
 
 if [ -f /root/zfs-config.sh ]; then
-    . /root/zfs-config.sh 
+    source /root/zfs-config.sh 
 else 
     if [ -f ./zfs-config.sh ]; then
-        . ./zfs-config.sh 
+        source ./zfs-config.sh 
     fi 
 fi 
 
@@ -59,78 +67,97 @@ RSYNC=$rsync
 SSH=$ssh
 TIMEOUT=$timeout
 
+
+case os in
+    'SunOS')
+        search_path="/opt/csw/gnu:/opt/csw/bin:/opt/csw/sbin:/usr/gnu/bin"
+        ;;
+    'Linux')
+        # Distributions confirmed:
+        # RHEL/CentOS 5.x, 6.x
+        # Amazon Linux
+        search_path="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
+        ;;
+esac
+
+
+
+gnu_source () {
+    # Find an acceptable GNU binary for our standard functions
+    local binary="$1"
+    local bin_path=
+    if [ -f $TOOLS_ROOT/bin/${os}/${binary} ]; then
+        echo $TOOLS_ROOT/bin/${os}/${binary}
+        return 0
+    fi
+    IFS=":"
+    for dir in $search_path; do
+        if [ -f ${dir}/${binary} ]; then
+            echo ${dir}/${binary}
+            return 0
+        fi
+    done
+    # Last resort
+    which $binary
+    return 1           
+}
+
+
 # Load paths if not defined in configs
 if [ -z $GREP ]; then
-    GREP=`which grep`
+    GREP=`gnu_source grep`
 fi
 
 if [ -z $SED ]; then
-    SED=`which sed`
+    SED=`gnu_source sed`
 fi
 
 if [ -z $AWK ]; then
-    AWK=`which awk`
+    AWK=`gnu_source awk`
 fi
 
 if [ -z $CUT ]; then
-    CUT=`which cut`
+    CUT=`gnu_source cut`
 fi
 
 if [ -z $MUTT ]; then
-    MUTT=`which mutt`
+    MUTT=`gnu_source mutt`
 fi
 
 if [ -z $DATE ]; then
-    DATE=`which date`
+    DATE=`gnu_source date`
 fi
 
 if [ -z $RSYNC ]; then
-    RSYNC=`which rsync`
+    RSYNC=`gnu_source rsync`
 fi
 
 if [ -z $SSH ]; then
-    SSH=`which ssh`
+    SSH=`gnu_source ssh`
 fi
 
 if [ -z $TIMEOUT ]; then
-    TIMEOUT=`which timeout`
+    TIMEOUT=`gnu_source timeout`
 fi
 
 if [ -z $BC ]; then
-    BC=`which bc`
+    BC=`gnu_source bc`
 fi
 
-
 if [ -z $bbcp ]; then
-    if [ -f "$TOOLS_ROOT/utils/bbcp.${os}" ]; then
-        bbcp="$TOOLS_ROOT/utils/bbcp.${os}"
-    else
-        bbcp=`which bbcp`
-    fi
+    bbcp=`gnu_source bbcp`
 fi
 
 if [ -z $mbuffer ]; then
-    if [ -f "$TOOLS_ROOT/utils/mbuffer.${os}" ]; then
-        mbuffer="$TOOLS_ROOT/utils/mbuffer.${os}"
-    else
-        mbuffer=`which bbcp` 
-    fi
+    mbuffer=`gnu_source bbcp` 
 fi
 
 if [ -z $lz4 ]; then
-    if [ -f "$TOOLS_ROOT/utils/lz4.${os}" ]; then
-        lz4="$TOOLS_ROOT/utils/lz4.${os}"
-    else
-        lz4=`which lz4`
-    fi
+    lz4=`gnu_source lz4`
 fi
 
 if [ -z $gzip ]; then
-    if [ -f "$TOOLS_ROOT/utils/gzip.${os}" ]; then
-        gzip="$TOOLS_ROOT/utils/gzip.${os}"
-    else
-        gzip=`which gzip`
-    fi
+    gzip=`gnu_source gzip`
 fi
 
 # Set defaults
@@ -145,6 +172,34 @@ fi
 
 if [ "$zfs_replication_property" == "" ]; then
     zfs_replication_property="edu.wustl.nrg:replication"
+fi
+
+if [ "$zfs_replication_dataset_property" == "" ]; then
+    zfs_replication_dataset_property="edu.wustl.nrg:replicationdataset"
+fi
+
+if [ "$zfs_replication_endpoints_property" == "" ]; then
+    zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
+fi
+
+if [ "$zfs_replication_failure_limit" == "" ]; then
+    zfs_replication_failure_limit=5
+fi
+
+if [ "$zfs_replication_queue_delay_count" == "" ]; then
+    zfs_replication_queue_delay_count=5
+fi
+
+if [ "$zfs_replication_queue_max_count" == "" ]; then
+    zfs_replication_queue_max_count=20
+fi
+
+if [ "$zfs_replication_completed_job_retention" == "" ]; then
+    zfs_replication_completed_job_retention="-mtime +30"
+fi
+
+if [ "zfs_replication_snapshot_name" == "" ]; then
+    zfs_replication_snapshot_name=".ozmt-replication"
 fi
 
 # Test essential binaries
@@ -261,3 +316,10 @@ if [ "x$TMP" == "x" ]; then
 fi
 
 mkdir -p ${TMP}
+
+if [ -t 1 ]; then 
+    if [ "$OZMTpath" != "" ]; then
+        export OZMTpath="$TOOLS_ROOT/pool-filesystems:$TOOLS_ROOT/bin/${os}:$TOOLS_ROOT/3rdparty/tools"
+        export PATH=$OZMTpath:$PATH
+    fi
+fi

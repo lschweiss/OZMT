@@ -111,6 +111,104 @@ jobtofolder () {
 
 ####
 #
+# Tests
+#
+####
+
+
+
+# Test an IP address for validity:
+# Usage:
+#      valid_ip IP_ADDRESS
+#      if [[ $? -eq 0 ]]; then echo good; else echo bad; fi
+#   OR
+#      if valid_ip IP_ADDRESS; then echo good; else echo bad; fi
+#
+function valid_ip()
+{
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    unset IFS
+    return $stat
+}
+
+
+# Given a hostname or IP address determine if it local to this host
+# Usage:
+#     islocal hostname
+#   OR
+#     islocal fqdn
+#   OR
+#     islocal xxx.xxx.xxx.xxx
+#
+# Checks /etc/hosts followed by dig for matches.
+# Returns 0 if local, 1 if not
+islocal () {
+
+    local host="$1"
+    local ip=
+
+    # Is this a raw IP address?
+
+    if valid_ip $host; then
+        ip="$host"
+    else
+        # See if it's in /etc/hosts
+        getent hosts $host | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
+        if [ $? -eq 0 ]; then
+            ip=`cat ${TMP}/islocal_host_$$`
+        else
+            # Try DNS
+            dig +short $host > ${TMP}/islocal_host_$$
+            if [ $? -eq 0 ]; then
+                ip=`cat ${TMP}/islocal_host_$$`
+            else
+                echo "$host is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
+                return 1
+            fi
+        fi
+    fi
+    # See if we own it.
+
+    # TODO: Support FreeBSD & OSX
+
+    case $os in
+        'SunOS')
+            ifconfig -a | ${GREP} -q -F "inet $ip"
+            if [ $? -eq 0 ]; then
+                # echo "yes."
+                return 0
+            else
+                # echo "no."
+                return 1
+            fi
+            ;;
+        'Linux')
+            ifconfig -a | ${GREP} -q -F "inet addr:$ip"
+            if [ $? -eq 0 ]; then
+                # echo "yes."
+                return 0
+            else
+                # echo "no."
+                return 1
+            fi
+            ;;
+    esac
+
+}
+
+####
+#
 # Pool and file system functions
 #
 ####
@@ -173,6 +271,62 @@ replication_source () {
         return 0
     fi
 
+
+}
+
+update_job_status () {
+
+    # TODO: Make this thread safe so jobs can be made multipart.
+
+    # Takes 3 or 4 input parameters.
+    # 1: Job status file
+    # 2: Variable to update or add
+    # 3: Content of the variable
+    # 4: specify 'local' if varable is prefixed with 'local' declarative (optional)
+
+    local line=
+    local temp_file="${TMP}/update_job_status_$$"
+
+    # Minimum number of arguments needed by this function
+    local MIN_ARGS=3
+
+    if [ "$#" -lt "$MIN_ARGS" ]; then
+        error "update_job_status called with too few arguments.  $*"
+        exit 1
+    fi
+
+    local status_file="$1"
+    local variable="$2"
+    local value="$3"
+    local declaration=
+
+    rm -f "$temp_file"
+
+    if [ "$4" == "local" ]; then
+        declaration="local ${variable}"
+    else
+        declaration="$(variable)"
+    fi
+
+    wait_for_lock "$status_file" 5
+
+    # Copy all status lines execept the variable we are dealing with
+    while read line; do
+        echo "$line" | ${GREP} -q "^${declaration}="
+        if [ $? -ne 0 ]; then
+            echo "$line" >> "$temp_file"
+        fi
+    done < "$status_file"
+
+    # Add our variable
+    echo "${declaration}=\"${value}\"" >> "$temp_file"
+
+    # Replace the status file with the updated file
+    mv "$temp_file" "$status_file"
+
+    release_lock "$status_file"
+
+    return 0
 
 }
 
