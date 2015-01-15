@@ -22,14 +22,12 @@
 
 
 # The directory we are storing all of our snapshot and ec2tools
-
-TOOLS_ROOT="/mypool/tools"
+TOOLS_ROOT="/opt/ozmt"
 
 # Some jobs will use temp space.  In the case of restore for Glacier this may need to be large.
-TMP=/mypool/temp
+TMP=/tmp/ozmt
 
 # Set the debug level
-
 # 0 - Debug
 # 1 - Notice
 # 2 - Warning
@@ -45,153 +43,9 @@ debug_level="0"
 
 logging_level="1"
 
-default_logfile="/var/log/aws-zfs-tools.log"
+default_logfile="/var/log/ozmt.log"
 
-default_report_name="aws-zfs-tools"
-
-###
-#
-# ZFS backups
-#
-###
-
-zfs_logfile="/var/log/zfs-tools-zfsbackup.log"
-
-zfs_report="ZFSbackup"
-
-
-###
-#
-# AWS backups
-#
-###
-
-
-# GPG key ring
-
-gpg_user="zfs-tools"
-
-# Snapshot prefix for tools generated snapshots.
-
-tools_snapshot_name="aws-backup_"
-
-# Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
-# keep them as they are, otherwise change to the instance-id.
-
-    # Enable EC2 backup
-    ec2_backup="false"
-
-    instanceid=$(ec2metadata --instance-id)
-    
-    # Amazon zone.  Again if running on the instance the example is fine.
-    
-    zone=$(ec2metadata --availability-zone)
-    
-    # Instance Hostname.  If you are running these scripts externally this needs to be
-    # hard coded to the EC2 instance hostname.   It is used in tagging EBS volumes.
-    
-    instance_hostname="${HOSTNAME}"
-    
-    # Public DNS name of instance.  This is used if these scripts are run externally.
-    
-    instance_dns="aws-zfs01.homenet.org"
-    
-    # Remote call prefix.  If you want these script to run off the EC2 instance use the format
-    # that is commented out and setup ssh public key authentication.
-    
-    remote=""
-    #remote="ssh root@${instance_dns}"
-    
-    # Name of the ZFS pool we are creating or manipulating
-    
-    ec2_zfspool="mypool"
-    
-    # The type of redunancy being used in each vdev
-    # Can be mirror, raidz1, raidz2, or raidz3
-    
-    raidz="raidz1"
-    
-    # Number of raidz vdevs in the pool
-    
-    vdevs=5
-    
-    # Number of EBS block devices per raidz vdev
-    
-    devices=8
-    
-    # Size of each EBS block device in Gigabytes.   Must be a whole number 1 or greater.
-    # You can increase this later and run grow-zfs-pool.sh
-    
-    devsize=2
-    
-    # First device letter used in the pool.   EC2 defaults to 'f' as in /dev/sdf
-    
-    dev_first_letter="f"
-    
-    # Use crypto layer?  If set to 'true' it will, anything else will ignore.
-    
-    crypt="false"
-    
-    # Staging zfs folder for sync to EC2
-    
-    staging_folder="/stagingpool/primarystaging"
-    
-    # rpool backup folder
-    
-    rpool_backup_folder="/stagingpool/primarystaging/rpool_backup"
-    
-    # Accelerate the tranfers to EC2 via bbcp
-    # Set this to the path to the binary for bbcp
-    # The bbcp binary must be in the search path on the EC2 instance.
-    # see http://www.slac.stanford.edu/~abh/bbcp/
-    
-    bbcp="/usr/bin/bbcp"
-    bbcp_streams="10"    # Definately tune this for your connection
-    
-    # Use EC2 instance storage to dump the zfs send to first to verify the send is succesful before
-    # using ZFS receive
-    
-    inst_store_staging="true"
-
-# Alternate backup to Glacier
-
-    # Which glacier tool to use for backup
-    # Currently support glacier-cmd and mt-aws-glacier
-    
-    glacier_tool="mt-aws-glacier"
-
-    # Sequence number we start on.  1000 is chosen to simplify sorting and script math.  This way
-    # all sequences will have a 4 digit number.
-
-    glacier_start_sequence="1000"
-
-    # Default days to rotate glacier vaults.  Can over ride in setup-filesystems.sh
-
-    glacier_rotation_days="180"
-
-    # Default rotation number.  
-
-    glacier_start_rotation="100"
-
-    # Seconds between launching backup jobs
-
-    glacier_job_stagger="600"
-
-# Make sure the EC2 Private Key and Cert files are referenced
-
-EC2_PRIVATE_KEY=/root/pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
-EC2_CERT=/root/cert-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
-
-# EC2 API tools must be in the path and its location defined in the EC2_HOME environment variable
-# Some instances from Amazon already have these installed and in the path.
-# It is recommended that once you have your jobs fully running from a terminal, to put the PATH you 
-# have in the terminal here before creating cron jobs.
-
-PATH=$PATH:/root/tools/ec2-api-tools-1.5.5.0/bin
-EC2_HOME=/root/tools/ec2-api-tools-1.5.5.0
-
-# JAVA_HOME must also be defined for the EC2 API Tools to work
-JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
+default_report_name="ozmt"
 
 ##
 #
@@ -220,10 +74,143 @@ JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
     # When to send error level messages (now,report,never)
     email_errors="now"
 
-    # Path to mutt binary
-    mutt="/opt/csw/bin/mutt"
-    
-# Snapshot type to be handled
+# Snapshot types to be handled
+snaptypes="15min hourly daily mid-day weekday weekday-evening weekly monthly bi-annual annual"
+# Snapshot logging and reporting
+snapshot_logfile="/var/log/snapshot.log"
+snapshot_report="snapshot"
 
-snaptypes="hourly daily mid-day weekly monthly bi-annual annual"
+# Unmanaged pools
+# note: function 'rpool' returns the name of the active system pool (Illumos)
+
+skip_pools="$(rpool)"
+
+###
+#
+# Replication
+#
+###
+
+# zfs properties set on replicated file systems.  Must be the same on all
+# systems that are paired for replication.
+# Default names listed below. 
+
+#zfs_replication_property="edu.wustl.nrg:replication"
+#zfs_replication_dataset_property="edu.wustl.nrg:replicationdataset"
+#zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
+
+
+# Default number of replication failures for a file system before jobs 
+# are suspended.  Can be individually configured in replication defintion.
+#zfs_replication_failure_limit=5
+
+# If this many replication tasks are queued, the interval between new tasks being
+# created is increased.  This only applies to minute or hour based scheduling.
+# Default listed.   Individually configurable.
+#zfs_replication_queue_delay_count=5
+
+# Maximum number of replication tasks queued for a file system.  New tasks 
+# delayed until the shrinks.
+# Default listed.   Individually configurable.
+#zfs_replication_queue_max_count=20
+
+
+# To clean up replication job folder of completed jobs a find task is 
+# periodically run with the following parameter to determine how old before
+# deleting old records.   Defaults to 30 days.
+#zfs_replication_completed_job_retention="-mtime +30"
+
+# Prefix to apply to all replication snapshots.
+#zfs_replication_snapshot_name=".ozmt-replication"
+
+###
+#
+# ZFS backups
+#
+###
+
+zfs_logfile="/var/log/zfs-tools-zfsbackup.log"
+
+zfs_report="ZFSbackup"
+
+
+###
+#
+# AWS backups
+#
+###
+
+# GPG key ring
+gpg_user="zfs-tools"
+# Snapshot prefix for tools generated snapshots.
+tools_snapshot_name="aws-backup_"
+
+# Amazon EC2 instance id we are backing up to.  If the scripts are running locally on your instance
+# keep them as they are, otherwise change to the instance-id.
+    # Enable EC2 backup
+    ec2_backup="false"
+    instanceid=$(ec2metadata --instance-id)
+    # Amazon zone.  Again if running on the instance the example is fine.
+    zone=$(ec2metadata --availability-zone)
+    # Instance Hostname.  If you are running these scripts externally this needs to be
+    # hard coded to the EC2 instance hostname.   It is used in tagging EBS volumes.
+    instance_hostname="${HOSTNAME}"
+    # Public DNS name of instance.  This is used if these scripts are run externally.
+    instance_dns="aws-zfs01.homenet.org"
+    # Remote call prefix.  If you want these script to run off the EC2 instance use the format
+    # that is commented out and setup ssh public key authentication.
+    remote=""
+    #remote="ssh root@${instance_dns}"
+    # Name of the ZFS pool we are creating or manipulating
+    ec2_zfspool="mypool"
+    # The type of redunancy being used in each vdev
+    # Can be mirror, raidz1, raidz2, or raidz3
+    raidz="raidz1"
+    # Number of raidz vdevs in the pool
+    vdevs=5
+    # Number of EBS block devices per raidz vdev
+    devices=8
+    # Size of each EBS block device in Gigabytes.   Must be a whole number 1 or greater.
+    # You can increase this later and run grow-zfs-pool.sh
+    devsize=2
+    # First device letter used in the pool.   EC2 defaults to 'f' as in /dev/sdf
+    dev_first_letter="f"
+    # Use crypto layer?  If set to 'true' it will, anything else will ignore.
+    crypt="false"
+    # Staging zfs folder for sync to EC2
+    staging_folder="/stagingpool/primarystaging"
+    # rpool backup folder
+    rpool_backup_folder="/stagingpool/primarystaging/rpool_backup"
+    # Accelerate the tranfers to EC2 via bbcp
+    # The bbcp binary must be in the search path on the EC2 instance.
+    # see http://www.slac.stanford.edu/~abh/bbcp/
+    bbcp_streams="10"    # Definately tune this for your connection
+    # Use EC2 instance storage to dump the zfs send to first to verify the send is succesful before
+    # using ZFS receive
+    inst_store_staging="true"
+# Alternate backup to Glacier
+    # Which glacier tool to use for backup
+    # Currently support glacier-cmd and mt-aws-glacier
+    glacier_tool="mt-aws-glacier"
+    # Sequence number we start on.  1000 is chosen to simplify sorting and script math.  This way
+    # all sequences will have a 4 digit number.
+    glacier_start_sequence="1000"
+    # Default days to rotate glacier vaults.  Can over ride in setup-filesystems.sh
+    glacier_rotation_days="180"
+    # Default rotation number.  
+    glacier_start_rotation="100"
+    # Seconds between launching backup jobs
+    glacier_job_stagger="600"
+# Make sure the EC2 Private Key and Cert files are referenced
+EC2_PRIVATE_KEY=/root/pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
+EC2_CERT=/root/cert-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.pem
+# EC2 API tools must be in the path and its location defined in the EC2_HOME environment variable
+# Some instances from Amazon already have these installed and in the path.
+# It is recommended that once you have your jobs fully running from a terminal, to put the PATH you 
+# have in the terminal here before creating cron jobs.
+PATH=$PATH:/root/tools/ec2-api-tools-1.5.5.0/bin
+EC2_HOME=/root/tools/ec2-api-tools-1.5.5.0
+# JAVA_HOME must also be defined for the EC2 API Tools to work
+JAVA_HOME=/usr/lib/jvm/java-6-openjdk-amd64
+
 

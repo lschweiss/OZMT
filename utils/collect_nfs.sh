@@ -3,7 +3,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2014  Chip Schweiss
+# Copyright (C) 2014-2015  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@ now=`date +%F_%H:%M%z`
 
 pool=$1
 
-logfile="/$pool/zfs_tools/logs/arc_stat_${now}"
+logfile="/$pool/zfs_tools/logs/nfs_stat_${now}"
 
-$TOOLS_ROOT/utils/arcstat.pl -o $logfile -f time,arcsz,read,hits,hit%,l2read,l2hits,l2miss,l2hit%,l2size,mrug,mfug 60 60 
+$TOOLS_ROOT/3rdparty/tools/nfssvrtop -j -C 60 60 > $logfile
 

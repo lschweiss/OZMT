@@ -214,10 +214,16 @@ islocal () {
 ####
 
 pools () {
-    # Returns all pools mounted on the system excluding the rpool
+    # Returns all pools mounted on the system excluding the $skip_pools
 
-    zpool list -H -o name | ${GREP} -v "^$(rpool)$"
-
+    zpool list -H -o name > ${TMP}/pools_$$
+    for ex in $skip_pools; do
+        cat ${TMP}/pools_$$ | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$
+        rm ${TMP}/pools_$$
+        mv ${TMP}/poolsx_$$ ${TMP}/pools_$$
+    done
+    cat ${TMP}/pools_$$
+    rm ${TMP}/pools_$$
 }
 
 rpool () {

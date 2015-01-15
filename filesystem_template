@@ -1,0 +1,11 @@
+#! /bin/bash
+
+if [ -f /${pool}/zfs_tools/etc/common ]
+    source /${pool}/zfs_tools/etc/common
+fi
+
+# Put slashes back in the folder name
+folder_name=`echo "$folder" | ${SED} s,%,/,g`
+
+setupzfs -z "${folder_name}" \
+    -n "$folder"

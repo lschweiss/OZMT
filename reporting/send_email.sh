@@ -119,18 +119,23 @@ if [ "$message_bcc" != "" ]; then
     done
 fi
 
+# Move reporting.muttrc to /etc/ozmt
+if [ -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
+    mv $TOOLS_ROOT/reporting/reporting.muttrc /etc/ozmt/reporting.muttrc
+fi
 
-if [ ! -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
-    echo "$TOOLS_ROOT/reporting/reporting.muttrc does not exist.  Please create this file to enable email reporting."
+
+if [ ! -f /etc/ozmt/reporting.muttrc ]; then
+    echo "/etc/ozmt/reporting.muttrc does not exist.  Please create this file to enable email reporting."
     exit 1
 fi
     
 # Send the message    
 if [ "${message_file: -4}" == "html" ]; then
-    $MUTT -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+    $MUTT -F /etc/ozmt/reporting.muttrc -s "$message_subject" \
         -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 else
-    $MUTT -F $TOOLS_ROOT/reporting/reporting.muttrc -s "$message_subject" \
+    $MUTT -F /etc/ozmt/reporting.muttrc -s "$message_subject" \
         $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
 fi 
 
