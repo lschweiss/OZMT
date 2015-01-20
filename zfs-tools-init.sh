@@ -1,4 +1,4 @@
-#! /bin/bash
+# /bin/bash
 
 # zfs-tools-init.sh
 #
@@ -24,35 +24,34 @@
 
 if [ -f /etc/ozmt/config ]; then
     source /etc/ozmt/config
-fi
-
-# All other locations are depricated at the release of OZMT:
-
-if [ -f /etc/zfs-tools-config ]; then
-    source /etc/zfs-tools-config
-fi
-
-if [ -f /etc/sysconfig/zfs-tools-config ]; then
-    source /etc/sysconfig/zfs-tools-config
-else 
-    if [ -f /etc/sysconfig/zfs-config ]; then 
-        source /etc/sysconfig/zfs-config
+else
+    # All other locations are depricated at the release of OZMT:
+    if [ -f /etc/zfs-tools-config ]; then
+        source /etc/zfs-tools-config
     fi
-fi
-
-if [ -f /root/zfs-config.sh ]; then
-    source /root/zfs-config.sh 
-else 
-    if [ -f ./zfs-config.sh ]; then
-        source ./zfs-config.sh 
-    fi 
-fi 
-
-if [ ! -d /etc/ozmt ]; then
-    mkdir -p /etc/ozmt
+    
+    if [ -f /etc/sysconfig/zfs-tools-config ]; then
+        source /etc/sysconfig/zfs-tools-config
+    else 
+        if [ -f /etc/sysconfig/zfs-config ]; then 
+            source /etc/sysconfig/zfs-config
+        fi
+    fi
+    
     if [ -f /root/zfs-config.sh ]; then
-        mv /root/zfs-config.sh /etc/ozmt/config
-        echo "# moved to /etc/ozmt/config" > /root/zfs-config.sh
+        source /root/zfs-config.sh 
+    else 
+        if [ -f ./zfs-config.sh ]; then
+            source ./zfs-config.sh 
+        fi 
+    fi 
+    
+    if [ ! -d /etc/ozmt ]; then
+        mkdir -p /etc/ozmt
+        if [ -f /root/zfs-config.sh ]; then
+            mv /root/zfs-config.sh /etc/ozmt/config
+            echo "# moved to /etc/ozmt/config" > /root/zfs-config.sh
+        fi
     fi
 fi
 
