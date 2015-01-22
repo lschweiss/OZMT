@@ -22,6 +22,9 @@
 # First parameter exit code file
 # Remaining parameters process to run
 
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source ../zfs-tools-init.sh
+
 trap "" HUP
 
 stdin="$1"
@@ -35,5 +38,8 @@ shift 1
 pidfile="$1"
 shift 1
 ( $@ < "$stdin" > "$stdout" 2> "$stderr" ; echo $? > "$exitfile" ) &
-echo $! > "$pidfile"
+ppid=$!
+# Find the child of ppid because ppid is still bash not our process.
+pid=`ps -eo ppid,pid|${GREP} "^${ppid} "|${AWK} -F " " '{print $2}'`
+echo $pid > "$pidfile"
 wait
