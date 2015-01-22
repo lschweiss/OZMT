@@ -590,6 +590,8 @@ setupzfs () {
 
     # Create replication jobs
     replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"    
+    source_tracker="/${pool}/zfs_tools/var/replication/source/${dataset_name}"
+    dataset_targets="/${pool}/zfs_tools/var/replication/targets/${dataset_name}"
 
     replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath} 2>/dev/null`
     if [ "$replication" != '-' ]; then
@@ -614,6 +616,10 @@ setupzfs () {
     #           If more than two targets are active snapshot deletion becomes a post
     #           sync process across all inactive targets.
     
+    # Flush dataset_targets file and rebuild
+    rm "$datset_targets" 2> /dev/null
+    rm "${TMP}/dataset_targets_$$" 2> /dev/null
+
 
     if [ "$replication_targets" != "" ]; then
         if [[ "$replication_source" != '-' && "$replication_source" != "${pool}:${zfspath}" ]]; then
@@ -623,8 +629,7 @@ setupzfs () {
         mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,complete,failed,suspended,status}
         rm -rf "${replication_job_dir}/definitions/${simple_jobname}"
         mkdir -p "${replication_job_dir}/definitions/${simple_jobname}"
-        mkdir -p /${pool}/zfs_tools/var/replication/source
-        source_tracker="/${pool}/zfs_tools/var/replication/source/${dataset_name}"
+        mkdir -p /${pool}/zfs_tools/var/replication/{source,targets}
         if [ ! -f ${source_tracker} ]; then
             # TODO: validate the default_source_folder
             if [ "$default_source_folder" != "" ]; then
@@ -649,6 +654,15 @@ setupzfs () {
             read -r targetA_pool targetA_folder <<< "$targetA"
             read -r targetB_pool targetB_folder <<< "$targetB"
             unset IFS
+
+            # Update dataset_targets file
+            if [ -f "$datset_targets" ]; then
+                cp "$datset_targets" "${TMP}/dataset_targets_$$"
+            fi
+            echo "$targetA" >> "${TMP}/dataset_targets_$$"
+            echo "$targetB" >> "${TMP}/dataset_targets_$$"
+            cat "${TMP}/dataset_targets_$$" | sort -u > "$dataset_targets"
+            rm "${TMP}/dataset_targets_$$"
 
             echo "targetA: $targetA"
             echo "targetB: $targetB"
@@ -723,6 +737,7 @@ setupzfs () {
                     echo "pool=\"${pool}\"" >> $target_job
                     echo "folder=\"${zfspath}\"" >> $target_job 
                     echo "source_tracker=\"${source_tracker}\"" >> $target_job
+                    echo "dataset_targets=\"${dataset_targets}\"" >> $target_job
                     echo "replication_count=\"${replication_count}\"" >> $target_job
                     echo "mode=\"${mode}\"" >> $target_job
                     echo "options=\"${options}\"" >> $target_job
@@ -823,12 +838,14 @@ setupzfs () {
         # Trigger any child folders to also be re-examined and synced.
         # This is most important when replication is added to an existing zfs folder to assure all child folders
         # are synced to all targets.
-        children=`ls -1 /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname}%*`
+        children=`ls -1 /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname}%* 2>/dev/null`
         for child in $children; do
             echo "${child}" >> "${TMP}/setup_filesystem_replication_children"
         done
-        echo "Replication children definitions:"
-        cat ${TMP}/setup_filesystem_replication_children
+        if [ -f ${TMP}/setup_filesystem_replication_children ]; then
+            echo "Replication children definitions:"
+            cat ${TMP}/setup_filesystem_replication_children
+        fi
 
     fi
 
@@ -837,6 +854,13 @@ setupzfs () {
         debug "Removing previous replication job ${simple_jobname}"
         rm -rf ${replication_job_dir}/definitions/${simple_jobname}
         rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+        zfs get creation ${pool}/${zfspath} &> /dev/null
+        if [ $? -eq 0 ]; then
+            # Remove zfs properties
+            zfs inherit $zfs_replication_property ${pool}/${zfspath}
+            zfs inherit $zfs_replication_dataset_property ${pool}/${zfspath}
+            zfs inherit $zfs_replication_endpoints_property ${pool}/${zfspath}
+        fi
 
         # TODO: Remove replication snapshots
 

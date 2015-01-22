@@ -19,13 +19,9 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
+source ../zfs-tools-init.sh
 
 rm $TOOLS_ROOT/snapshots/jobs/*/* 2> /dev/null
-
-#rm -rf $TOOLS_ROOT/backup/jobs/*
-
-. ./zfs_functions.sh
 
 # Stop infinite loop
 rm "${TMP}/setup_filesystem_replication_children" 2>/dev/null
@@ -47,9 +43,9 @@ for pool in $pools; do
         source /${pool}/zfs_tools/etc/pool-filesystems
     else 
         if [ -d "/${pool}/zfs_tools/etc/pool-filesystems" ]; then
-            ls -lhat /${pool}/zfs_tools/etc/pool-filesystems
             rm ${TMP}/setup_filesystem_replication_targets 2>/dev/null
             notice "Setting up pool $pool"
+            ls -lhAt /${pool}/zfs_tools/etc/pool-filesystems
             failures=0
             # Determine which definitions have changed since last run 
             ls -1At --color=never /${pool}/zfs_tools/etc/pool-filesystems | \

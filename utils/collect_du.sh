@@ -21,7 +21,7 @@
 
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../../zfs-tools-init.sh
+source ../zfs-tools-init.sh
 
 now=`date +%F_%H:%M%z`
 
@@ -29,6 +29,7 @@ pool=$1
 folder=$2
 depth=$3
 
+mkdir -p "/$pool/zfs_tools/logs"
 logfile="/$pool/zfs_tools/logs/du_stat_${now}"
 
 /usr/gnu/bin/du -h --max-depth=$depth $folder > $logfile 2> /dev/null

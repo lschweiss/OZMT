@@ -35,7 +35,116 @@ fi
 
 # Keep certain files in sync across all replication hosts
 
-# /etc/hosts
-# /${pool}/zfs_tools/var/replication/source/${simple_jobname} <-- May this should be track by a dataset name
+# /{pool}/zfs_tools/var/replication/source/{dataset_name}
 
-# /${pool}/etc/config.common
+# ${zfs_replication_sync_filelist}
+
+if [ -t 1 ]; then
+    background=""
+else
+    background="&"
+fi
+
+
+pools="$(pools)"
+
+# Handle dataset sources
+rm ${TMP}/sync_datafiles_$$ 2> /dev/null
+
+for pool in $pools; do
+    datasets=`ls -1 /${pool}/zfs_tools/var/replication/source/`
+    for dataset in $datasets; do
+        targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`
+        for target in $targets; do
+            # Separate pool and folder
+            IFS=':'
+            read -r t_pool t_folder <<< "${target}"
+            unset IFS
+            # Inventory the pool for other operations
+            echo $t_pool >> ${TMP}/sync_datafiles_$$
+            if [ "$pool" != "$t_pool" ]; then
+                zpool list $t_pool &> /dev/null 
+                if [ $? -ne 0 ]; then
+                    # t_pool is not local, push and pull from the target pool, fail silently in the background
+                    ${RSYNC} -cptgo --update -e ssh \
+                        /${pool}/zfs_tools/var/replication/source/${dataset} \
+                        ${t_pool}:/${t_pool}zfs_tools/var/replication/source/${dataset} &> /dev/null $background
+                    ${RSYNC} -cptgo --update -e ssh \
+                        ${t_pool}:/${t_pool}zfs_tools/var/replication/source/${dataset} \
+                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null $background
+                else
+                    # t_pool is local, no ssh necessary
+                    ${RSYNC} -cptgo --update \
+                        /${pool}/zfs_tools/var/replication/source/${dataset} \
+                        /${t_pool}zfs_tools/var/replication/source/${dataset} &> /dev/null
+                    ${RSYNC} -cptgo --update \
+                        /${t_pool}zfs_tools/var/replication/source/${dataset} \
+                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null
+                fi
+            fi
+        done # for target
+    done # for dataset
+done # for pool
+
+# Sync other files in ${zfs_replication_sync_filelist}
+cat ${TMP}/sync_datafiles_$$|sort -U > ${TMP}/sync_datafiles_sort_$$
+all_pools=`cat ${TMP}/sync_datafiles_sort_$$`
+rm ${TMP}/sync_datafiles_sort_$$ ${TMP}/sync_datafiles_$$
+
+IFS=':'
+for file in ${zfs_replication_sync_filelist}; do
+    unset IFS
+    if [[ "$file" == *"{pool}"* ]] then
+        # Were syncing across all known pools
+        for pool in $pools; do
+            source_file=`echo $file | ${SED} "s,{pool},${pool},g"`
+            for t_pool in $all_pools; do
+                if [ "$pool" != "$t_pool" ]; then
+                    zpool list $t_pool &> /dev/null
+                    if [ $? -ne 0 ]; then
+                        # t_pool is not local, push and pull from the target pool, fail silently in the background
+                        target_file=`echo $file | ${SED} "s,{pool},${t_pool},g"`
+                        ${RSYNC} -cptgo --update -e ssh \
+                            ${source_file} \
+                            ${t_pool}:${target_file} &> /dev/null $background
+                        ${RSYNC} -cptgo --update -e ssh \
+                            ${t_pool}:${target_file} \
+                            ${source_file} &> /dev/null $background
+                    else
+                        # t_pool is local, no ssh necessary
+                        ${RSYNC} -cptgo --update \
+                            ${source_file} \
+                            ${target_file} &> /dev/null
+                        ${RSYNC} -cptgo --update \
+                            ${target_file} \
+                            ${source_file} &> /dev/null
+                    fi
+                fi
+            done # for t_pool
+        done # for pool
+    else
+        # File is fixed path, sync with all pool holding hosts
+        for t_pool in $all_pools; do
+            if [ "$pool" != "$t_pool" ]; then
+                zpool list $t_pool &> /dev/null
+                if [ $? -ne 0 ]; then
+                    # t_pool is not local, push and pull from the target pool, fail silently in the background
+                    ${RSYNC} -cptgo --update -e ssh \
+                        ${file} \
+                        ${t_pool}:${file} &> /dev/null $background
+                    ${RSYNC} -cptgo --update -e ssh \
+                        ${t_pool}:${file} \
+                        ${file} &> /dev/null $background
+                fi
+                # Nothing to do for local
+            fi
+        done # for t_pool
+    fi
+    IFS=':'
+done # for file
+
+
+                
+        
+                    
+            

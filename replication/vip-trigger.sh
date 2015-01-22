@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -33,7 +33,7 @@ else
     report_name="$default_report_name"
 fi
 
-pools="${pools}"
+pools="$(pools)"
 
 activate_vip () {
 
@@ -72,7 +72,7 @@ activate_vip () {
         'Linux')
             ping -c 1 -q -W 1 $vIP 1>/dev/null 2>/dev/null
             ;;
-        'SunOs')
+        'SunOS')
             ping $vIP 1>/dev/null 2>/dev/null
             ;;
         *)
@@ -137,16 +137,22 @@ activate_vip () {
                     available='true'
                 fi
             done
+
+            if valid_ip $netmask; then
+                nm_def=" netmask $netmask"
+            else
+                nm_def="/${netmask}"
+            fi
             
             # Assign the ip
 
             case $os in
                 'Linux')
-                    ifconfig ${ip_if}:${alias} $ip netmask $netmask up
+                    ifconfig ${ip_if}:${alias} ${ip}${nm_def} up
                     ;;
                 'SunOS')
                     ifconfig ${ip_if}:${alias} plumb
-                    ifconfig ${ip_if}:${alias} $ip netmask $netmask
+                    ifconfig ${ip_if}:${alias} ${ip}${nm_def} up
                     ;;
             esac
 
@@ -189,6 +195,8 @@ activate_vip () {
         fi
     done  
     unset IFS 
+
+    mkdir -p /var/zfs_tools/vip/active
 
     echo "${routes}|${ipifs}" > "/var/zfs_tools/vip/active/${vIP}"
 
@@ -310,19 +318,19 @@ deactivate_vip () {
 
 for pool in $pools; do
     vip_dir="/${pool}/zfs_tools/var/replication/vip"
-    folders=`ls -1 "${vip_dir}|sort"`
+    folders=`ls -1 "${vip_dir}" | sort`
     for folder in $folders; do
         while read vip; do
             # Break down the vIP definition
             IFS='|'
             read -r vIP routes ipifs <<< "${vip}"
             unset IFS
-            if [[ $vIP == *"/"* ]];then
+            if [[ $vIP == *","* ]];then
                 # vIP is pool attached
                 IFS='/'
                 read -r t_vIP t_pool <<< "$vIP"
                 unset IFS
-                if [[ $t_pool == *"$pools"* ]] then 
+                if [[ $t_pool == *"$pools"* ]]; then 
                     activate_vip "$t_vIP" "$routes" "$ipifs"
                 else
                     deactivate_vip "$t_vIP"
@@ -330,7 +338,18 @@ for pool in $pools; do
             else
                 # vIP is attached to the active dataset
                 if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
-                    active_source=`cat /${pool}/zfs_tools/var/replication/source/${folder}`
+                    # Get the dataset name
+                    zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
+                    if [ $? -ne 0 ]; then
+                        # This is not the active dataset, we don't even have the dataset yet.
+                        rm ${TMP}/vip_dataset_$$ 2> /dev/null
+                        deactivate_vip "$vIP"
+                        continue
+                    else
+                        dataset_name=`cat ${TMP}/vip_dataset_$$`
+                        rm ${TMP}/vip_dataset_$$
+                    fi
+                    active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
                     IFS='/'
                     read -r active_pool active_folder <<< "$active_source"
                     unset IFS

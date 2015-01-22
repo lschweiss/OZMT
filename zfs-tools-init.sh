@@ -205,9 +205,14 @@ if [ "$zfs_replication_completed_job_retention" == "" ]; then
     zfs_replication_completed_job_retention="-mtime +30"
 fi
 
-if [ "zfs_replication_snapshot_name" == "" ]; then
+if [ "$zfs_replication_snapshot_name" == "" ]; then
     zfs_replication_snapshot_name=".ozmt-replication"
 fi
+
+if [ "$zfs_replication_sync_filelist" == "" ]; then
+    zfs_replication_sync_filelist="/etc/hosts:{pool}/etc/config.common"
+fi
+
 
 # Test essential binaries
 
@@ -260,6 +265,10 @@ fi
 source $TOOLS_ROOT/zfs-tools-functions.sh
 
 
+# Skip pools default requires rpool function, sourced above
+if [ "$skip_pools" == "" ]; then
+    skip_pools="$(rpool)"
+fi  
 
 
 ##
