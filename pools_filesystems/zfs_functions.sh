@@ -626,7 +626,7 @@ setupzfs () {
             warning "Replication is already defined on parent zfs dataset $replication_parent"
         fi         
 
-        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,complete,failed,suspended,status}
+        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,synced,complete,failed,suspended,status}
         rm -rf "${replication_job_dir}/definitions/${simple_jobname}"
         mkdir -p "${replication_job_dir}/definitions/${simple_jobname}"
         mkdir -p /${pool}/zfs_tools/var/replication/{source,targets}

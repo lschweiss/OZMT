@@ -231,7 +231,7 @@ if [ $send_result -ne 0 ]; then
     mv "${job_definition}" "${replication_dir}/failed/"
     update_job_status "$job_status" failures $failures
 else
-    mv "${job_definition}" "${replication_dir}/jobs/synced/"
+    mv "${job_definition}" "${replication_dir}/synced/"
     notice "Replication job ${pool}/${folder} to ${target_folder} on ${target_host} completed for ${folder}@${last_snapshot}"
     update_job_status "$job_status" "failures" "0"
     queued_jobs=$(( queued_jobs - 1 ))
@@ -239,7 +239,7 @@ else
         queued_jobs=0
     fi
     update_job_status "$job_status" "queued_jobs" "$queued_jobs"
-    if [[ "$delete_snaps" != "" && "$previous_snapshot" == "" ]]; then
+    if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
         # Delete the previous snapshot
         debug "Only 2 replication endpoints.  Deleting source snapshot."
         zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$ ||

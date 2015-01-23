@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash 
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
@@ -170,9 +170,11 @@ for pool in $pools; do
                     continue
                 fi     
                 last_run_secs=`${DATE} -d "$last_run" +%s`
-                now_sec=`${DATE} -d "$now" +%s`
+                now_secs=`${DATE} -d "$now" +%s`
                 duration_sec="$(( now_secs - last_run_secs ))"
+                # Round up to nearest minute
                 duration_min="$(( (duration_sec + 30) / 60 ))"
+                # no more rounding
                 duration_hour="$(( duration_min / 60 ))"
                 duration_day="$(( duration_hour / 24 ))"
                 duration_week="$(( duration_day / 7 ))"
@@ -194,6 +196,21 @@ for pool in $pools; do
                 fi
                   
                 # TODO: add support for replication start days, times
+    
+                if [ -t 1 ]; then
+                    echo "last_run=$last_run"
+                    echo "last_run_secs=$last_run_secs"
+                    echo "now=$now"
+                    echo "now_secs=$now_secs"
+                    echo "freq_unit=${freq_unit}"
+                    echo "freq_num=${freq_num}"
+                    echo "duration"
+                    echo "s: $duration_sec"
+                    echo "m: $duration_min"
+                    echo "h: $duration_hour"
+                    echo "d: $duration_day"
+                    echo "w: $duration_week"
+                fi
 
                 case $freq_unit in 
                     'm')

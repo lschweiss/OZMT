@@ -804,8 +804,12 @@ MONITOR
         die "${job_name}: Could not push remote monitor script to $remote_host:${remote_tmp}/monitor.sh"
 
     $remote_ssh "chmod +x $remote_tmp/monitor.sh"
-    remote_launch "monitor" "/dev/null" "$remote_tmp/monitor.sh" "${remote_tmp}/montitor.out" "${remote_tmp}/montitor.error" 
-    
+    debug "${job_name}: Launching remote monitor script"
+    remote_launch "monitor" \
+        "/dev/null" \
+        "$remote_tmp/monitor.sh \"${remote_tmp}\" \"$remote_watch\"" \
+        "${remote_tmp}/monitor.out" \
+        "${remote_tmp}/monitor.error" 
 fi
 
 
