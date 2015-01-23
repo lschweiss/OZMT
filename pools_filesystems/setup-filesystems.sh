@@ -23,6 +23,8 @@ source ../zfs-tools-init.sh
 
 rm $TOOLS_ROOT/snapshots/jobs/*/* 2> /dev/null
 
+source zfs_functions.sh
+
 # Stop infinite loop
 rm "${TMP}/setup_filesystem_replication_children" 2>/dev/null
 
