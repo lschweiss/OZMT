@@ -769,7 +769,6 @@ setupzfs () {
             parent_jobname="${simple_jobname}"
             echo "Replication jobname: $parent_jobname"
         fi
-        rm ${TMP}/setup_filesystem_replication_targets_$$ 2>/dev/null
         replication_targets=`ls -1 ${replication_job_dir}/definitions/${parent_jobname}`
         for replication_target in $replication_targets; do
             source ${replication_job_dir}/definitions/${parent_jobname}/${replication_target}
