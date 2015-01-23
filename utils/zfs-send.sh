@@ -379,8 +379,8 @@ if [ $result -ne 0 ]; then
     error "${job_name}: Source zfs folder $source_folder not found."
     verify='fail'
 else
-    debug "${job_name}: Source zfs folder $source_foldeer verified."
-    zfs list -t snapshot -H -o name -s creation | ${GREP} "^${source_folder}@" > $tmpdir/snapshot.list
+    debug "${job_name}: Source zfs folder $source_folder verified."
+    zfs list -r -t snapshot -H -o name -s creation $source_folder > $tmpdir/snapshot.list
 fi
 
 ##
