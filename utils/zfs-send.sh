@@ -380,7 +380,7 @@ if [ $result -ne 0 ]; then
     verify='fail'
 else
     debug "${job_name}: Source zfs folder $source_folder verified."
-    zfs list -r -t snapshot -H -o name -s creation $source_folder > $tmpdir/snapshot.list
+    zfs list -r -t snapshot -H -o name -s creation $source_folder | ${GREP} "^${source_folder}@" > $tmpdir/snapshot.list
 fi
 
 ##
