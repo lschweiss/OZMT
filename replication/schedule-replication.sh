@@ -120,17 +120,28 @@ else
     report_name="$default_report_name"
 fi
 
-now=`{DATE} +"%F %H:%M:%S%z"`
+now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
 
+# When running on the console don't background launch other processes
+if [ -t 1 ]; then
+    background=""
+else
+    background="&"
+fi
+
+# look for jobs to run
 for pool in $pools; do
-    replication_def_dir="/${pool}/zfs_tools/var/replication/jobs/definition"
+    debug "Looking for replication jobs on pool $pool"
+    replication_def_dir="/${pool}/zfs_tools/var/replication/jobs/definitions"
     if [ -d "$replication_def_dir" ]; then
         folder_defs=`ls -1 "$replication_def_dir"|sort`
-        for folder_def in $folder_defss; do
-            target_defs=`ls -1 "${replication_def_dir}/${folder_defs}"|sort`
+        for folder_def in $folder_defs; do
+            debug "Replication job for $folder_def found"
+            target_defs=`ls -1 "${replication_def_dir}/${folder_def}"|sort`
             for target_def in $target_defs; do
+                debug "to target $target_def"
                 last_run=
                 job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                 source "${job_definition}"
@@ -142,16 +153,20 @@ for pool in $pools; do
                 active=`cat "$source_tracker"| head -1`
                 if [ "$active" == "migrating" ]; then
                     # Pool is being migrated.  Don't schedule new jobs.
+                    debug "is being migrated"
                     continue
                 fi
                 if [ "$active" != "${pool}:${folder}" ]; then
                     # This folder is receiving.
+                    debug "is receiving."
                     continue
                 fi
                 # Test if $frequency has passed since last run
                 if [ "$last_run" == "" ]; then
                     # Never run before trigger first run 
-                    ./trigger-replication.sh "$job_definition" &
+                    debug "triggering first run."
+                    init_lock "${job_status}"
+                    ./trigger-replication.sh "$job_definition" $background
                     continue
                 fi     
                 last_run_secs=`${DATE} -d "$last_run" +%s`
@@ -183,22 +198,26 @@ for pool in $pools; do
                 case $freq_unit in 
                     'm')
                         if [ $duration_min -ge $freq_num ]; then
-                            ./trigger-replication.sh "${job_definition}" &
+                            debug "hasn't run in $freq_num minutes.  Triggering"
+                            ./trigger-replication.sh "${job_definition}" $background
                         fi
                         ;;
                     'h')
                         if [ $duration_hour -ge $freq_num ]; then
-                            ./trigger-replication.sh "${job_definition}" &
+                            debug "hasn't run in $freq_num hours.  Triggering"
+                            ./trigger-replication.sh "${job_definition}" $background
                         fi
                         ;;
                     'd')
                         if [ $duration_day -ge $freq_num ]; then
-                            ./trigger-replication.sh "${job_definition}" &
+                            debug "hasn't run in $freq_num days.  Triggering"
+                            ./trigger-replication.sh "${job_definition}" $background
                         fi
                         ;;
                     'w')
                         if [ $duration_week -ge $freq_num ]; then
-                            ./trigger-replication.sh "${job_definition}" &
+                            debug "hasn't run in $freq_num weeks.  Triggering"
+                            ./trigger-replication.sh "${job_definition}" $background
                         fi
                         ;;
                     *)

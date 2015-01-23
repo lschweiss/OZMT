@@ -151,10 +151,12 @@ if [ "$failures" == '' ]; then
     failures=0
 fi
 
-if [ $endpoint_count -eq 1 ]; then
-    $delete_snaps='-d'
+endpoint_count=`zfs get -H -o value ${zfs_replication_endpoints_property} ${pool}/${folder}`
+
+if [ $endpoint_count -eq 2 ]; then
+    delete_snaps='-d'
 else
-    $delete_snaps=''
+    delete_snaps=''
 fi
 
 migrating='false'
@@ -172,11 +174,13 @@ migrating='false'
 
 # Test ssh connectivity
 ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
-if [ $? -eq 0 ] then
+if [ $? -eq 0 ]; then
+    debug "Connection validated to ${target_pool}"
     # Confirm on the target host that this is truely the source
     target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -1`
     if [ "$target_source_reference" == "migrating" ]; then
         migrating='true'
+        debug "Active endpoint is being migrated"
         # collect the current active pool
         target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -2|tail -1`
     fi
@@ -206,14 +210,17 @@ case $mode in
 esac
 
 
+
 if [ "$previous_snapshot" == "" ]; then
-    ../utils/zfs-send.sh -n "$dataset_name" -r ${delete_snaps} -M \
-        -s "${pool}/${folder}" -t "${target_folder}" -h "${target_host}" \
+    debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
+    ../utils/zfs-send.sh -n "${dataset_name}" -r ${delete_snaps} -M \
+        -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -l "${pool}/${folder}@${last_snapshot}"
     send_result=$?
 else
-    ../utils/zfs-send.sh -n "$dataset_name" -r -I ${delete_snaps} -M \
-        -s "${pool}/${folder}" -t "${target_folder}" -h "${target_host}" \
+    debug "Starting zfs-send.sh replication of ${pool}/${folder}"
+    ../utils/zfs-send.sh -n "${dataset_name}" -r -I ${delete_snaps} -M \
+        -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
         -l "${pool}/${folder}@${last_snapshot}"
     send_result=$?
@@ -222,18 +229,19 @@ fi
 if [ $send_result -ne 0 ]; then
     failures=$(( failures + 1 ))
     mv "${job_definition}" "${replication_dir}/failed/"
-    updated_job_status "$job_status" failures $failures
+    update_job_status "$job_status" failures $failures
 else
     mv "${job_definition}" "${replication_dir}/jobs/synced/"
     notice "Replication job ${pool}/${folder} to ${target_folder} on ${target_host} completed for ${folder}@${last_snapshot}"
-    updated_job_status "$job_status" "failures" "0"
+    update_job_status "$job_status" "failures" "0"
     queued_jobs=$(( queued_jobs - 1 ))
     if [ $queued_jobs -lt 0 ]; then
         queued_jobs=0
     fi
-    updated_job_status "$job_status" "queued_jobs" "$queued_jobs"
-    if [ "$delete_snaps" != "" ]; then
+    update_job_status "$job_status" "queued_jobs" "$queued_jobs"
+    if [[ "$delete_snaps" != "" && "$previous_snapshot" == "" ]]; then
         # Delete the previous snapshot
+        debug "Only 2 replication endpoints.  Deleting source snapshot."
         zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$ ||
             warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$
         rm /${TMP}/zfs_destroy_$$ 2>/dev/null

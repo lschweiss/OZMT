@@ -156,7 +156,7 @@ if [ -z $bbcp ]; then
 fi
 
 if [ -z $mbuffer ]; then
-    mbuffer=`gnu_source bbcp` 
+    mbuffer=`gnu_source mbuffer` 
 fi
 
 if [ -z $lz4 ]; then

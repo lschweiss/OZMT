@@ -180,7 +180,7 @@ flat_file='false'
 gen_chksum=
 job_name='zfs_send'
 
-while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n opt; do
+while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -300,6 +300,14 @@ tmpdir=${TMP}/zfs_send_$$
 remote_tmp=${TMP}/zfs_send_$$
 
 mkdir $tmpdir
+
+######
+######
+##
+## Verification
+##
+######
+######
 
 ###
 #
@@ -514,9 +522,13 @@ else
     debug "${job_name}: Input valdation succeeded.  Proceeding."
 fi
 
+######
+######
 ##
-# Functions
+## Functions
 ##
+######
+######
 
 remote_fifo () {
     local fifo="${remote_tmp}/${1}.fifo"
@@ -536,47 +548,17 @@ local_fifo () {
     result="${fifo}"
 }
 
-remote_launch_old () {
-
-    # Posible better approach:
-
-    # http://stackoverflow.com/questions/12647382/get-the-pid-of-a-process-started-with-nohup-via-ssh
-
-    #  ~# ssh someone@somewhere 'nohup sleep 30 > out 2> err < /dev/null & echo $!'
-    #  someone@somewhere's password:
-    #  14193
-    #
-
-    # Remote ssh command becomes:
-    # $remote_ssh "nohup $2 > out 2> err < /dev/null& echo $! > $pidfile"
-
-    local name="$1"
-    local script_content="$2"
-    local script="$remote_tmp/${name}.script"
-    local pidfile="$remote_tmp/${name}.pid"
-
-    ##
-    # Push the script to the remote host
-    ##
-
-    debug "${job_name}: Remote launching: $script_content"
-
-    echo "$script_content" | $remote_ssh "cat >$script; chmod +x $script"
-
-    $remote_ssh "/usr/bin/screen -d -S \"${job_name}_${name}\" -m $script; screen -ls | ${GREP} \"${job_name}_${name}\" | ${GREP} -o -P \"(\d+)\" > $pidfile"
-
-}
-
 remote_launch () {
 
     local name="$1"
-    local process="$2"
-    local stdout="$3"
-    local stderr="$4"
+    local stdin="$2"
+    local process="$3"
+    local stdout="$4"
+    local stderr="$5"
     local errlvl="$remote_tmp/${name}.errorlevel"
     local pidfile="$remote_tmp/${name}.pid"
 
-    $remote_ssh "nohup $TOOLS_ROOT/utils/remote-runner.sh \"/dev/null\" \"${stdout}\" \"${stderr}\" \"${errlvl}\" \"${pidfile}\" \"${process}\" </dev/null 1>/dev/null 2>/dev/null &"
+    $remote_ssh "nohup $TOOLS_ROOT/utils/remote-runner.sh \"${stdin}\" \"${stdout}\" \"${stderr}\" \"${errlvl}\" \"${pidfile}\" \"${process}\" </dev/null 1>/dev/null 2>/dev/null &"
 
 }
 
@@ -587,6 +569,8 @@ pause () {
     echo "Press enter to continue..."
     read nothing
 }
+
+
 
 ################################################################
 #
@@ -635,7 +619,8 @@ else
         target_fifo="$result"
         debug "${job_name}: Starting remote zfs receive $target_fifo to ${target_folder}"
         remote_launch "zfs_receive" \
-            "cat $target_fifo | zfs receive ${receive_options} ${target_prop} ${target_folder}" \
+            "$target_fifo" \
+            "zfs receive ${receive_options} ${target_prop} ${target_folder}" \
             "$remote_tmp/zfs_receive.out" \
             "$remote_tmp/zfs_receive.error" 
         remote_watch="zfs_receive $remote_watch"
@@ -660,8 +645,8 @@ if [ "$mbuffer_use" == 'true' ]; then
         target_mbuffer_fifo="$result"
         debug "${job_name}: Starting remote mbuffer from $target_mbuffer_fifo to $target_fifo"
         remote_launch "mbuffer" \ 
-            "cat $target_mbuffer_fifo | \
-            $mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log" \
+            "$target_mbuffer_fifo" \
+            "$mbuffer -q -s 128k -m 128M --md5 -l $remote_tmp/mbuffer.log" \
             "$target_fifo"
             "$remote_tmp/mbuffer.error"
         remote_watch="mbuffer $remote_watch"
@@ -679,7 +664,8 @@ if [ "$gzip_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" !=
     target_gzip_fifo="$result"
     debug "${job_name}: Starting remote gzip decompression from $target_gzip_fifo to $target_fifo"
     remote_launch "gunzip" \
-        "cat $target_gzip_fifo | $gzip -d --stdout" \
+        "$target_gzip_fifo" \
+        "$gzip -d --stdout" \
         "$target_fifo" \
         "$remote_tmp/gunzip.error"
     remote_watch="gunzip $remote_watch"
@@ -696,7 +682,8 @@ if [ "$lz4_level" -ne 0 ] && [ "$flat_file" == 'false' ] && [ "$remote_host" != 
     target_lz4_fifo="$result"
     debug "${job_name}: Starting remote lz4 decompression from $target_lz4_fifo to $target_fifo"
     remote_launch "lz4" \
-        "cat $target_lz4_fifo | $lz4 -d" \
+        "$target_lz4_fifo" \
+        "$lz4 -d" \
         "$target_fifo" \
         "$remote_tmp/lz4.error"
     remote_watch="lz4 $remote_watch"
@@ -724,7 +711,8 @@ if [ "$bbcp_encrypt" == 'true' ]; then
     # Start openssl
     debug "${job_name}: Starting remote openssl decrypt from $target_ssl_fifo to $target_fifo"
     remote_launch "openssl" \
-        "cat $target_ssl_fifo | openssl aes-256-cbc -d -pass file:$bbcp_key" \
+        "$target_ssl_fifo" \
+        "openssl aes-256-cbc -d -pass file:$bbcp_key" \
         "$target_fifo" \
         "$remote_tmp/openssl.error"
     remote_watch="openssl $remote_watch"
@@ -752,6 +740,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         rm ${TMP}/$$_remote_port        
         
         remote_launch "mbuffer_transport" \
+            "/dev/null" \
             "$mbuffer -I ${remote_port} -q -s 128k -m 128M -l $remote_tmp/mbuffer_transport.log" \
             "$target_fifo" \
             "$remote_tmp/mbuffer_transport.error" 

@@ -107,7 +107,7 @@
 
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
+source ../zfs-tools-init.sh
 
 if [ "x$replication_logfile" != "x" ]; then
     logfile="$replication_logfile"
@@ -187,7 +187,7 @@ cp "$job_definition" "$jobfile"
 
 echo "jobname=\"${jobname}\"" >> $jobfile
 echo "previous_jobname=\"${last_jobname}\"" >> $jobfile
-echo "snapshot=\"${replication_snapshot_name}_${now_stamp}\"" >> $jobfile
+echo "snapshot=\"${zfs_replication_snapshot_name}_${now_stamp}\"" >> $jobfile
 echo "previous_snapshot=\"${previous_snapshot}\"" >> $jobfile
 echo "creation_time=\"${last_run}\"" >> $jobfile
 echo "execution_number=\"1\"" >> $jobfile

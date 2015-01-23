@@ -306,23 +306,28 @@ update_job_status () {
     local value="$3"
     local declaration=
 
-    rm -f "$temp_file"
+    rm -f "$temp_file" 2> /dev/null
 
     if [ "$4" == "local" ]; then
         declaration="local ${variable}"
     else
-        declaration="$(variable)"
+        declaration="${variable}"
     fi
 
     wait_for_lock "$status_file" 5
 
     # Copy all status lines execept the variable we are dealing with
-    while read line; do
-        echo "$line" | ${GREP} -q "^${declaration}="
-        if [ $? -ne 0 ]; then
-            echo "$line" >> "$temp_file"
-        fi
-    done < "$status_file"
+    if [ -f "$status_file" ]; then
+        while read line; do
+            echo "$line" | ${GREP} -q "^${declaration}="
+            if [ $? -ne 0 ]; then
+                echo "$line" >> "$temp_file"
+            fi
+        done < "$status_file"
+    else
+        # File will be created
+        touch "$status_file"
+    fi
 
     # Add our variable
     echo "${declaration}=\"${value}\"" >> "$temp_file"
@@ -378,14 +383,14 @@ function wait_for_lock() {
     # file, the script that cycles first will successfully mv the unlockfile to the lock file.
 
     while [ "$locked" == "false" ]; do
-        if [ -e $unlockfile ]; then
+        if [ -e "$unlockfile" ]; then
             sleep 0.1
-            rm $unlockfile 2> /dev/null && echo $$ > $lockfile && locked="true"
+            rm "$unlockfile" 2> /dev/null && echo $$ > "$lockfile" && locked="true"
             if [ "$locked" == "false" ]; then
                 debug "Another process got the lock first.  Still waiting."
             fi
         else
-            lockpid=`cat $lockfile`
+            lockpid=`cat "$lockfile"`
             # check if it is running
             if [ -e /proc/$lockpid ]; then
                 ps awwx |${GREP} -v grep | ${GREP} -q "$lockpid "
@@ -402,14 +407,14 @@ function wait_for_lock() {
                 else
                     debug "Lock file exists, however the process is dead."
                     debug "Removing the lock file."
-                    touch $unlockfile
+                    touch "$unlockfile"
                     #Reduce the odds of a race condition
                     sleep 0.2
                 fi
             else
                 debug "Lock file exists, however the process is dead."
                 debug "Claiming previous lock file."
-                touch $unlockfile
+                touch "$unlockfile"
                 #Reduce the odds of a race condition
                 sleep 0.3
             fi
@@ -432,7 +437,7 @@ function release_lock() {
         lockpid=`cat "$lockfile"`
         if [ $$ -eq $lockpid ]; then
             locked="false"
-            mv $lockfile $unlockfile
+            mv "$lockfile" "$unlockfile"
             debug "Lock released: $lockfile"
         else
             error "release_lock called without lock ownership"

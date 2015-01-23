@@ -120,17 +120,28 @@ else
     report_name="$default_report_name"
 fi
 
+if [ -t 1 ]; then
+    background=''
+else
+    background='&'
+fi
+
 pools="$(pools)"
 now=`${DATE} +"%F %H:%M:%S%z"`
 
 # Parse failed jobs
 
 for pool in $pools; do
+    debug "Finding FAILED replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
     jobs=`ls -1 "${replication_dir}/failed"|sort`
     for job in $jobs; do
+        debug "found job: $job"
         # Collect job info
         source "${replication_dir}/failed/${job}"
+        if [ -f "${job_status}" ]; then
+            source "${job_status}"
+        fi
         # Test is okay to try again
         if [[ "$failure_limit" == "" || "$failure_limit" == "default" ]]; then
             failure_limit="$zfs_replication_failure_limit"
@@ -214,22 +225,29 @@ done
 # Parse pending jobs
 
 for pool in $pools; do
+    debug "Finding PENDING replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
     jobs=`ls -1 "${replication_dir}/pending"|sort`
     for job in $jobs; do
+        debug "found job: $job"
         source "${replication_dir}/pending/${job}"
         source "${job_status}"
         if [ "$suspended" == 'true' ]; then
+            debug "replication is suspended.  Suspending job."
             mv source "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
         else
             # Confirm previous job is complete
-            if [[ ! -f "${replication_dir}/synced/${previous_jobname}" && ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
+            if [[ "$previous_jobname" != "" && \
+                  ! -f "${replication_dir}/synced/${previous_jobname}" && \
+                  ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
                 # Leave this job in pending state
+                debug "Previous job is not complete.   Leave in pending state.  previous_jobname=$previous_jobname"
                 continue
             else
                 # Launch the replication job
+                debug "Launching replication job"
                 mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
-                replication-job.sh "${replication_dir}/running/${job}" & 
+                ./replication-job.sh "${replication_dir}/running/${job}" $background
             fi
         fi
     done
@@ -237,6 +255,6 @@ done
 
 
 # Clean completed jobs
-
+debug "Cleaning completed job folder.   find \"${replication_dir}/complete\" $zfs_replication_completed_job_retention -delete"
 find "${replication_dir}/complete" $zfs_replication_completed_job_retention -delete
 

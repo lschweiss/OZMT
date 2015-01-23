@@ -746,11 +746,12 @@ setupzfs () {
                 fi
 
             fi # if $mode
-        done
+        done # for target_def
+        endpoint_count=`cat "$dataset_targets" | wc -l`
         # Tag the zfs folder as replicated.
         zfs set ${zfs_replication_property}=on ${pool}/${zfspath}
         zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
-        zfs set ${zfs_replication_endpoints_property}=${replication_count} ${pool}/${zfspath}
+        zfs set ${zfs_replication_endpoints_property}=${endpoint_count} ${pool}/${zfspath}
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
         replication_parent="${zfspath}"
     fi
