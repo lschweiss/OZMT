@@ -758,56 +758,10 @@ fi
 if [ "$remote_host" != "" ]; then
     # Launch remote monitor script
 
-    cat << 'MONITOR' > $tmpdir/remote_monitor.sh
-#!/bin/bash
-
-running='true'
-remote_tmp="$1"
-watch="$2"
-
-while [ "$running" == 'true' ]; do
-    for process in $watch; do
-        errfile="${remote_tmp}/${process}.errorlevel"
-        if [ ! -f ${remote_tmp}/${process}.complete ] && [ -f $errfile ]; then
-            # This process has ended
-            errlvl=`cat $errfile`
-            if [ $errlvl -eq 0 ]; then
-                touch ${remote_tmp}/${process}.complete
-                complete="$process $complete"
-            else
-                touch ${remote_tmp}/${process}.fail
-                running='false'
-            fi
-        fi
-    done
-
-    # Determine if all processes are complete
-    finished='true'
-    for process in $watch; do
-        if [[ $complete != *${process}* ]]; then
-            finished='false'
-        fi
-    done
-
-    if [ "$finished" == 'true' ]; then
-        touch ${remote_tmp}/remote.complete
-        running='false'
-    fi
-
-    sleep 1
-
-done
-MONITOR
-
-
-    scp $tmpdir/remote_monitor.sh "root@${remote_host}:${remote_tmp}/monitor.sh" || \
-        die "${job_name}: Could not push remote monitor script to $remote_host:${remote_tmp}/monitor.sh"
-
-    $remote_ssh "chmod +x $remote_tmp/monitor.sh"
     debug "${job_name}: Launching remote monitor script"
     remote_launch "monitor" \
         "/dev/null" \
-        "$remote_tmp/monitor.sh \"${remote_tmp}\" \"$remote_watch\"" \
+        "$TOOLS_ROOT/utils/remote-monitor.sh \"${remote_tmp}\" \"$remote_watch\"" \
         "${remote_tmp}/monitor.out" \
         "${remote_tmp}/monitor.error" 
 fi
