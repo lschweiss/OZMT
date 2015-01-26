@@ -150,10 +150,10 @@ previous_snapshot="$last_snapshot"
 target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}`
 if [ "$target_source_reference" != "${pool}:${folder}" ]; then
     error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
+    # Suspend replication for this job
+    mv "$job_defintion" "${pool}/zfs_tools/var/replication/jobs/suspended/"
+    update_job_status "${job_status}" "suspended" "true"
 fi
-
-
-
  
 
 now_stamp="$(now_stamp)"
@@ -198,6 +198,6 @@ update_job_status "${job_status}" "last_run" "${last_run}"
 
 # Launch job runner
 
-./replication-job-runner.sh 
+launch ./replication-job-runner.sh 
 
 

@@ -39,13 +39,6 @@ fi
 
 # ${zfs_replication_sync_filelist}
 
-if [ -t 1 ]; then
-    background=""
-else
-    background="&"
-fi
-
-
 pools="$(pools)"
 
 # Handle dataset sources
@@ -66,12 +59,12 @@ for pool in $pools; do
                 zpool list $t_pool &> /dev/null 
                 if [ $? -ne 0 ]; then
                     # t_pool is not local, push and pull from the target pool, fail silently in the background
-                    ${RSYNC} -cptgo --update -e ssh \
+                    launch ${RSYNC} -cptgo --update -e ssh \
                         /${pool}/zfs_tools/var/replication/source/${dataset} \
-                        ${t_pool}:/${t_pool}zfs_tools/var/replication/source/${dataset} &> /dev/null $background
-                    ${RSYNC} -cptgo --update -e ssh \
+                        ${t_pool}:/${t_pool}zfs_tools/var/replication/source/${dataset} &> /dev/null 
+                    launch ${RSYNC} -cptgo --update -e ssh \
                         ${t_pool}:/${t_pool}zfs_tools/var/replication/source/${dataset} \
-                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null $background
+                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null 
                 else
                     # t_pool is local, no ssh necessary
                     ${RSYNC} -cptgo --update \
@@ -104,12 +97,12 @@ for file in ${zfs_replication_sync_filelist}; do
                     if [ $? -ne 0 ]; then
                         # t_pool is not local, push and pull from the target pool, fail silently in the background
                         target_file=`echo $file | ${SED} "s,{pool},${t_pool},g"`
-                        ${RSYNC} -cptgo --update -e ssh \
+                        launch ${RSYNC} -cptgo --update -e ssh \
                             ${source_file} \
-                            ${t_pool}:${target_file} &> /dev/null $background
-                        ${RSYNC} -cptgo --update -e ssh \
+                            ${t_pool}:${target_file} &> /dev/null 
+                        launch ${RSYNC} -cptgo --update -e ssh \
                             ${t_pool}:${target_file} \
-                            ${source_file} &> /dev/null $background
+                            ${source_file} &> /dev/null 
                     else
                         # t_pool is local, no ssh necessary
                         ${RSYNC} -cptgo --update \
@@ -129,12 +122,12 @@ for file in ${zfs_replication_sync_filelist}; do
                 zpool list $t_pool &> /dev/null
                 if [ $? -ne 0 ]; then
                     # t_pool is not local, push and pull from the target pool, fail silently in the background
-                    ${RSYNC} -cptgo --update -e ssh \
+                    launch ${RSYNC} -cptgo --update -e ssh \
                         ${file} \
-                        ${t_pool}:${file} &> /dev/null $background
-                    ${RSYNC} -cptgo --update -e ssh \
+                        ${t_pool}:${file} &> /dev/null 
+                    launch ${RSYNC} -cptgo --update -e ssh \
                         ${t_pool}:${file} \
-                        ${file} &> /dev/null $background
+                        ${file} &> /dev/null 
                 fi
                 # Nothing to do for local
             fi

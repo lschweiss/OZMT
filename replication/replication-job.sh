@@ -231,8 +231,7 @@ if [ $send_result -ne 0 ]; then
     mv "${job_definition}" "${replication_dir}/failed/"
     update_job_status "$job_status" failures $failures
 else
-    mv "${job_definition}" "${replication_dir}/synced/"
-    notice "Replication job ${pool}/${folder} to ${target_folder} on ${target_host} completed for ${folder}@${last_snapshot}"
+    notice "Replication job ${pool}/${folder} to ${target_pool}/${target_folder} completed for ${folder}@${last_snapshot}"
     update_job_status "$job_status" "failures" "0"
     queued_jobs=$(( queued_jobs - 1 ))
     if [ $queued_jobs -lt 0 ]; then
@@ -242,10 +241,28 @@ else
     if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
         # Delete the previous snapshot
         debug "Only 2 replication endpoints.  Deleting source snapshot."
-        zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$ ||
+        zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$ 
+        if [ $? -ne 0 ]; then
             warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$
+            mv "${job_definition}" "${replication_dir}/synced/"
+        else
+            # Move the job to completed status
+            mv "${job_definition}" "${replication_dir}/complete/" 
+        fi
         rm /${TMP}/zfs_destroy_$$ 2>/dev/null
+    else
+        if [ "$delete_snaps" != "" ]; then
+            mv "${job_definition}" "${replication_dir}/complete/"
+        else
+            mv "${job_definition}" "${replication_dir}/synced/"
+        fi
     fi
+
+    # Lauch again if more jobs are queued
+    if [ $queued_jobs -ne 0 ]; then
+        launch ./replication-job-runner.sh
+    fi
+        
 fi
 
 

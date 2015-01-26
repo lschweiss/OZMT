@@ -247,7 +247,8 @@ for pool in $pools; do
                 # Launch the replication job
                 debug "Launching replication job"
                 mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
-                ./replication-job.sh "${replication_dir}/running/${job}" $background
+                launch ./replication-job.sh "${replication_dir}/running/${job}" || \
+                    error "Could not launch replication-job.sh \"${replication_dir}/running/${job}\""
             fi
         fi
     done
