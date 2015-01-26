@@ -72,17 +72,14 @@ success='false'
 # Clean up 
 ##
 clean_up () {
-
     if [ "$success" == 'false' ]; then
         # Kill running processes
-    
         pids=`ls -1 $tmpdir/*.pid` 2> /dev/null
         for pidfile in $pids; do
             pid=`cat $pidfile`
             debug "Killing process $pidfile, PID $pid"
             kill $pid &> /dev/null
         done
-    
         if [ "$remote_host" != "" ]; then
             #DEBUG set -x
             pids=`$remote_ssh "ls -1 $remote_tmp/*.pid"` 2> /dev/null
@@ -93,21 +90,16 @@ clean_up () {
             done
             #DEBUG set +x
         fi
-    
     else
         # Clean up temp space
-    
         if [ ! -t 1 ]; then
             rm -rf $tmpdir
             if [ "$remote_host" != "" ]; then
                 $remote_ssh "rm -r $remote_tmp"
             fi
         fi
-    
     fi
-        
     exit $1
-
 }
 
 trap clean_up SIGHUP SIGINT SIGTERM
@@ -1022,17 +1014,17 @@ done
 ##
 
 if [ "$success" == 'true' ]; then
-    notice "${job_name}: Job completed successfully."
+    debug "${job_name}: Job completed successfully."
     if [ "$gen_chksum" != "" ]; then
         cp "$tmpdir/md5sum" "$gen_chksum"
     fi
 
     if [ "$remote_chksum" != "" ]; then
         scp "$tmpdir/md5sum" "root@${remote_host}:/${remote_chksum}" &> /dev/null ||
-            error "Failed to push md5sum to ${remote_chksum} on ${remote_host}"
+            error "${job_name}: Failed to push md5sum to ${remote_chksum} on ${remote_host}"
     fi    
 else
-    error "${job_name}: Job failed."
+    error "${job_name}: zfs-send job failed.  Status left in $remote_tmp"
 fi
 
 
