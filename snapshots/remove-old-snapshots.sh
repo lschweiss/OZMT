@@ -122,9 +122,9 @@ fi
 zfs_folder="$zval"
 
 # Remote folder parameter
-zfs list -H |${CUT} -f 1 | ${GREP} -q "^${zfs_folder}$"
+zfs list -H ${zfs_folder} 1> /dev/null 2> /dev/null
 if [ $? -eq 1 ]; then
-    error "remove-old-snapshots: ZFS folder $zval does not exist!"
+    notice "remove-old-snapshots: ZFS folder $zval does not exist!"
     exit 1
 fi
 
