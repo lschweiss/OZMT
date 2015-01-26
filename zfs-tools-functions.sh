@@ -167,13 +167,16 @@ islocal () {
         getent hosts $host | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
         if [ $? -eq 0 ]; then
             ip=`cat ${TMP}/islocal_host_$$`
+            rm ${TMP}/islocal_host_$$ 2>/dev/null
         else
             # Try DNS
             dig +short $host > ${TMP}/islocal_host_$$
             if [ $? -eq 0 ]; then
                 ip=`cat ${TMP}/islocal_host_$$`
+                rm ${TMP}/islocal_host_$$ 2>/dev/null
             else
-                echo "$host is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
+                #echo "$host is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
+                rm ${TMP}/islocal_host_$$ 2>/dev/null
                 return 1
             fi
         fi
@@ -356,7 +359,7 @@ init_lock () {
 
 }
 
-function wait_for_lock() {
+wait_for_lock() {
 
     #TODO: clean up the sleep times and time accounting
 
@@ -425,7 +428,7 @@ function wait_for_lock() {
 
 }
 
-function release_lock() {
+release_lock() {
 
     local lockfile="${1}.lock"
     local unlockfile="${lockfile}.unlock"
@@ -450,4 +453,13 @@ function release_lock() {
     
     return 0
 
+}
+
+# Launch a command in the background if NOT running on the console
+launch () {
+    if [ -t 1 ]; then
+        "$@"
+    else
+        "$@" &
+    fi
 }
