@@ -171,6 +171,7 @@ setupzfs () {
     local replication_count=0
     local replication_source_pool=
     local replication_failure_limit=
+    local replication_previous_snapshot=
     local vip=0
     local backup_target=
     local zfs_backup=
@@ -196,7 +197,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:n:R:V:F:L:b:S:p:riIq:t: opt; do
+    while getopts z:o:s:n:R:V:F:L:P:b:S:p:riIq:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -235,6 +236,9 @@ setupzfs () {
             L)  # Replication failure limit
                 replication_failure_limit="$OPTARG"
                 debug "Setting replication failure limit to: $replication_failure_limit"
+                ;;
+            P)  # Previous Snapshot
+                replication_previous_snapshot="$OPTARG"
                 ;;
             b)  # Backup target
                 backup_target="$OPTARG"
@@ -684,16 +688,16 @@ setupzfs () {
                 debug "Creating replication job between $targetA_folder for $targetB_folder on this host."
                 # Create jobs for this folder definition
                 if [ "$targetA_folder" == "$zfspath" ]; then
+                    job_status="${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)"
                     target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetB_pool}:$(foldertojob $targetB_folder)"
                     echo "target=\"${targetB}\"" > $target_job
-                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
                     echo "target_pool=\"${targetB_pool}\"" >> $target_job
                     echo "target_folder=\"${targetB_folder}\"" >> $target_job
                 fi
                 if [ "$targetB_folder" == "$zfspath" ]; then
+                    job_status="${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetB_folder)"
                     target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetA_pool}:$(foldertojob $targetA_folder)"
                     echo "target=\"${targetA}\"" > $target_job
-                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
 
                     echo "target_pool=\"${targetA_pool}\"" >> $target_job
                     echo "target_folder=\"${targetA_folder}\"" >> $target_job
@@ -710,9 +714,9 @@ setupzfs () {
                     fi
                     # Create a job for this replication pair
                     debug "Creating replication job between this host $targetA_pool and host $targetB_pool for $targetA_folder"
+                    job_status="${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)"
                     target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetB_pool}"
                     echo "target=\"${targetB}\"" > $target_job
-                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetB_pool}:$(foldertojob $targetB_folder)\"" >> $target_job
                     echo "target_pool=\"${targetB_pool}\"" >> $target_job
                     echo "target_folder=\"${targetB_folder}\"" >> $target_job
                 fi
@@ -725,9 +729,9 @@ setupzfs () {
                     fi
                     # Create a job for this replication pair
                     debug "Creating replication job between this host $targetB_pool and host $targetA_pool for $targetB_folder"
+                    job_status="${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetA_folder)"
                     target_job="${replication_job_dir}/definitions/${simple_jobname}/${targetA_pool}"
                     echo "target=\"${targetA}\"" > $target_job
-                    echo "job_status=\"${replication_job_dir}/status/${simple_jobname}#${targetA_pool}:$(foldertojob $targetA_folder)\"" >> $target_job
                     echo "target_pool=\"${targetA_pool}\"" >> $target_job
                     echo "target_folder=\"${targetA_folder}\"" >> $target_job
                 fi
@@ -736,6 +740,7 @@ setupzfs () {
                     echo "dataset_name=\"$dataset_name\"" >> $target_job
                     echo "pool=\"${pool}\"" >> $target_job
                     echo "folder=\"${zfspath}\"" >> $target_job 
+                    echo "job_status=\"${job_status}\"" >> $target_job
                     echo "source_tracker=\"${source_tracker}\"" >> $target_job
                     echo "dataset_targets=\"${dataset_targets}\"" >> $target_job
                     echo "replication_count=\"${replication_count}\"" >> $target_job
@@ -743,6 +748,13 @@ setupzfs () {
                     echo "options=\"${options}\"" >> $target_job
                     echo "frequency=\"${frequency}\"" >> $target_job
                     echo "failure_limit=\"${replication_failure_limit}\"" >> $target_job
+                fi
+
+                if [ "$replication_previous_snapshot" != "" ]; then
+                    if [ ! -f "${job_status}" ]; then
+                        # TODO: Verify snapshot exists on souce and target
+                        echo "previous_snapshot=\"$replication_previous_snapshot\"" > $job_status
+                    fi
                 fi
 
             fi # if $mode

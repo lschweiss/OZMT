@@ -72,6 +72,11 @@ Usage:
 
                                     Defaults to 5, unless override specified in zfs-config with 'zfs_replication_failure_limit'
 
+        [-P]                      Previous snapshot. Used when managed replication is taking over a previous 
+                                    replication process.   This is just the snapshot name, not the pool/folder.
+                                    
+                                    Snapshot must exist on all endpoints.
+
 
       [-V {vIP/netmask},{pool}|route1,route2,...|host1/ipif1,host2/ipif2,...}] (repeatable)               
                                   The virtual IP that follows this dataset.  Can be in the form of a hostname or raw IP address.
