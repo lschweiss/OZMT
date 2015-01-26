@@ -333,7 +333,9 @@ update_job_status () {
     fi
 
     # Add our variable
-    echo "${declaration}=\"${value}\"" >> "$temp_file"
+    if [ "$value" != "#REMOVE#" ]; then
+        echo "${declaration}=\"${value}\"" >> "$temp_file"
+    fi
 
     # Replace the status file with the updated file
     mv "$temp_file" "$status_file"

@@ -179,6 +179,10 @@ fi
 update_job_status "${job_status}" "queued_jobs" "$queued_jobs"
 
 
+# Remove previous_snapshot from status file if it is there.  This is only necesary for the first job.
+
+update_job_status "${job_status}" "previous_snapshot" "#REMOVE#"
+
 # Create the job file
 
 jobfile="/${pool}/zfs_tools/var/replication/jobs/pending/${jobname}"
