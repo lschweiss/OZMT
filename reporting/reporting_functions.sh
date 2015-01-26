@@ -88,6 +88,8 @@ process_message() {
     local this_import_level="$4"
     local this_include_file="$5"
 
+    mkdir -p "${TMP}/reporting"
+
     if [ "$DEBUG" == "true" ]; then
         noreport="$(color red)Not reporting: "
     else
@@ -132,7 +134,7 @@ process_message() {
 
     if [ "x${this_report_level}" == "xnow" ]; then
         # Send the email report now
-        message_file=${TMP}/process_message_$$
+        message_file=${TMP}/reporting/process_message_$$
         case "${this_message_level}" in
             '0') this_subject="DEBUG: ${report_name} $HOSTNAME" ;;
             '1') this_subject="NOTICE: ${report_name} $HOSTNAME" ;;
@@ -149,11 +151,11 @@ process_message() {
 
         if [ "$DEBUG" != "true" ]; then
             $TOOLS_ROOT/reporting/send_email.sh -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
+            if [ "$?" -eq "0" ]; then
+                rm $message_file
+            fi 
         fi
 
-        if [ "$?" -eq "0" ]; then
-            rm $message_file
-        fi 
 
     fi
 
@@ -168,7 +170,6 @@ process_message() {
             mkdir -p "$report_spool"
             mv "$TOOLS_ROOT/reporting/reports_pending/$report_name" "${report_spool}/${report_name}"
         fi
-
 
         mkdir -p "$report_spool/attach"
 
