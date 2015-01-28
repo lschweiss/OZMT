@@ -162,7 +162,16 @@ last_run=`${DATE} +"%F %H:%M:%S%z"`
 # Generate new snapshot
 
 last_snapshot="${zfs_replication_snapshot_name}_${now_stamp}"
-zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp}
+timeout 10s zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} 2> ${TMP}/replication_snapshot_$$
+
+if [ $? -ne 0 ]; then
+    error "Replication: Failed to create snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp}" ${TMP}/replication_snapshot_$$
+    mv "${job_definition}" "${pool}/zfs_tools/var/replication/jobs/failed"
+    update_job_status "${job_status}" "suspended" "true"
+    exit 1
+fi
+
+rm ${TMP}/replication_snapshot_$$ 2> /dev/null
 
 update_job_status "${job_status}" "last_snapshot" "${last_snapshot}"
 
