@@ -190,7 +190,7 @@ if [ "$zfs_replication_endpoints_property" == "" ]; then
 fi
 
 if [ "$zfs_replication_failure_limit" == "" ]; then
-    zfs_replication_failure_limit=5
+    zfs_replication_failure_limit="30m"
 fi
 
 if [ "$zfs_replication_queue_delay_count" == "" ]; then
