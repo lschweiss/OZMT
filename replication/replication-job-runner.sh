@@ -252,10 +252,10 @@ for pool in $pools; do
             fi
         fi
     done
+    # Clean completed jobs
+    debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
+    find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
 done
 
 
-# Clean completed jobs
-debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
-find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
 

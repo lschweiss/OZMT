@@ -721,7 +721,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
     if [ "$remote_host" != "" ] ; then
         debug "${job_name}: Gathering remote listening port for mbuffer"
         # Collect listening port from remote pool
-        $remote_ssh "/opt/zfstools/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
+        $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
         if [ $? != 0 ]; then
             error "${job_name}: Could not retrieve remote listening port for mbuffer transport."
             exit 1
