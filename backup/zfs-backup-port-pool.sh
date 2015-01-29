@@ -81,6 +81,22 @@ fi
 # when finished, not returned to the pool.
 
 
+attach_port (){
+    # Assign the port to a PID
+    # Calling this is require after getting a port or else the port will be recycled
+
+    local port="$1"
+    local pid="$2"
+
+    if [ -f "${connection_port_pool}/inuse/${port}" ]; then
+        echo "$pid" > "${connection_port_pool}/inuse/${port}"
+    else
+        error "Attempted to assign a pid to a port that was not reserved.  Did you call get_port first?"
+        return 1
+    fi
+
+}
+
 get_port () {
 
     # There is a possible race condition here.  Instead of dealing with a clunky locking mechanism
@@ -138,6 +154,7 @@ return_port () {
 ####
 
 if [ "$1" != "" ]; then
-    $1
+    shift 1
+    $@
     exit $?
 fi

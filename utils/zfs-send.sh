@@ -738,6 +738,9 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
             "$remote_tmp/mbuffer_transport.error" 
         remote_watch="mbuffer_transport $remote_watch"
         sleep 1
+        # Attach the port reservation to the mbuffer process
+        mbuffer_pid=`$remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid"`
+        $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh attach_port $remote_port $mbuffer_pid"
     fi
 fi
 
