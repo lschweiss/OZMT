@@ -154,7 +154,6 @@ return_port () {
 ####
 
 if [ "$1" != "" ]; then
-    shift 1
     $@
     exit $?
 fi
