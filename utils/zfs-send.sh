@@ -61,6 +61,7 @@ fi
 result=
 verify='true'
 remote_ssh=
+remote_port=
 target_fifo=
 target_fifos=
 source_fifo=
@@ -99,6 +100,12 @@ clean_up () {
             fi
         fi
     fi
+
+    # Clean up reserved port
+    if [ "$remote_port" != "" ]; then
+        debug "Returning remote port $remote_port to the port pool"
+        $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh return_port $remote_port"
+    fi 
     exit $1
 }
 
