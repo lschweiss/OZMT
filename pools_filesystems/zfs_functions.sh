@@ -371,7 +371,7 @@ setupzfs () {
     # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
     # of this folder will be done with zfs receive.
 
-    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "$replication_source" == "${pool}:${zfspath}" ]]; then
+    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "${pool}:${zfspath}" == "$replication_source"* ]]; then
         zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
         if [ $? -eq 0 ]; then
             echo "${pool}/${zfspath} already exists, resetting options"
