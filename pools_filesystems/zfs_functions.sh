@@ -642,6 +642,8 @@ setupzfs () {
 
 
 
+        # TODO: Clean up job status, pending jobs, suspended, failed etc.
+
 
          
     fi

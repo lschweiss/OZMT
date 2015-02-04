@@ -173,7 +173,7 @@ migrating='false'
 # Remote replication
 
 # Test ssh connectivity
-timout 5s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
+timeout 5s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
 if [ $? -eq 0 ]; then
     debug "Connection validated to ${target_pool}"
     # Confirm on the target host that this is truely the source
@@ -196,7 +196,7 @@ else
     failures=$(( failures + 1 ))
     mv "${job_definition}" "${replication_dir}/failed/"
     notice "Cannot connect to host for ${target_pool}.  Marking job failed. $job_definition"
-    updated_job_status "$job_status" failures $failures
+    update_job_status "$job_status" failures $failures
     exit 1
 fi
 
