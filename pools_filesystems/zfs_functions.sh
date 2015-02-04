@@ -616,6 +616,38 @@ setupzfs () {
     #           If more than two targets are active snapshot deletion becomes a post
     #           sync process across all inactive targets.
     
+    # Clean up if replication has been removed from the definition
+
+    echo "Replication parent: $replication_parent"
+
+    if [[ "$replication_parent" == "$zfspath" && "$replication_targets" == "" ]]; then
+        # Previous replication job for this path has been removed.   Remove the job definitions.
+        debug "Removing previous replication job ${simple_jobname}"
+        rm -rf ${replication_job_dir}/definitions/${simple_jobname}
+        rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
+        zfs get creation ${pool}/${zfspath} &> /dev/null
+        if [ $? -eq 0 ]; then
+            # Remove zfs properties
+            zfs inherit $zfs_replication_property ${pool}/${zfspath}
+            zfs inherit $zfs_replication_dataset_property ${pool}/${zfspath}
+            zfs inherit $zfs_replication_endpoints_property ${pool}/${zfspath}
+        fi
+    
+        replication_parent='-'
+        replication='off'
+        replication_dataset_name=
+        replication_parent_full=
+
+        # TODO: Remove replication snapshots
+
+
+
+
+         
+    fi
+
+
+   
     # Flush dataset_targets file and rebuild
     rm "$datset_targets" 2> /dev/null
     rm "${TMP}/dataset_targets_$$" 2> /dev/null
@@ -817,7 +849,7 @@ setupzfs () {
                     ignore=""
                 fi
 
-                ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                timeout 3s ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
                     root@${t_pool}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                     ${TMP}/setup_filesystem_replication_$$
                 if [ $? -ne 0 ]; then
@@ -856,28 +888,6 @@ setupzfs () {
         fi
 
     fi
-
-    if [[ "$replication_parent" == "$zfspath" && "$replication_targets" == "" ]]; then
-        # Previous replication job for this path has been removed.   Remove the job definitions.
-        debug "Removing previous replication job ${simple_jobname}"
-        rm -rf ${replication_job_dir}/definitions/${simple_jobname}
-        rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
-        zfs get creation ${pool}/${zfspath} &> /dev/null
-        if [ $? -eq 0 ]; then
-            # Remove zfs properties
-            zfs inherit $zfs_replication_property ${pool}/${zfspath}
-            zfs inherit $zfs_replication_dataset_property ${pool}/${zfspath}
-            zfs inherit $zfs_replication_endpoints_property ${pool}/${zfspath}
-        fi
-
-        # TODO: Remove replication snapshots
-
-
-
-
-         
-    fi
-
 
     # Define vIP
 
