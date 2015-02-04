@@ -104,12 +104,6 @@ clean_job () {
         debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
     fi
 
-    if [ "$recursive" == 'true' ]; then
-        
-
-
-    fi 
-
 
 }
 
