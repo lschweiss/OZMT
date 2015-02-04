@@ -173,7 +173,7 @@ migrating='false'
 # Remote replication
 
 # Test ssh connectivity
-ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
+timout 5s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
 if [ $? -eq 0 ]; then
     debug "Connection validated to ${target_pool}"
     # Confirm on the target host that this is truely the source
@@ -215,14 +215,14 @@ if [ "$previous_snapshot" == "" ]; then
     debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
     ../utils/zfs-send.sh -n "${dataset_name}" -r ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
-        -l "${pool}/${folder}@${last_snapshot}"
+        -l "${pool}/${folder}@${snapshot}"
     send_result=$?
 else
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
     ../utils/zfs-send.sh -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
-        -l "${pool}/${folder}@${last_snapshot}"
+        -l "${pool}/${folder}@${snapshot}"
     send_result=$?
 fi
 
@@ -231,7 +231,7 @@ if [ $send_result -ne 0 ]; then
     mv "${job_definition}" "${replication_dir}/failed/"
     update_job_status "$job_status" failures $failures
 else
-    notice "Replication job ${pool}/${folder} to ${target_pool}/${target_folder} completed for ${folder}@${last_snapshot}"
+    notice "Replication job ${pool}/${folder} to ${target_pool}/${target_folder} completed for ${folder}@${snapshot}"
     update_job_status "$job_status" "failures" "0"
     queued_jobs=$(( queued_jobs - 1 ))
     if [ $queued_jobs -lt 0 ]; then
