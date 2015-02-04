@@ -197,7 +197,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:n:R:V:F:L:P:b:S:p:riIq:t: opt; do
+    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -214,6 +214,10 @@ setupzfs () {
             s)  # Add a snapshot policy
                 snapshots="$snapshots $OPTARG"
                 debug "Adding snapshot policy: $OPTARG"
+                ;;
+            S)  # Add a recursive snapshot policy
+                r_snapshots="$r_snapshots $OPTARG"
+                debug "Adding recursive snapshot policy: $OPTARG"
                 ;;
             n)  # Dataset name
                 dataset_name="$OPTARG"
@@ -241,29 +245,7 @@ setupzfs () {
                 replication_previous_snapshot="$OPTARG"
                 ;;
             b)  # Backup target
-                backup_target="$OPTARG"
-                zfs_backup='true'
-                debug "Adding backup target: $backup_target"
-                ;;
-            S)  # Job Schedules
-                backup_schedules="$OPTARG $backup_schedules"
-                debug "Adding backup schedule: $OPTARG"
-                ;;
-            p)  # zfs property for backup target
-                target_properties="$target_properties $OPTARG"
-                debug "Adding backup property for $backup_target: $target_property"
-                ;;
-            r)  # Use a replication stream
-                backup_options="$backup_options -r"
-                debug "Setting replication stream for $backup_target"
-                ;;
-            i)  # Use an incremental stream
-                backup_options="-i $backup_options"
-                debug "Setting incremental stream for $backup_target"
-                ;;
-            I)  # Use and incremental stream with intermediary snapshots
-                backup_options="-I $backup_options"
-                debug "Setting incremental stream with intermediary snapshots for $backup_target"
+                error "Backup target no longer supported"
                 ;;
             q)  # Add a quota report
                 quota_reports=$(( quota_reports + 1 ))
@@ -326,7 +308,7 @@ setupzfs () {
     if [ "$dataset_name" != "" ]; then
         # Test for valid characters
         ${GREP} -qv '[^0-9A-Za-z\$\%\(\)\=\+\-\#\:\{\}]' <<< $dataset_name
-        if [ $? -ne 0 ]; then
+        if [ $? -eq 0 ]; then
             debug "Dataset name $dataset_name passes character test"
         else
             error "Dataset name $dataset_name contains invalid characters."
@@ -546,7 +528,7 @@ setupzfs () {
         fi
     done
 
-    # Create the jobs
+    # Create the snapshot jobs
     echo "Creating snapshot jobs for ${pool}/${zfspath}:"
     echo "snapshots: $snapshots"
     echo -e "Job\t\tType\t\tQuantity"
@@ -559,6 +541,20 @@ setupzfs () {
             if [ "$staging" != "" ]; then
                 echo "x${snapqty}" > $snapjobdir/$snaptype/${stagingjobname}
             fi
+        done
+    fi
+    echo
+
+    # Create the recursive snapshot jobs
+    echo "Creating snapshot jobs for ${pool}/${zfspath}:"
+    echo "snapshots: $snapshots"
+    echo -e "Job\t\tType\t\tQuantity"
+    if [ "$snapshots" != "" ]; then
+        for snap in $snapshots; do
+            snaptype=`echo $snap|${CUT} -d "|" -f 1`
+            snapqty=`echo $snap|${CUT} -d "|" -f 2`
+            echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
+            echo "r${snapqty}" > $snapjobdir/$snaptype/$jobname
         done
     fi
     echo

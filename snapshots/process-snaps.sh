@@ -61,6 +61,7 @@ snap_job () {
     local snap_this_folder='false'
     local now=
     local stamp=
+    local recursive=
 
     # Test the folder exists
     debug "Pool: $pool   Folder: $folder   Job: $job  zfsfolder: $zfsfolder"
@@ -92,15 +93,20 @@ snap_job () {
         keepcount="${keepcount:1}"
     fi
 
+    if [ "${keepcount:0:1}" == "r" ]; then
+        keepcount="${keepcount:1}"
+        recursive='-r'
+    fi
+
     now=`${DATE} +%F_%H:%M%z`
     stamp="${snaptype}_${now}"
     if [ "${keepcount:0:1}" != "x" ]; then
-        zfs snapshot ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ ; result=$?
+        zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ ; result=$?
         if [ "$result" -ne "0" ]; then
-            error "Failed to create snapshot ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
+            error "Failed to create snapshot ${recursive} ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
             rm ${TMP}/process_snap_$$
         else
-            notice "Created snapshot: ${zfsfolder}@${stamp}"
+            notice "Created snapshot: ${recursive} ${zfsfolder}@${stamp}"
         fi
     fi
     

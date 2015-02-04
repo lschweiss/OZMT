@@ -14,6 +14,7 @@ Usage:
     setupzfs -z {zfs_path}
       [-o {zfs_option)]           Set zfs property (repeatable)
       [-s {snapshot|count}]       Set snapshot policy and count (repeatable)
+      [-S {snapshot|count}]       Set recursive sNapshot policy and count (repeatable)
       [-n {name}]                 Name for this dataset.   Required for replication.
       [-R {target1|target2|mode|options|freqency}] (repeatable)
                                   Set a replication pair between target1 and target2 (repeatable)
@@ -101,16 +102,8 @@ Usage:
     
                                     Typically associated with a replication configuration, but not necessarily.    
 
-      [-b {backup_target}]        zfs send/receive target (depricated, being replaced by replication))
-                                  {pool}/{zfs_folder} or
-                                  {host}:/{pool}/{zfs_folder}  Must have root ssh authorized keys preconfigured.
-        [-S {job_schedules}         {job_schedules} ties the backup job to snapshot schedules.   Can be any
-                                    snapshot policy available on the system.   This parameter is repeatable.
-        [-p {target_properties}]    Properties to reset on the target zfs folder. (repeatable)
-        [-r]                        Use a replication stream, which will include all child zfs folders and snapshots.
-        [-i]                        Use an incremental stream
-        [-I]                        Use an incremental stream with all intermediary snapshots
-                                    -i and -I are mutually exclusive.
+    Quota Reporting:
+
       [-q "{free}|{alert_type}|{destination}|{frequency}"]
                                   Send a quota alert at {free} to {destination} every {frequency} seconds.
                                     {alert_type} can be any adjective, typically "warning", or "critical"

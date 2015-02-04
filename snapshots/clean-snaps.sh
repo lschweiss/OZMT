@@ -55,6 +55,9 @@ clean_job () {
     local replication_endpoints=
     local replication_source=
     local clean_this_folder='false'
+    local recursive='false'
+    local snap_folders=
+    local snap_folder=
 
     # Make sure we should clean this folder
     replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
@@ -81,13 +84,33 @@ clean_job () {
     if [ "${keepcount:0:1}" == "x" ]; then
         keepcount="${keepcount:1}"
     fi
+    
+    if [ "${keepcount:0:1}" == "r" ]; then
+        keepcount="${keepcount:1}"
+        recursive='true'
+    fi
 
     if [[ "$keepcount" != "" && $keepcount -ne 0 ]]; then
     # Remove snapshots
-        ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
+        if [ "$recursive" == 'true' ]; then
+            snap_folders=`zfs list -H -o name -r -t filesystem $zfsfolder`
+            for snap_folder in $snap_folders; do
+                launch ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $snap_folder -p $snaptype
+            done
+        else
+            launch ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $zfsfolder -p $snaptype
+        fi
     else
         debug "clean-snapshots: Keeping all $snaptype snapshots for $zfsfolder"
     fi
+
+    if [ "$recursive" == 'true' ]; then
+        
+
+
+    fi 
+
+
 }
 
 # collect jobs
