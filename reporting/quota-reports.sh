@@ -28,11 +28,6 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 logfile="$default_logfile"
 report_name="$default_report_name"
 
-if [ -t 1 ]; then
-    background=''
-else
-    background='&'
-fi
 
 update_last_report () {
 
@@ -344,7 +339,7 @@ for pool in $pools; do
 
         for job in $jobs; do
             quota_reports=0
-            quota_report "$job" $background
+            launch quota_report "$job"
         done
 
     fi
