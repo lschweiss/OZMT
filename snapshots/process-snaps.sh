@@ -35,10 +35,6 @@ else
     report_name="$default_report_name"
 fi
 
-# Launch related backup jobs
-
-$TOOLS_ROOT/backup/backup-to-zfs.sh $snaptype &
-
 
 snap_job () {
 
@@ -72,12 +68,12 @@ snap_job () {
         return 0
     fi
 
-    # Make sure we should clean this folder
+    # Make sure we should snap this folder
     replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
     if [ "$replication" == "on" ]; then
         replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
-        if [ "$replication_source" == "${pool}:${folder}" ]; then
+        if [ "$replication_source" == "${pool}:${replication_dataset}" ]; then
             snap_this_folder='true'
         fi
     else
@@ -85,6 +81,7 @@ snap_job () {
     fi
 
     if [ "$snap_this_folder" == 'false' ]; then
+        debug "Skipping snapshot for ${zfsfolder} Replication dataset: $replication_dataset Replication source: $replication_source " 
         # Skip this job
         return 0
     fi
@@ -124,7 +121,7 @@ for pool in $pools; do
         jobs=`ls -1 $jobfolder/$snaptype`
         for job in $jobs; do
             debug "Running $snaptype snapshot jobs for $job"
-            snap_job "$snaptype" "$job" &
+            launch snap_job "$snaptype" "$job"
         done
     else 
         debug "process-snap: No snap type(s) $snaptype defined."
