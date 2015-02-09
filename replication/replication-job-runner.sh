@@ -230,28 +230,30 @@ for pool in $pools; do
     jobs=`ls -1 "${replication_dir}/pending"|sort`
     for job in $jobs; do
         debug "found job: $job"
-        source "${replication_dir}/pending/${job}"
-        source "${job_status}"
-        if [ "$suspended" == 'true' ]; then
-            debug "replication is suspended.  Suspending job."
-            mv source "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
-        else
-            # Confirm previous job is complete
-            if [[ "$previous_jobname" != "" && \
-                  ! -f "${replication_dir}/synced/${previous_jobname}" && \
-                  ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
-                # Leave this job in pending state
-                debug "Previous job is not complete.   Leave in pending state.  previous_jobname=$previous_jobname"
-                continue
+        if [ -f "${replication_dir}/pending/${job}" ]; then
+            source "${replication_dir}/pending/${job}"
+            source "${job_status}"
+            if [ "$suspended" == 'true' ]; then
+                debug "replication is suspended.  Suspending job."
+                mv source "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
             else
-                # Launch the replication job
-                debug "Launching replication job"
-                mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
-                launch ./replication-job.sh "${replication_dir}/running/${job}" || \
-                    error "Could not launch replication-job.sh \"${replication_dir}/running/${job}\""
-            fi
-        fi
-    done
+                # Confirm previous job is complete
+                if [[ "$previous_jobname" != "" && \
+                      ! -f "${replication_dir}/synced/${previous_jobname}" && \
+                      ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
+                    # Leave this job in pending state
+                    debug "Previous job is not complete.   Leave in pending state.  previous_jobname=$previous_jobname"
+                    continue
+                else
+                    # Launch the replication job
+                    debug "Launching replication job"
+                    mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
+                    launch ./replication-job.sh "${replication_dir}/running/${job}" || \
+                        error "Could not launch replication-job.sh \"${replication_dir}/running/${job}\""
+                fi 
+            fi # $suspended == true
+        fi # -f "${replication_dir}/pending/${job}"
+    done # for job
     # Clean completed jobs
     debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
     find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
