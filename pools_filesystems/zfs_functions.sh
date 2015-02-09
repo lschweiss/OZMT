@@ -546,11 +546,11 @@ setupzfs () {
     echo
 
     # Create the recursive snapshot jobs
-    echo "Creating snapshot jobs for ${pool}/${zfspath}:"
-    echo "snapshots: $snapshots"
+    echo "Creating recursive snapshot jobs for ${pool}/${zfspath}:"
+    echo "snapshots: $r_snapshots"
     echo -e "Job\t\tType\t\tQuantity"
-    if [ "$snapshots" != "" ]; then
-        for snap in $snapshots; do
+    if [ "$r_snapshots" != "" ]; then
+        for snap in $r_snapshots; do
             snaptype=`echo $snap|${CUT} -d "|" -f 1`
             snapqty=`echo $snap|${CUT} -d "|" -f 2`
             echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
