@@ -247,13 +247,18 @@ else
             mv "${job_definition}" "${replication_dir}/synced/"
         else
             # Move the job to completed status
+            debug "Moving job to completed status"
+            touch "${job_definition}"
             mv "${job_definition}" "${replication_dir}/complete/" 
         fi
         rm /${TMP}/zfs_destroy_$$ 2>/dev/null
     else
         if [ "$delete_snaps" != "" ]; then
+            debug "Moving job to completed status"
+            touch "${job_definition}"
             mv "${job_definition}" "${replication_dir}/complete/"
         else
+            debug "Moving job to synced status"
             mv "${job_definition}" "${replication_dir}/synced/"
         fi
     fi
