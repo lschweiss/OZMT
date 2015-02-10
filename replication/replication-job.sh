@@ -233,6 +233,7 @@ if [ $send_result -ne 0 ]; then
 else
     notice "Replication job ${pool}/${folder} to ${target_pool}/${target_folder} completed for ${folder}@${snapshot}"
     update_job_status "$job_status" "failures" "0"
+    source "$job_status"
     queued_jobs=$(( queued_jobs - 1 ))
     if [ $queued_jobs -lt 0 ]; then
         queued_jobs=0
