@@ -369,6 +369,9 @@ update_job_status () {
                         value=$((previous_value - value))
                         ;;
                 esac
+                if [ $value -lt 0 ]; then
+                    value=0
+                fi
                 debug "Setting ${declaration}=\"${value}\""
                 echo "${declaration}=\"${value}\"" >> "$temp_file"
             fi 
