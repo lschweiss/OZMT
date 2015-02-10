@@ -59,15 +59,15 @@ else
     # confirm all 'inuse' ports are alive.   If not return them to the available pool
     ports=`ls -1 ${connection_port_pool}/inuse`
     for port in $ports; do
-
-        if test `find "${connection_port_pool}/inuse/$port" -mmin +2`; then
+        inuse_file=`find "${connection_port_pool}/inuse/${port}" -mmin +2`
+        if [ "$inuse_file" == "${connection_port_pool}/inuse/${port}" ]; then
             # Port was assigned more that 2 minutes ago.  Test if it is use.
             IFS=";" 
-            read -r pid command < "${connection_port_pool}/inuse/${port}" 
+            read -r pid command_line < "${connection_port_pool}/inuse/${port}" 
             unset IFS
-            if [[ "$command" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command" ]]; then
+            if [[ "$command_line" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command_line" ]]; then
                 # Port usage is dead return to the pool
-                debug "Returning dead port ${port} to the available pool"
+                error "Returning dead port ${port} to the available pool, can't find PID $pid, command $command_line"
                 rm ${connection_port_pool}/inuse/${port}
                 touch ${connection_port_pool}/available/${port}
             fi
@@ -87,9 +87,10 @@ attach_port (){
 
     local port="$1"
     local pid="$2"
+    local command_line="$3"
 
     if [ -f "${connection_port_pool}/inuse/${port}" ]; then
-        echo "$pid" > "${connection_port_pool}/inuse/${port}"
+        echo "${pid};${command_line}" > "${connection_port_pool}/inuse/${port}"
     else
         error "Attempted to assign a pid to a port that was not reserved.  Did you call get_port first?"
         return 1
