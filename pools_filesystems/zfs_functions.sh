@@ -656,7 +656,7 @@ setupzfs () {
 
 
     if [ "$replication_targets" != "" ]; then
-        if [[ "$replication_source" != '-' && "$replication_source" != "${pool}:${zfspath}" ]]; then
+        if [[ "$replication_source" != '-' && "$replication_parent" != "${zfspath}" ]]; then
             warning "Replication is already defined on parent zfs dataset $replication_parent"
         fi         
 
