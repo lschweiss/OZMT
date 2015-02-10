@@ -137,13 +137,18 @@ if [ "$#" -ne "$MIN_ARGS" ]; then
     exit 1
 fi
 
+previous_snapshot=
+
 job_definition="${1}"
 
 source "$job_definition"
 if [ -f "${job_status}" ]; then
     source "${job_status}"
 fi
-previous_snapshot="$last_snapshot"
+# previous_snapshot may have been defined in job_status file for a first run.
+if [ "$previous_snapshot" == "" ]; then
+    previous_snapshot="$last_snapshot"
+fi
 
 # Confirm on the target host that this is truely the source
 
