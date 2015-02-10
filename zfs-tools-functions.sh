@@ -308,6 +308,8 @@ update_job_status () {
     local variable="$2"
     local value="$3"
     local declaration=
+    local increment=
+    local previous_value=
 
     rm -f "$temp_file" 2> /dev/null
 
@@ -315,6 +317,14 @@ update_job_status () {
         declaration="local ${variable}"
     else
         declaration="${variable}"
+    fi
+
+    debug "Updating $variable in $status_file"
+
+    if [[ "${value:0:1}" == "+" || "${value:0:1}" == "-" ]]; then
+        increment="${value:0:1}"
+        value="${value:1}"
+        debug "Incrementing $variable by $increment $value"
     fi
 
     wait_for_lock "$status_file" 5
@@ -325,6 +335,10 @@ update_job_status () {
             echo "$line" | ${GREP} -q "^${declaration}="
             if [ $? -ne 0 ]; then
                 echo "$line" >> "$temp_file"
+            else
+                if [ "$increment" != "" ]; then
+                    previous_value=`echo "$line" | cut -d '=' -f 2 | $SED 's/"//g'`
+                fi
             fi
         done < "$status_file"
     else
@@ -334,7 +348,31 @@ update_job_status () {
 
     # Add our variable
     if [ "$value" != "#REMOVE#" ]; then
-        echo "${declaration}=\"${value}\"" >> "$temp_file"
+        if [ "$increment" == "" ]; then
+            debug "Setting ${declaration}=\"${value}\""
+            echo "${declaration}=\"${value}\"" >> "$temp_file"
+        else
+            if [ "$previous_value" == "" ]; then
+                if [ "$increment" == "+" ]; then
+                    debug "Setting ${declaration}=\"${value}\""
+                    echo "${declaration}=\"${value}\"" >> "$temp_file"
+                else
+                    debug "Setting ${declaration}=\"0\""
+                    echo "${declaration}=\"0\"" >> "$temp_file"
+                fi
+            else
+                case $increment in
+                    '+')
+                        value=$((previous_value + value))
+                        ;;
+                    '-')
+                        value=$((previous_value - value))
+                        ;;
+                esac
+                debug "Setting ${declaration}=\"${value}\""
+                echo "${declaration}=\"${value}\"" >> "$temp_file"
+            fi 
+        fi
     fi
 
     # Replace the status file with the updated file

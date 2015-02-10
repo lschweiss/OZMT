@@ -178,6 +178,10 @@ for pool in $pools; do
                 freq_num=`echo $frequency|${SED} 's/[^0-9]//g'`
                 freq_unit=`echo $frequency|${SED} 's/[^a-z]//g'`
 
+                if [ "$queued_jobs" == "" ]; then
+                    queued_jobs=0
+                fi
+
                 # Based on number queued jobs, increase the duration between job creation.
                 if [ $queued_jobs -gt $zfs_replication_queue_delay_count ]; then
                     # Jobs are stacking up start increasing the scheduling duration for minute and hour increment jobs

@@ -194,10 +194,11 @@ update_job_status "${job_status}" "last_jobname" "${jobname}"
 
 if [ "$queued_jobs" == "" ]; then
     queued_jobs=1
+    update_job_status "${job_status}" "queued_jobs" "1"
 else
     queued_jobs=$(( queued_jobs + 1 ))
+    update_job_status "${job_status}" "queued_jobs" "+1"
 fi
-update_job_status "${job_status}" "queued_jobs" "$queued_jobs"
 
 
 # Remove previous_snapshot from status file if it is there.  This is only necesary for the first job.
