@@ -747,6 +747,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         sleep 1
         # Attach the port reservation to the mbuffer process
         mbuffer_pid=`$remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid"`
+        debug "Attaching remote port $remote_port to mbuffer PID $mbuffer_pid"
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh attach_port $remote_port $mbuffer_pid"
     fi
 fi
