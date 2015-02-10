@@ -55,7 +55,10 @@ if [ ! -d $connection_port_pool ]; then
         touch ${connection_port_pool}/available/$current
         current=$(( current + 1 ))
     done
-else
+fi
+
+clean_pool () {
+
     # confirm all 'inuse' ports are alive.   If not return them to the available pool
     ports=`ls -1 ${connection_port_pool}/inuse`
     for port in $ports; do
@@ -73,7 +76,8 @@ else
             fi
         fi
     done
-fi
+
+}
 
 # TODO: Detect changes in the conneciton pool size from when it was initialized.  
 # Adjust the pool as necessary.
@@ -101,7 +105,7 @@ attach_port (){
 get_port () {
 
     # There is a possible race condition here.  Instead of dealing with a clunky locking mechanism
-    # in bash we will grap a port by using the 'mv' command.  If that fails we assume we lost
+    # in bash we will grab a port by using the 'mv' command.  If that fails we assume we lost
     # the race and select another port.
 
     local port=
@@ -111,14 +115,13 @@ get_port () {
             error "Connection port pool is empty.  Please expand the port pool."
             return 1
         fi
+        # Touch before moving so it doesn't get scraped immediately by another process.
+        touch ${connection_port_pool}/available/${port}
         mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port}
         if [ $? -ne 0 ]; then
-            warning "Could not capture port reference {connection_port_pool}/available/${port}"
+            debug "Could not capture port reference {connection_port_pool}/available/${port}"
             # Another process took our port first
             port=
-        else
-            # Update modification time
-            touch ${connection_port_pool}/inuse/${port}
         fi
     done
 
@@ -138,6 +141,7 @@ return_port () {
             rm "${connection_port_pool}/inuse/${port}"
             touch ${connection_port_pool}/available/${port}
         fi
+        clean_pool
         return 0
     else
         error "Failed returning port $port to pool.  The port was not in use."
