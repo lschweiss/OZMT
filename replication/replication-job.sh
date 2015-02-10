@@ -242,9 +242,13 @@ else
     if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
         # Delete the previous snapshot
         debug "Only 2 replication endpoints.  Deleting source snapshot."
-        zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$ 
+        zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$.txt 
         if [ $? -ne 0 ]; then
-            warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$
+            warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$.txt
+            zfs destroy -d -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy2_$$.txt
+            if [ $? -ne 0 ]; then
+                error "Could not defer destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy2_$$.txt
+            fi
             mv "${job_definition}" "${replication_dir}/synced/"
         else
             # Move the job to completed status

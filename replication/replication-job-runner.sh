@@ -235,7 +235,7 @@ for pool in $pools; do
             source "${job_status}"
             if [ "$suspended" == 'true' ]; then
                 debug "replication is suspended.  Suspending job."
-                mv source "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
+                mv "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
             else
                 # Confirm previous job is complete
                 if [[ "$previous_jobname" != "" && \
