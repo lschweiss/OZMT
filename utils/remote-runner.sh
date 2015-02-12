@@ -27,6 +27,9 @@ source ../zfs-tools-init.sh
 
 trap "" HUP
 
+pid=
+tries=0
+
 stdin="$1"
 shift 1
 stdout="$1"
@@ -40,6 +43,16 @@ shift 1
 ( $@ < "$stdin" > "$stdout" 2> "$stderr" ; echo $? > "$exitfile" ) &
 ppid=$!
 # Find the child of ppid because ppid is still bash not our process.
-pid=`ps -eo ppid,pid|${GREP} "^${ppid} "|${AWK} -F " " '{print $2}'`
+while [[ "$pid" == "" && $tries -le 5 ]]; do
+    pid=`ps -eo ppid,pid|${GREP} "^${ppid} "|${AWK} -F " " '{print $2}'`
+    if [ "$pid" == "" ]; then
+        sleep .5
+        tries=$(( tries + 1 ))
+    fi
+done
+if [ $tries -ge 5 ]; then
+    error "Could not get the PID for \"$@\".  Could cause additional errors."
+fi
 echo $pid > "$pidfile"
+echo $ppid > "${pidfile}p"
 wait
