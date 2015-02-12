@@ -174,10 +174,12 @@ fi
 last_snapshot="${zfs_replication_snapshot_name}_${now_stamp}"
 
 debug "Generating snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp}"
-timeout 10s zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} 2> ${TMP}/replication_snapshot_$$
+timeout 2m zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} 2> ${TMP}/replication_snapshot_$$.txt
+errorcode=$?
 
-if [ $? -ne 0 ]; then
-    error "Replication: Failed to create snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp}" ${TMP}/replication_snapshot_$$
+if [ $errorcode -ne 0 ]; then
+    error "Replication: Failed to create snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} errorcode $errorcode" \
+        ${TMP}/replication_snapshot_$$.txt
     mv "${job_definition}" "${pool}/zfs_tools/var/replication/jobs/failed/"
     update_job_status "${job_status}" "suspended" "true"
     exit 1
