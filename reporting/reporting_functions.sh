@@ -139,7 +139,7 @@ process_message() {
             '0') this_subject="DEBUG: ${report_name} $HOSTNAME" ;;
             '1') this_subject="NOTICE: ${report_name} $HOSTNAME" ;;
             '2') this_subject="WARNING: ${report_name} $HOSTNAME" ;;
-            '3') this_subject="ERROR: ${report_name} $HOSTNAME" ;;
+            '3') this_subject="ERROR: $0 ${report_name} $HOSTNAME" ;;
         esac
 
         echo >> $message_file

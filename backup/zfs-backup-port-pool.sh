@@ -62,7 +62,7 @@ clean_pool () {
     # confirm all 'inuse' ports are alive.   If not return them to the available pool
     ports=`ls -1 ${connection_port_pool}/inuse`
     for port in $ports; do
-        inuse_file=`find "${connection_port_pool}/inuse/${port}" -mmin +2`
+        inuse_file=`find "${connection_port_pool}/inuse/${port}" -mmin +1440`
         if [ "$inuse_file" == "${connection_port_pool}/inuse/${port}" ]; then
             # Port was assigned more that 2 minutes ago.  Test if it is use.
             IFS=";" 
