@@ -1043,7 +1043,7 @@ fi
 # Collect job component error levels and report failures
 ##
 
-if [ ! -t 1 ]; then
+if [ -t 1 ]; then
 
     errorlevels=`ls -1 $tmpdir/*.errorlevel`
     for errorlevel in $errorlevels; do

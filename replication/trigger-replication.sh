@@ -224,8 +224,5 @@ echo "execution_number=\"1\"" >> $jobfile
 
 update_job_status "${job_status}" "last_run" "${last_run}" 
 
-# Launch job runner
-
-launch ./replication-job-runner.sh 
 
 

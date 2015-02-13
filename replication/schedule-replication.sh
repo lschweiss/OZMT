@@ -123,6 +123,7 @@ fi
 now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
+pids=
 
 
 # look for jobs to run
@@ -163,6 +164,7 @@ for pool in $pools; do
                     debug "triggering first run."
                     init_lock "${job_status}"
                     launch ./trigger-replication.sh "$job_definition"
+                    pids="$pids $launch_pid"
                     continue
                 fi     
                 last_run_secs=`${DATE} -d "$last_run" +%s`
@@ -217,24 +219,28 @@ for pool in $pools; do
                         if [ $duration_min -ge $freq_num ]; then
                             debug "hasn't run in $freq_num minutes.  Triggering"
                             launch ./trigger-replication.sh "${job_definition}" 
+                            pids="$pids $launch_pid"
                         fi
                         ;;
                     'h')
                         if [ $duration_hour -ge $freq_num ]; then
                             debug "hasn't run in $freq_num hours.  Triggering"
                             launch ./trigger-replication.sh "${job_definition}" 
+                            pids="$pids $launch_pid"
                         fi
                         ;;
                     'd')
                         if [ $duration_day -ge $freq_num ]; then
                             debug "hasn't run in $freq_num days.  Triggering"
                             launch ./trigger-replication.sh "${job_definition}" 
+                            pids="$pids $launch_pid"
                         fi
                         ;;
                     'w')
                         if [ $duration_week -ge $freq_num ]; then
                             debug "hasn't run in $freq_num weeks.  Triggering"
                             launch ./trigger-replication.sh "${job_definition}"
+                            pids="$pids $launch_pid"
                         fi
                         ;;
                     *)
@@ -245,15 +251,30 @@ for pool in $pools; do
             done # for target_def
         done # for folder_def
         
-        ###
-        # Look for failed jobs to relaunch
-        ###
-
-        failed_jobs=`ls -1 "${replication_job_dir}/failed"|wc -l`
-
-        if [ $failed_jobs -ne 0 ]; then
-            launch ./replication-job-runner.sh
-        fi
-    
+   
     fi # if [ -d "$replication_def_dir" ]
 done # for pool 
+
+# Wait for trigger_replication.sh jobs to completed
+for pid in $pids; do
+    debug "Waiting for trigger_replication.sh pid $pid to complete"
+    wait $pid
+done
+
+# Launch job runner
+
+./replication-job-runner.sh
+
+sleep 30
+
+###
+# Look for failed jobs to relaunch
+###
+
+failed_jobs=`ls -1 "${replication_job_dir}/failed"|wc -l`
+
+if [ $failed_jobs -ne 0 ]; then
+    launch ./replication-job-runner.sh
+fi
+ 
+

@@ -262,12 +262,6 @@ else
             mv "${job_definition}" "${replication_dir}/synced/"
         fi
     fi
-    
-    source "$job_status"
-    # Lauch again if more jobs are queued
-    if [ $queued_jobs -ne 0 ]; then
-        launch ./replication-job-runner.sh
-    fi
         
 fi
 

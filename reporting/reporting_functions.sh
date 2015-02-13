@@ -113,9 +113,9 @@ process_message() {
             esac 
             # Display the message
             if [ "${this_message_level}" -gt 1 ]; then
-                echo "${this_message}$(color off)" 1>&2
+                echo "$(basename $0) ${this_message}$(color off)" 1>&2
             else
-                echo "${this_message}$(color off)"
+                echo "$(basename $0) ${this_message}$(color off)"
             fi
 
         fi
@@ -136,10 +136,10 @@ process_message() {
         # Send the email report now
         message_file=${TMP}/reporting/process_message_$$
         case "${this_message_level}" in
-            '0') this_subject="DEBUG: ${report_name} $HOSTNAME" ;;
-            '1') this_subject="NOTICE: ${report_name} $HOSTNAME" ;;
-            '2') this_subject="WARNING: ${report_name} $HOSTNAME" ;;
-            '3') this_subject="ERROR: $0 ${report_name} $HOSTNAME" ;;
+            '0') this_subject="DEBUG: $(basename $0) ${report_name} $HOSTNAME" ;;
+            '1') this_subject="NOTICE: $(basename $0) ${report_name} $HOSTNAME" ;;
+            '2') this_subject="WARNING: $(basename $0) ${report_name} $HOSTNAME" ;;
+            '3') this_subject="ERROR: $(basename $0) ${report_name} $HOSTNAME" ;;
         esac
 
         echo >> $message_file
