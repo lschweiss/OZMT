@@ -500,9 +500,10 @@ release_lock() {
 
 # Launch a command in the background if NOT running on the console
 launch () {
-    if [ -t 1 ]; then
+    if [[ -t 1 && "$BACKGROUND" != "true" ]]; then
         "$@"
     else
         "$@" &
+        launch_pid=$!
     fi
 }
