@@ -182,6 +182,7 @@ if [ $errorcode -ne 0 ]; then
         ${TMP}/replication_snapshot_$$.txt
     mv "${job_definition}" "${pool}/zfs_tools/var/replication/jobs/failed/"
     update_job_status "${job_status}" "suspended" "true"
+    rm ${TMP}/replication_snapshot_$$ 2> /dev/null
     exit 1
 fi
 

@@ -101,10 +101,10 @@ snap_job () {
         zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ ; result=$?
         if [ "$result" -ne "0" ]; then
             error "Failed to create snapshot ${recursive} ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
-            rm ${TMP}/process_snap_$$
         else
             notice "Created snapshot: ${recursive} ${zfsfolder}@${stamp}"
         fi
+        rm ${TMP}/process_snap_$$
     fi
     
 }
