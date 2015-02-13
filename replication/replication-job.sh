@@ -251,8 +251,8 @@ else
             touch "${job_definition}"
             mv "${job_definition}" "${replication_dir}/complete/" 
         fi
-        rm /${TMP}/zfs_destroy_$$ 2>/dev/null
-        rm /${TMP}/zfs_destroy2_$$ 2>/dev/null
+        rm /${TMP}/zfs_destroy_$$.txt 2>/dev/null
+        rm /${TMP}/zfs_destroy2_$$.txt 2>/dev/null
     else
         if [ "$delete_snaps" != "" ]; then
             debug "Moving job to completed status"
