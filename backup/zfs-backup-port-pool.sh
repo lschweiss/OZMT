@@ -58,25 +58,24 @@ if [ ! -d $connection_port_pool ]; then
 fi
 
 clean_pool () {
-
     # confirm all 'inuse' ports are alive.   If not return them to the available pool
-    ports=`ls -1 ${connection_port_pool}/inuse`
-    for port in $ports; do
-        inuse_file=`find "${connection_port_pool}/inuse/${port}" -mmin +1440`
-        if [ "$inuse_file" == "${connection_port_pool}/inuse/${port}" ]; then
-            # Port was assigned more that 2 minutes ago.  Test if it is use.
-            IFS=";" 
-            read -r pid command_line < "${connection_port_pool}/inuse/${port}" 
-            unset IFS
-            if [[ "$command_line" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command_line" ]]; then
-                # Port usage is dead return to the pool
-                error "Returning dead port ${port} to the available pool, can't find PID $pid, command $command_line"
+    port_files=`find "${connection_port_pool}/inuse" -type -f -mmin +2`
+    for port_file in $port_files; do
+        # Port was assigned more that 2 minutes ago.  Test if it is use.
+        IFS=";" 
+        read -r pid command_line < "$port_file" 
+        unset IFS
+        if [[ "$command_line" == "" || "$(ps -o comm -p $pid |tail -n +2)" != "$command_line" ]]; then
+            # Port usage is dead return to the pool, sleep 5 seconds first to make sure the job using it didn't just finish
+            sleep 5
+            if [ -f "${connection_port_pool}/inuse/${port}" ]; then
+                port=`basename "$port_file"`
+                notice "Returning dead port ${port} to the available pool, can't find PID $pid, command $command_line"
                 rm ${connection_port_pool}/inuse/${port}
                 touch ${connection_port_pool}/available/${port}
             fi
         fi
     done
-
 }
 
 # TODO: Detect changes in the conneciton pool size from when it was initialized.  
@@ -110,12 +109,13 @@ get_port () {
 
     local port=
     while [ "$port" == "" ]; do
-        port=`ls -1 ${connection_port_pool}/available| head -1`
+        # Grab the oldest port reservation to become available
+        port=`ls -1t ${connection_port_pool}/available| tail -1`
         if [ "$port" == "" ]; then
             error "Connection port pool is empty.  Please expand the port pool."
             return 1
         fi
-        # Touch before moving so it doesn't get scraped immediately by another process.
+        # Touch before moving so it doesn't get cleaned immediately by a clean_pool process.
         touch ${connection_port_pool}/available/${port}
         mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port}
         if [ $? -ne 0 ]; then
@@ -141,7 +141,6 @@ return_port () {
             rm "${connection_port_pool}/inuse/${port}"
             touch ${connection_port_pool}/available/${port}
         fi
-        clean_pool
         return 0
     else
         error "Failed returning port $port to pool.  The port was not in use."
