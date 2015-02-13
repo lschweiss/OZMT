@@ -28,7 +28,6 @@ source ../zfs-tools-init.sh
 trap "" HUP
 
 pid=
-tries=0
 
 stdin="$1"
 shift 1
@@ -40,20 +39,26 @@ exitfile="$1"
 shift 1
 pidfile="$1"
 shift 1
+
+##
+# Launch the job and capture output and PID of the bash subshell
+##
 ( $@ < "$stdin" > "$stdout" 2> "$stderr" ; echo $? > "$exitfile" ) &
 ppid=$!
+
+##
+# Find the PID of the actual job
+##
 ps -eo ppid,pid > ${TMP}/remote_runner_$$.txt
 # Find the child of ppid because ppid is still bash not our process.
-while [[ "$pid" == "" && $tries -le 10 ]]; do
-    pid=`ps -eo ppid,pid|${GREP} "^\s*${ppid} "|${AWK} -F " " '{print $2}'`
-    if [ "$pid" == "" ]; then
-        sleep .5
-        tries=$(( tries + 1 ))
-    fi
-done
-if [ $tries -ge 5 ]; then
+pid=`ps -eo ppid,pid|${GREP} "^\s*${ppid} "|${AWK} -F " " '{print $2}'`
+if [ "$pid" == "" ]; then
     error "Could not get the PID for \"$@\".  Parrent PID: $ppid  Could cause additional errors." ${TMP}/remote_runner_$$.txt
 fi
+rm ${TMP}/remote_runner_$$.txt
 echo $pid > "$pidfile"
-echo $ppid > "${pidfile}p"
+
+##
+# Wait for our job to complete
+##
 wait
