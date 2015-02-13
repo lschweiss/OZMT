@@ -117,7 +117,7 @@ get_port () {
         fi
         # Touch before moving so it doesn't get cleaned immediately by a clean_pool process.
         touch ${connection_port_pool}/available/${port}
-        mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port}
+        mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port} 2>/dev/null
         if [ $? -ne 0 ]; then
             debug "Could not capture port reference {connection_port_pool}/available/${port}"
             # Another process took our port first
