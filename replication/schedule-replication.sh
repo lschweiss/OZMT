@@ -125,6 +125,26 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 pools="$(pools)"
 pids=
 
+job_runner () {
+    sleep 5
+    count=0
+    if [ -t 1 ]; then
+        limit=2
+    else 
+        limit=10
+    fi
+    while [ $count -le 10 ]; do
+        launch ./replication-job-runner.sh
+        count=$(( count + 1 ))
+        sleep 5
+    done
+}
+
+
+# Launch job runner
+
+job_runner &
+ 
 
 # look for jobs to run
 for pool in $pools; do
@@ -261,20 +281,4 @@ for pid in $pids; do
     wait $pid
 done
 
-# Launch job runner
-
-./replication-job-runner.sh
-
-sleep 30
-
-###
-# Look for failed jobs to relaunch
-###
-
-failed_jobs=`ls -1 "${replication_job_dir}/failed"|wc -l`
-
-if [ $failed_jobs -ne 0 ]; then
-    launch ./replication-job-runner.sh
-fi
- 
 
