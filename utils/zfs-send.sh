@@ -279,8 +279,8 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
     esac
 done
 
-tmpdir=${TMP}/zfs_send_$$
-remote_tmp=${TMP}/zfs_send_$$
+tmpdir=${TMP}/zfs_send_to_${target_folder}_$$
+remote_tmp=${TMP}/zfs_receive_from_${source_folder}_$$
 
 
 if [ -d $tmpdir ]; then
