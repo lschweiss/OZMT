@@ -383,6 +383,8 @@ update_job_status () {
 
     release_lock "$status_file"
 
+    rm $temp_file 2>/dev/null
+
     return 0
 
 }

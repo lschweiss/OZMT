@@ -121,6 +121,7 @@ fi
 
 # Move reporting.muttrc to /etc/ozmt
 if [ -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
+    mkdir -p /etc/ozmt
     mv $TOOLS_ROOT/reporting/reporting.muttrc /etc/ozmt/reporting.muttrc
 fi
 
@@ -142,19 +143,15 @@ fi
 result=$?
 
 if [ $result -ne 0 ]; then 
-   echo "Failed to send message ${TMP}/mutt_message_$$" 
-   cat ${TMP}/mutt_output_$$
-fi
-
-
-if [ ! -f ${TMP}/mutt_message_$$ ]; then
-    # Message was sent clean up attachments
+    echo "Failed to send message ${TMP}/mutt_message_$$" 
+    cat ${TMP}/mutt_output_$$
+else
+    rm ${TMP}/mutt_message_$$
     if [ -f $attachments_file ]; then
-
         for attach in $attachments; do
             rm -f $attach
         done
-
         rm -f $attachments_file
     fi
 fi
+
