@@ -858,12 +858,15 @@ setupzfs () {
                     error "Could not replicate definition ${sync_jobname} to ${t_pool}:{target_simple_jobname}" \
                         ${TMP}/setup_filesystem_replication_$$.txt
                 else
-                    cat ${TMP}/setup_filesystem_replication_$$ | \
+                    cat ${TMP}/setup_filesystem_replication_$$.txt | \
                         grep -q -F "$simple_jobname"
                     if [ $? -eq 0 ]; then
                         echo "$t_pool" >> ${TMP}/setup_filesystem_replication_targets
                     fi
                 fi
+
+                rm ${TMP}/setup_filesystem_replication_$$.txt 2>/dev/null
+                
 
                 echo "${sync_jobname}" | ${GREP} -q "%"
                 if [ $? -eq 0 ]; then

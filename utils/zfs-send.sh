@@ -40,23 +40,7 @@ else
     report_name="$default_report_name"
 fi
 
-# Take this out when out of beta and in production:
-
-    # When to send debug level messages (now,report,never)
-    email_debug="report"
-
-    # When to send notice level messages (now,report,never)
-    email_notice="report"
-
-    # When to send warnings level messages (now,report,never)
-    email_warnings="report"
-
-    # When to send error level messages (now,report,never)
-    email_errors="report"
-
-#TODO:
-
-# Several remote commands need to have tunable full paths.
+# TODO: Several remote commands need to have tunable full paths.
 
 result=
 verify='true'
@@ -75,7 +59,7 @@ success='false'
 clean_up () {
     if [ "$success" == 'false' ]; then
         # Kill running processes
-        pids=`ls -1 $tmpdir/*.pid` 2> /dev/null
+        pids=`ls -1 $tmpdir/*.pid 2> /dev/null`
         for pidfile in $pids; do
             pid=`cat $pidfile`
             debug "Killing process $pidfile, PID $pid"
@@ -83,7 +67,7 @@ clean_up () {
         done
         if [ "$remote_host" != "" ]; then
             #DEBUG set -x
-            pids=`$remote_ssh "ls -1 $remote_tmp/*.pid"` 2> /dev/null
+            pids=`$remote_ssh "ls -1 $remote_tmp/*.pid 2>/dev/null"`
             for pidfile in $pids; do
                 pid=`$remote_ssh "cat $pidfile"`
                 debug "Killing remote process $pidfile, PID $pid"
@@ -298,6 +282,11 @@ done
 tmpdir=${TMP}/zfs_send_$$
 remote_tmp=${TMP}/zfs_send_$$
 
+
+if [ -d $tmpdir ]; then
+    error "${jobname}: Temp directory $tmpdir already exists. Removing."
+    rm -rf $tmpdir
+fi
 mkdir $tmpdir
 
 ######
@@ -353,7 +342,8 @@ if [ "$remote_host" != "" ]; then
     if [ "$transport_selected" == 'false' ]; then
         error "${job_name} Remote host specified, but no viable transport selected."    
         verify='fail'
-    fi        
+    fi 
+    #TODO: Need to check for $remote_tmp folder collisions and compensate.       
     ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
