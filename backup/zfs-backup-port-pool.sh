@@ -115,8 +115,6 @@ get_port () {
             error "Connection port pool is empty.  Please expand the port pool."
             return 1
         fi
-        # Touch before moving so it doesn't get cleaned immediately by a clean_pool process.
-        touch ${connection_port_pool}/available/${port}
         mv ${connection_port_pool}/available/${port} ${connection_port_pool}/inuse/${port} 2>/dev/null
         if [ $? -ne 0 ]; then
             debug "Could not capture port reference {connection_port_pool}/available/${port}"
@@ -124,6 +122,10 @@ get_port () {
             port=
         fi
     done
+
+    # This leaves a small race condition with the clean_pool process.  
+    # However, moving the port first caused a worse race condition that could give the same port to two processes.
+    touch ${connection_port_pool}/inuse/${port}
 
     echo $port
 
