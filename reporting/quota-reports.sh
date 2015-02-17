@@ -271,9 +271,13 @@ quota_report () {
                     
                     receiver=1
                     recipient=`echo $destinations | ${CUT} -d ';' -f $receiver`
+                    debug "Recipient: $recipent"
                     while [ "$recipient" != "" ]; do
-                        # Check frequence of reporting
-                        last_report=`cat ${jobstat}/${job} | ${GREP} "${free_trigger}|${recipient}" | ${CUT} -d "|" -f 3`
+                        # Check frequency of reporting
+                        last_report=`cat ${jobstat}/${job} | ${GREP} "${free_trigger}|${recipient}" | ${CUT} -d "|" -f 3 | tail -1`
+                        debug "Last report: $last_report"
+                        debug "Now: $now_secs"
+                        debug "Frequency: $frequency"
                         elapsed=$(( now_secs - last_report ))
                         if [ $elapsed -ge $frequency ]; then
                             # Add recipient to receiver list
