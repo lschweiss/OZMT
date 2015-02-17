@@ -156,7 +156,7 @@ target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/repl
 if [ "$target_source_reference" != "${pool}:${folder}" ]; then
     error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
     # Suspend replication for this job
-    mv "$job_definition" "${pool}/zfs_tools/var/replication/jobs/suspended/"
+    #mv "$job_definition" "${pool}/zfs_tools/var/replication/jobs/suspended/"
     update_job_status "${job_status}" "suspended" "true"
 fi
  

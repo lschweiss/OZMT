@@ -166,7 +166,11 @@ for pool in $pools; do
                 fi 
 
                 # Test if this is the active dataset
-                active=`cat "$source_tracker"| head -1`
+                active=`cat "$source_tracker" 2>/dev/null| head -1`
+                if [ "$active" == "" ]; then
+                    warning "active copy not set in $source_tracker"
+                    continue
+                fi
                 if [ "$active" == "migrating" ]; then
                     # Pool is being migrated.  Don't schedule new jobs.
                     debug "is being migrated"
