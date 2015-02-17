@@ -194,11 +194,11 @@ if [ "$zfs_replication_failure_limit" == "" ]; then
 fi
 
 if [ "$zfs_replication_queue_delay_count" == "" ]; then
-    zfs_replication_queue_delay_count=5
+    zfs_replication_queue_delay_count=2
 fi
 
 if [ "$zfs_replication_queue_max_count" == "" ]; then
-    zfs_replication_queue_max_count=20
+    zfs_replication_queue_max_count=5
 fi
 
 if [ "$zfs_replication_completed_job_retention" == "" ]; then

@@ -851,11 +851,11 @@ setupzfs () {
                     ignore=""
                 fi
 
-                timeout 10s ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                timeout 30s ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
                     root@${t_pool}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                     ${TMP}/setup_filesystem_replication_$$.txt
                 if [ $? -ne 0 ]; then
-                    error "Could not replicate definition ${sync_jobname} to ${t_pool}:{target_simple_jobname}" \
+                    error "Could not replicate definition ${sync_jobname} to ${t_pool}:${target_simple_jobname}" \
                         ${TMP}/setup_filesystem_replication_$$.txt
                 else
                     cat ${TMP}/setup_filesystem_replication_$$.txt | \
