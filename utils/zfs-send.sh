@@ -1025,7 +1025,7 @@ if [ "$success" == 'true' ]; then
             error "${job_name}: Failed to push md5sum to ${remote_chksum} on ${remote_host}"
     fi    
 else
-    error "${job_name}: zfs-send job failed.  Status left in $remote_tmp"
+    error "${job_name}: zfs-send job failed.  Status left in $tmpdir and $remote_tmp"
 fi
 
 
