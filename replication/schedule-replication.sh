@@ -126,14 +126,18 @@ pools="$(pools)"
 pids=
 
 job_runner () {
-    sleep 5
+    if [ -t 1 ]; then
+        sleep 10
+    else
+        sleep 5
+    fi
     count=0
     if [ -t 1 ]; then
-        limit=2
+        limit=1
     else 
         limit=10
     fi
-    while [ $count -le 10 ]; do
+    while [ $count -le $limit ]; do
         launch ./replication-job-runner.sh
         count=$(( count + 1 ))
         sleep 5
