@@ -73,7 +73,7 @@ snap_job () {
     if [ "$replication" == "on" ]; then
         replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
-        if [ "$replication_source" == "${pool}:${replication_dataset}" ]; then
+        if [ "$replication_source" == "${pool}:${folder}" ]; then
             snap_this_folder='true'
         fi
     else
