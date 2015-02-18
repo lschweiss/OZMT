@@ -134,92 +134,94 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 for pool in $pools; do
     debug "Finding FAILED replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
-    jobs=`ls -1 "${replication_dir}/failed"|sort`
-    for job in $jobs; do
-        debug "found job: $job"
-        # Collect job info
-        source "${replication_dir}/failed/${job}"
-        if [ -f "${job_status}" ]; then
-            source "${job_status}"
-        fi
-        # Test is okay to try again
-        if [[ "$failure_limit" == "" || "$failure_limit" == "default" ]]; then
-            failure_limit="$zfs_replication_failure_limit"
-        fi
-        limit_num=`echo $failure_limit|${SED} 's/[^0-9]//g'`
-        limit_unit=`echo $failure_limit|${SED} 's/[^a-z]//g'`
-        if [ "$limit_unit" != "" ]; then
-            # Calculate duration since job creation
-            start_secs=`${DATE} -d "$creation_time" +%s`
-            now_secs=`${DATE} -d "$now" +%s`
-            duration_sec="$(( now_secs - start_secs ))"
-            duration_min="$(( (duration_sec + 30) / 60 ))"
-            duration_hour="$(( duration_min / 60 ))"
-            duration_day="$(( duration_hour / 24 ))"
-            duration_week="$(( duration_day / 7 ))"
-            case $limit_unit in
-                'm')
-                    unit="minute"
-                    if [ $duration_min -lt $limit_num ]; then
-                        reschedule='true'
-                        remaining=$(( limit_num - duration_min ))
-                    else
-                        reschedule='false'
-                    fi
-                    ;;
-                'h')
-                    unit="hour"
-                    if [ $duration_hour -lt $limit_num ]; then
-                        reschedule='true'
-                        remaining=$(( limit_num - duration_hour ))
-                    else
-                        reschedule='false'
-                    fi
-                    ;;
-            
-                'd')
-                    unit="day"
-                    if [ $duration_day -lt $limit_num ]; then
-                        reschedule='true'
-                        remaining=$(( limit_num - duration_day ))
-                    else
-                        reschedule='false'
-                    fi
-                    ;;
-                'w')
-                    unit="week"
-                    if [ $duration_week -lt $limit_num ]; then
-                        reschedule='true'
-                        remaining=$(( limit_num - duration_week ))
-                    else
-                        reschedule='false'
-                    fi
-                    ;;
-            esac
-            if [ "$reschdule" == 'true' ]; then
-                notice "Replication job ${folder} to ${target_pool} has failed $failures times.  Re-trying for up to ${remaining} more ${unit}(s)."            else
-                error "Replication job ${folder} to ${target_pool} has failed for the past ${limit_num} ${unit}(s).  Suspending replication."
+    if [ -d "${replication_dir}/failed" ]; then
+        jobs=`ls -1 "${replication_dir}/failed"|sort`
+        for job in $jobs; do
+            debug "found job: $job"
+            # Collect job info
+            source "${replication_dir}/failed/${job}"
+            if [ -f "${job_status}" ]; then
+                source "${job_status}"
             fi
-        else
-            # Limit is based on number of trys
-            if [ $failures -lt $limit_num ]; then
-                # Put the job back in pending status
-                reschedule='true'
-                notice "Replication job ${folder} to ${target_pool} has failed $failures times.  Re-trying up to $limit_num times."
+            # Test is okay to try again
+            if [[ "$failure_limit" == "" || "$failure_limit" == "default" ]]; then
+                failure_limit="$zfs_replication_failure_limit"
+            fi
+            limit_num=`echo $failure_limit|${SED} 's/[^0-9]//g'`
+            limit_unit=`echo $failure_limit|${SED} 's/[^a-z]//g'`
+            if [ "$limit_unit" != "" ]; then
+                # Calculate duration since job creation
+                start_secs=`${DATE} -d "$creation_time" +%s`
+                now_secs=`${DATE} -d "$now" +%s`
+                duration_sec="$(( now_secs - start_secs ))"
+                duration_min="$(( (duration_sec + 30) / 60 ))"
+                duration_hour="$(( duration_min / 60 ))"
+                duration_day="$(( duration_hour / 24 ))"
+                duration_week="$(( duration_day / 7 ))"
+                case $limit_unit in
+                    'm')
+                        unit="minute"
+                        if [ $duration_min -lt $limit_num ]; then
+                            reschedule='true'
+                            remaining=$(( limit_num - duration_min ))
+                        else
+                            reschedule='false'
+                        fi
+                        ;;
+                    'h')
+                        unit="hour"
+                        if [ $duration_hour -lt $limit_num ]; then
+                            reschedule='true'
+                            remaining=$(( limit_num - duration_hour ))
+                        else
+                            reschedule='false'
+                        fi
+                        ;;
+                
+                    'd')
+                        unit="day"
+                        if [ $duration_day -lt $limit_num ]; then
+                            reschedule='true'
+                            remaining=$(( limit_num - duration_day ))
+                        else
+                            reschedule='false'
+                        fi
+                        ;;
+                    'w')
+                        unit="week"
+                        if [ $duration_week -lt $limit_num ]; then
+                            reschedule='true'
+                            remaining=$(( limit_num - duration_week ))
+                        else
+                            reschedule='false'
+                        fi
+                        ;;
+                esac
+                if [ "$reschdule" == 'true' ]; then
+                    notice "Replication job ${folder} to ${target_pool} has failed $failures times.  Re-trying for up to ${remaining} more ${unit}(s)."            else
+                    error "Replication job ${folder} to ${target_pool} has failed for the past ${limit_num} ${unit}(s).  Suspending replication."
+                fi
             else
-                reschedule='false'
-                error "Replication job ${folder} to ${target_pool} has failed $failures times.  Suspending replication."
+                # Limit is based on number of trys
+                if [ $failures -lt $limit_num ]; then
+                    # Put the job back in pending status
+                    reschedule='true'
+                    notice "Replication job ${folder} to ${target_pool} has failed $failures times.  Re-trying up to $limit_num times."
+                else
+                    reschedule='false'
+                    error "Replication job ${folder} to ${target_pool} has failed $failures times.  Suspending replication."
+                fi
             fi
-        fi
 
-        if [ "$reschedule" == 'true' ]; then
-            mv "${replication_dir}/failed/${job}" "${replication_dir}/pending/${job}"
-        else
-            mv "${replication_dir}/failed/${job}" "${replication_dir}/suspended/${job}"
-            update_job_status "${job_status}" "suspended" "true"
-        fi        
+            if [ "$reschedule" == 'true' ]; then
+                mv "${replication_dir}/failed/${job}" "${replication_dir}/pending/${job}"
+            else
+                mv "${replication_dir}/failed/${job}" "${replication_dir}/suspended/${job}"
+                update_job_status "${job_status}" "suspended" "true"
+            fi        
 
-    done
+        done
+    fi 
 done
 
 # Parse pending jobs
@@ -227,35 +229,39 @@ done
 for pool in $pools; do
     debug "Finding PENDING replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
-    jobs=`ls -1 "${replication_dir}/pending"|sort`
-    for job in $jobs; do
-        debug "found job: $job"
-        if [ -f "${replication_dir}/pending/${job}" ]; then
-            source "${replication_dir}/pending/${job}"
-            source "${job_status}"
-            if [ "$suspended" == 'true' ]; then
-                debug "replication is suspended.  Suspending job."
-                mv "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
-            else
-                # Confirm previous job is complete
-                if [[ "$previous_jobname" != "" && \
-                      ! -f "${replication_dir}/synced/${previous_jobname}" && \
-                      ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
-                    # Leave this job in pending state
-                    debug "Previous job is not complete.   Leave in pending state.  previous_jobname=$previous_jobname"
-                    continue
+    if [ -d "${replication_dir}/pending" ]; then
+        jobs=`ls -1 "${replication_dir}/pending"|sort`
+        for job in $jobs; do
+            debug "found job: $job"
+            if [ -f "${replication_dir}/pending/${job}" ]; then
+                source "${replication_dir}/pending/${job}"
+                source "${job_status}"
+                if [ "$suspended" == 'true' ]; then
+                    debug "replication is suspended.  Suspending job."
+                    mv "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
                 else
-                    # Launch the replication job
-                    debug "Launching replication job"
-                    mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
-                    launch ./replication-job.sh "${replication_dir}/running/${job}" 
-                fi 
-            fi # $suspended == true
-        fi # -f "${replication_dir}/pending/${job}"
-    done # for job
+                    # Confirm previous job is complete
+                    if [[ "$previous_jobname" != "" && \
+                          ! -f "${replication_dir}/synced/${previous_jobname}" && \
+                          ! -f "${replication_dir}/complete/${previous_jobname}" ]]; then
+                        # Leave this job in pending state
+                        debug "Previous job is not complete.   Leave in pending state.  previous_jobname=$previous_jobname"
+                        continue
+                    else
+                        # Launch the replication job
+                        debug "Launching replication job"
+                        mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
+                        launch ./replication-job.sh "${replication_dir}/running/${job}" 
+                    fi 
+                fi # $suspended == true
+            fi # -f "${replication_dir}/pending/${job}"
+        done # for job
+    fi # if [ -d "${replication_dir}/pending" ]
     # Clean completed jobs
-    debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
-    find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
+    if [ -d "${replication_dir}/complete" ]; then
+        debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
+        find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
+    fi
 done
 
 
