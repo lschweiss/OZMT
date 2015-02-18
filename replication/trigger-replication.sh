@@ -158,6 +158,7 @@ if [ "$target_source_reference" != "${pool}:${folder}" ]; then
     # Suspend replication for this job
     #mv "$job_definition" "${pool}/zfs_tools/var/replication/jobs/suspended/"
     update_job_status "${job_status}" "suspended" "true"
+    suspended="true"
 fi
  
 
@@ -192,7 +193,7 @@ update_job_status "${job_status}" "last_snapshot" "${last_snapshot}"
 
 # Place job in pending status
 
-jobname="${folder}#${target_pool}_${now_stamp}"
+jobname="${dataset_name}_to_${target_pool}:$(foldertojob $target_folder)_${now_stamp}"
 update_job_status "${job_status}" "last_jobname" "${jobname}"
 
 if [ "$queued_jobs" == "" ]; then
