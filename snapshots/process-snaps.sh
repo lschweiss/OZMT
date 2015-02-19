@@ -54,6 +54,7 @@ snap_job () {
     local replication_dataset=
     local replication_endpoints=
     local replication_source=
+    local replication_folder_point=
     local replication_pool_folder=
     local replication_folder=
     local snap_this_folder='false'
@@ -74,10 +75,15 @@ snap_job () {
     replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
     if [ "$replication" == "on" ]; then
         replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
-        replication_pool_folder=`zfs get -H -o source $zfs_replication_dataset_property ${zfsfolder} | ${AWK} -F " " '{print $3}'`
-        IFS='/'
-        read -r junk replication_folder <<< "$replication_pool_folder"
-        unset IFS
+        replication_folder_point=`zfs get -H -o source $zfs_replication_dataset_property ${zfsfolder}`
+        if [ "$replication_folder_point" == "local" ]; then
+            replication_folder="$folder"
+        else
+            replication_pool_folder=`echo "$replication_folder_point" | ${AWK} -F " " '{print $3}'`
+            IFS='/'
+            read -r junk replication_folder <<< "$replication_pool_folder"
+            unset IFS
+        fi
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         if [ "$replication_source" == "${pool}:${replication_folder}" ]; then
             snap_this_folder='true'
@@ -88,7 +94,7 @@ snap_job () {
 
     if [ "$snap_this_folder" == 'false' ]; then
         debug "Skipping snapshot for ${zfsfolder} Replication dataset: $replication_dataset Replication source: $replication_source 
-               Replication pool/folder: $replication_pool_folder Replication folder: ${replication_folder}" 
+               Replication folder: ${replication_folder} Replication folder point: $replication_folder_point" 
         # Skip this job
         return 0
     fi
