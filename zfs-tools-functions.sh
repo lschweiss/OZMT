@@ -392,7 +392,13 @@ update_job_status () {
 init_lock () {
 
     local lockfile="${1}.lock"
-    local unlockfile="${lockfile}.unlock"
+    local unlockfile="${1}.unlock"
+
+
+    # Update from old unlock naming
+    if [ -f "${lockfile}.unlock" ]; then
+        rm "${lockfile}.unlock"
+    fi
 
     # This has a very short race window between the two checks.   Not sure how to eliminate it.
 
@@ -409,7 +415,7 @@ wait_for_lock() {
     #TODO: clean up the sleep times and time accounting
 
     local lockfile="${1}.lock"
-    local unlockfile="${lockfile}.unlock"
+    local unlockfile="${1}.unlock"
 
     local expire=
     local lockpid=
@@ -421,7 +427,12 @@ wait_for_lock() {
         expire="1800"
     fi
 
-    debug "Aquiring lock file: $lockfile"
+    debug "Aquiring lock file: $(basename $lockfile)"
+
+    if [ -f "${lockfile}.unlock" ]; then
+        mv "${lockfile}.unlock" "$unlockfile"
+        debug "Renamed unlock file to new format: $unlockfile"
+    fi
 
     local waittime=0
 
@@ -476,7 +487,7 @@ wait_for_lock() {
 release_lock() {
 
     local lockfile="${1}.lock"
-    local unlockfile="${lockfile}.unlock"
+    local unlockfile="${1}.unlock"
 
     local lockpid=
 
@@ -486,7 +497,7 @@ release_lock() {
         if [ $$ -eq $lockpid ]; then
             locked="false"
             mv "$lockfile" "$unlockfile"
-            debug "Lock released: $lockfile"
+            debug "Lock released: $(basename $lockfile)"
         else
             error "release_lock called without lock ownership"
             return 1
