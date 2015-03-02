@@ -115,6 +115,14 @@ if [ -z $GREP ]; then
     GREP=`gnu_source grep`
 fi
 
+if [ -z $HEAD ]; then
+    HEAD=`gnu_source head`
+fi
+
+if [ -z $TAIL ]; then
+    TAIL=`gnu_source tail`
+fi
+
 if [ -z $SED ]; then
     SED=`gnu_source sed`
 fi
@@ -125,6 +133,14 @@ fi
 
 if [ -z $CUT ]; then
     CUT=`gnu_source cut`
+fi
+
+if [ -z $SORT ]; then
+    SORT=`gnu_source sort`
+fi
+
+if [ -z $WC ]; then
+    WC=`gnu_source wc`
 fi
 
 if [ -z $MUTT ]; then
