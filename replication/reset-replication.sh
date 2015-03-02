@@ -268,13 +268,8 @@ for parrent_snap in $parrent_replication_snaps; do
 done
 
 
-if [ "$valid_snap" != 'true' ]; then
-    error "Could not find a common snapshot to sync.   Replication will need to be restarted."
-    exit 1
-fi
-
-if [ "$common_snap" == "" ]; then
-    error "Could not find a common snapshot to sync.   Replication will need to be restarted."
+if [[ "$valid_snap" != 'true' || "$common_snap" == "" ]]; then
+    error "Could not find a common snapshot to sync for dataset ${dataset}.   Replication will need to be restarted."
     exit 1
 fi
 
