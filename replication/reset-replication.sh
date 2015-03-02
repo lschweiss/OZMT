@@ -23,6 +23,10 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 pools="$(pools)"
 
+if [ -z $reset_replication_timeout ]; then
+    reset_replication_timeout=60
+fi
+
 show_usage () {
     echo
     echo "Usage: $0 {dataset_name}"
