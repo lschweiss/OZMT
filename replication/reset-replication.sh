@@ -204,6 +204,8 @@ if [ "$children_folders" != "" ]; then
             parrent_valid_snaps+=" $parrent_snap"
         fi
     done
+else
+    parrent_valid_snaps="$parrent_replication_snaps"
 fi
 
 parrent_snap_count=`echo $parrent_valid_snaps | ${WC} -w`
@@ -219,7 +221,6 @@ parrent_replication_snaps=`printf '%s\n' "$parrent_valid_snaps"`
 
 
 for parrent_snap in $parrent_replication_snaps; do
-    target_parrent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
     valid_snap='true'
     parrent_snap_name=`echo $parrent_snap|${CUT} -d '@' -f2`
 
@@ -235,6 +236,7 @@ for parrent_snap in $parrent_replication_snaps; do
                 error "Could not collect snapshots from ${target_pool}/${target_folder}"
                 exit 1
             fi
+            target_parrent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
             debug "Checking for snapshot \"$parrent_snap_name\" on $ds_target"
             printf '%s\n' "$target_parrent_snaps" | ${GREP} -q "$parrent_snap_name"
             if [ $? -ne 0 ]; then
@@ -264,6 +266,17 @@ for parrent_snap in $parrent_replication_snaps; do
     fi
 
 done
+
+
+if [ "$valid_snap" != 'true' ]; then
+    error "Could not find a common snapshot to sync.   Replication will need to be restarted."
+    exit 1
+fi
+
+if [ "$common_snap" == "" ]; then
+    error "Could not find a common snapshot to sync.   Replication will need to be restarted."
+    exit 1
+fi
 
 
 ##
@@ -316,11 +329,15 @@ stattypes="complete suspended failed pending synced"
 for job in $jobs; do
     source $job
     for stattype in $stattypes; do
-        rm /${pool}/zfs_tools/var/replication/jobs/${stattype}/${dataset}_to_${target_pool}\:$(foldertojob $target_folder)_* 2>/dev/null
-        if [ $? -eq 0 ]; then
-            debug "Removed ${stattype} status for ${dataset}_to_${target_pool}"
+        if [ "$DEBUG" != 'true' ]; then
+            rm /${pool}/zfs_tools/var/replication/jobs/${stattype}/${dataset}_to_${target_pool}\:$(foldertojob $target_folder)_* 2>/dev/null
+            if [ $? -eq 0 ]; then
+                debug "Removed ${stattype} status for ${dataset}_to_${target_pool}"
+            else
+                debug "No ${stattype} status jobs for ${dataset}_to_${target_pool}"
+            fi
         else
-            debug "No ${stattype} status jobs for ${dataset}_to_${target_pool}"
+            debug "Would remove ${stattype} status jobs for ${dataset}_to_${target_pool}"
         fi
     done
     # Reset the status to the latest snapshot
