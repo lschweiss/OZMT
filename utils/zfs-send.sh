@@ -187,11 +187,11 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
             ;;
         i)  # Use an incremental stream
             increment_type='-i'
-            debug "${job_name}: Using and incremental stream."
+            debug "${job_name}: Using an incremental stream."
             ;;
         I)  # Use an incremental stream with intermediary snapshots
             increment_type='-I'
-            debug "${job_name}: Using and incremental stream with intermediary snapshots."
+            debug "${job_name}: Using an incremental stream with intermediary snapshots."
             ;; 
         d)  # Delete snapshots on the target
             delete_snaps='true'
