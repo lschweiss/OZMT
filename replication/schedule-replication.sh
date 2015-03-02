@@ -156,6 +156,13 @@ for pool in $pools; do
     replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"
     replication_def_dir="${replication_job_dir}/definitions"
     if [ -d "$replication_def_dir" ]; then
+        if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
+            debug "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present"
+            if test `find "$replication_job_dir/suspend_all_jobs" -mtime +1`; then
+                error "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present for more than 24 hours"
+            fi
+            continue
+        fi
         folder_defs=`ls -1 "$replication_def_dir"|sort`
         for folder_def in $folder_defs; do
             debug "Replication job for $folder_def found"

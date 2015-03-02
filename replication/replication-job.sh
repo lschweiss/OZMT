@@ -143,9 +143,9 @@ job_definition="${1}"
 source "$job_definition"
 
 replication_dir="/${pool}/zfs_tools/var/replication/jobs"
-if [ -f "${job_status}" ]; then
-    source "${job_status}"
-fi
+wait_for_lock "${job_status}"
+source "${job_status}"
+release_lock "${job_status}"
 
 if [ "$failures" == '' ]; then
     failures=0
@@ -173,7 +173,7 @@ migrating='false'
 # Remote replication
 
 # Test ssh connectivity
-timeout 5s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
+timeout 30s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
 if [ $? -eq 0 ]; then
     debug "Connection validated to ${target_pool}"
     # Confirm on the target host that this is truely the source

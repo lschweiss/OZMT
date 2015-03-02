@@ -788,6 +788,14 @@ setupzfs () {
                 fi
 
             fi # if $mode
+
+            # Initialize the job status file if it is not already
+
+            if [ ! -f "${job_status}" ]; then
+                touch "${job_status}"
+                init_lock "${job_status}"
+            fi
+
         done # for target_def
         endpoint_count=`cat "$dataset_targets" | wc -l`
         # Tag the zfs folder as replicated.

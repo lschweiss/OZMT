@@ -140,9 +140,9 @@ for pool in $pools; do
             debug "found job: $job"
             # Collect job info
             source "${replication_dir}/failed/${job}"
-            if [ -f "${job_status}" ]; then
-                source "${job_status}"
-            fi
+            wait_for_lock "${job_status}"
+            source "${job_status}"
+            release_lock "${job_status}"
             # Test is okay to try again
             if [[ "$failure_limit" == "" || "$failure_limit" == "default" ]]; then
                 failure_limit="$zfs_replication_failure_limit"
@@ -235,7 +235,9 @@ for pool in $pools; do
             debug "found job: $job"
             if [ -f "${replication_dir}/pending/${job}" ]; then
                 source "${replication_dir}/pending/${job}"
+                wait_for_lock "${job_status}"
                 source "${job_status}"
+                release_lock "${job_status}"
                 if [ "$suspended" == 'true' ]; then
                     debug "replication is suspended.  Suspending job."
                     mv "${replication_dir}/pending/${job}" "${replication_dir}/suspended/${job}"
