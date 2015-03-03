@@ -184,49 +184,49 @@ children_folders=`zfs list -H -r -o name ${source_pool}/${source_folder} | ${TAI
 replication_snaps=`zfs list -H -r -t snapshot -o name ${pool}/${source_folder} | \
                    ${GREP} "$zfs_replication_snapshot_name" | \
                    ${SORT} -r`
-parrent_replication_snaps=`printf '%s\n' "$replication_snaps" | \
+parent_replication_snaps=`printf '%s\n' "$replication_snaps" | \
                            ${GREP} "^${source_pool}/${source_folder}@"`
-parrent_valid_snaps=
+parent_valid_snaps=
 
 
 # Make sure each snapshot is also in all the children
 # Eliminate from the list any snapshot that is not in all children
 if [ "$children_folders" != "" ]; then
-    for parrent_snap in $parrent_replication_snaps; do
+    for parent_snap in $parent_replication_snaps; do
         valid_snap='true'
-        parrent_snap_name=`echo $parrent_snap|${CUT} -d '@' -f2`
+        parent_snap_name=`echo $parent_snap|${CUT} -d '@' -f2`
         for child_folder in $children_folders; do
             child_snaps=`printf '%s\n' "$replication_snaps" | \
                          ${GREP} "^$child_folder@"`
             # Test if snap is good
-            echo $child_snaps | ${GREP} -q "$parrent_snap_name"
+            echo $child_snaps | ${GREP} -q "$parent_snap_name"
             if [ $? -ne 0 ]; then
                 valid_snap='false'
             fi
         done
         if [ "$valid_snap" == 'true' ]; then
-            parrent_valid_snaps+=" $parrent_snap"
+            parent_valid_snaps+=" $parent_snap"
         fi
     done
 else
-    parrent_valid_snaps="$parrent_replication_snaps"
+    parent_valid_snaps="$parent_replication_snaps"
 fi
 
-parrent_snap_count=`echo $parrent_valid_snaps | ${WC} -w`
-if [ $parrent_snap_count -eq 0 ]; then
+parent_snap_count=`echo $parent_valid_snaps | ${WC} -w`
+if [ $parent_snap_count -eq 0 ]; then
     error "No replication snapshots exist in ${source_pool}/${source_folder} that are properly propigated through all children ZFS folders"
     exit 1
 else
-    debug "Found $parrent_snap_count possible snapshot on the source ${source_pool}/${source_folder}"
+    debug "Found $parent_snap_count possible snapshot on the source ${source_pool}/${source_folder}"
 fi
 
 # From newest to oldest check all targets including children for the snapshot
-parrent_replication_snaps=`printf '%s\n' "$parrent_valid_snaps"` 
+parent_replication_snaps=`printf '%s\n' "$parent_valid_snaps"` 
 
 
-for parrent_snap in $parrent_replication_snaps; do
+for parent_snap in $parent_replication_snaps; do
     valid_snap='true'
-    parrent_snap_name=`echo $parrent_snap|${CUT} -d '@' -f2`
+    parent_snap_name=`echo $parent_snap|${CUT} -d '@' -f2`
 
     for ds_target in $ds_targets; do
         if [ "$ds_target" != "${source_pool}:${source_folder}" ]; then
@@ -240,9 +240,9 @@ for parrent_snap in $parrent_replication_snaps; do
                 error "Could not collect snapshots from ${target_pool}/${target_folder}"
                 exit 1
             fi
-            target_parrent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
-            debug "Checking for snapshot \"$parrent_snap_name\" on $ds_target"
-            printf '%s\n' "$target_parrent_snaps" | ${GREP} -q "$parrent_snap_name"
+            target_parent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
+            debug "Checking for snapshot \"$parent_snap_name\" on $ds_target"
+            printf '%s\n' "$target_parent_snaps" | ${GREP} -q "$parent_snap_name"
             if [ $? -ne 0 ]; then
                 debug "Snapshot not found."
                 valid_snap='false'
@@ -252,9 +252,9 @@ for parrent_snap in $parrent_replication_snaps; do
                 for child_folder in $children_folders; do
                     child_folder_short="${child_folder:${#ds_source}}"
                     debug "Checking for snapshot on ${ds_target}${child_folder_short}"
-                    printf '%s\n' "$target_snaps" | ${GREP} -q "${target_pool}/${target_folder}${child_folder_short}@${parrent_snap_name}"
+                    printf '%s\n' "$target_snaps" | ${GREP} -q "${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}"
                     if [ $? -ne 0 ]; then
-                        debug "Snapshot not found \"${target_pool}/${target_folder}${child_folder_short}@${parrent_snap_name}\""
+                        debug "Snapshot not found \"${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}\""
                         valid_snap='false'
                         break
                     fi
@@ -264,8 +264,8 @@ for parrent_snap in $parrent_replication_snaps; do
     done
     if [ "$valid_snap" == 'true' ]; then
         # This snap is the newest common snapshot
-        debug "Success! Snapshot $parrent_snap_name is on all targets."
-        common_snap="$parrent_snap_name"
+        debug "Success! Snapshot $parent_snap_name is on all targets."
+        common_snap="$parent_snap_name"
         break
     fi
 
