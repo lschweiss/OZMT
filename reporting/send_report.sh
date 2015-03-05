@@ -27,6 +27,16 @@ fi
 
 report_name="$default_report_name"
 
+send_options=
+
+if [ "$email_cc" != "" ]; then
+    send_options="-c $email_cc"
+fi
+
+if [ "$email_bcc" != "" ]; then
+    send_options="-b $email_bcc $send_options"
+fi
+
 index=1
 
 if [ -d "$report_spool" ]; then
@@ -56,9 +66,9 @@ if [ -d "$report_spool" ]; then
         
             if [[ "x$report_level" != "x" && "$report_level" -ge 3 ]]; then
                 email_subject="ERROR: $email_subject"
-                ./send_email.sh -f "$report_pending" -s "$email_subject" -r "$email_to" -i "high"
+                ./send_email.sh $send_options -f "$report_pending" -s "$email_subject" -r "$email_to" -i "high"
             else 
-                ./send_email.sh -f "$report_pending" -s "$email_subject" -r "$email_to"
+                ./send_email.sh $send_options -f "$report_pending" -s "$email_subject" -r "$email_to"
             fi
     
             if [ "$debug_level" -eq "0" ]; then

@@ -28,9 +28,18 @@ die () {
 
 }
 
+send_options=
+
+if [ "$email_cc" != "" ]; then
+    send_options="-c $email_cc"
+fi
+
+if [ "$email_bcc" != "" ]; then
+    send_options="-b $email_bcc $send_options"
+fi
 
 echo "Test email from $HOSTNAME" >${TMP}/test_email
 
-./send_email.sh -f "${TMP}/test_email" -s "${HOSTNAME}: Test email." -r "$email_to"
+./send_email.sh $send_options -f "${TMP}/test_email" -s "${HOSTNAME}: Test email." -r "$email_to"
 
 rm ${TMP}/test_email

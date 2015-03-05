@@ -74,6 +74,7 @@ process_message() {
     local terminal=
     local importance=
     local messagefile=
+    local send_options=
 
     # Inputs:
     # $1 - The message.  Should be quoted.
@@ -98,6 +99,14 @@ process_message() {
 
     if [ "x$default_report_title" == "x" ]; then
         default_report_title="zfs_tools"
+    fi
+
+    if [ "$email_cc" != "" ]; then
+        send_options="-c $email_cc"
+    fi
+
+    if [ "$email_bcc" != "" ]; then
+        send_options="-b $email_bcc $send_options"
     fi
 
     if [[ "$debug_level" == "" || "${this_message_level}" -ge "$debug_level" || "$DEBUG" == "true" ]]; then
@@ -127,10 +136,11 @@ process_message() {
         importance="${this_import_level}"
     fi
 
-    if [ "x$report_name" == "x" ]; then
+    if [ "x${report_name}" == "x" ]; then
         report_name="$default_report_name"
     fi
-        
+            
+    mkdir -p "${report_spool}"
 
     if [ "x${this_report_level}" == "xnow" ]; then
         # Send the email report now
@@ -150,7 +160,7 @@ process_message() {
         fi
 
         if [ "$DEBUG" != "true" ]; then
-            $TOOLS_ROOT/reporting/send_email.sh -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
+            $TOOLS_ROOT/reporting/send_email.sh $send_options -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
             if [ $? -eq 0 ]; then
                 rm $message_file
             fi 
@@ -165,28 +175,27 @@ process_message() {
 
         # Move to spool directory if it hasn't
 
-        if [ -d "$TOOLS_ROOT/reporting/reports_pending/$report_name" ]; then
-            # Move to $report_spool
-            mkdir -p "$report_spool"
-            mv "$TOOLS_ROOT/reporting/reports_pending/$report_name" "${report_spool}/${report_name}"
+        if [ -d "$TOOLS_ROOT/reporting/reports_pending/${report_name}" ]; then
+            # Move to ${report_spool}
+            mv "$TOOLS_ROOT/reporting/reports_pending/${report_name}" "${report_spool}/${report_name}"
         fi
 
-        mkdir -p "$report_spool/attach"
+        mkdir -p "${report_spool}/${report_name}/attach"
 
         # Raise the report level if necessary
-        if [ -f "$report_spool/report_level" ]; then
-            source "$report_spool/report_level"
+        if [ -f "${report_spool}/${report_name}/report_level" ]; then
+            source "${report_spool}/${report_name}/report_level"
         fi
         if [[ "$report_level" == "" || "$report_level" -le "${this_message_level}" ]]; then
-            echo "report_level=\"${this_message_level}\"" > "$report_spool/report_level"
+            echo "report_level=\"${this_message_level}\"" > "${report_spool}/${report_name}/report_level"
         fi
 
         if [ "$DEBUG" != "true" ]; then
-            echo "${this_message}" >> "$report_spool/report_pending"
+            echo "${this_message}" >> "${report_spool}/${report_name}/report_pending"
             if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
                 this_file=$(basename ${this_include_file})
-                cp ${this_include_file} "$report_spool/attach/report_file_$$.txt"
-                echo "$report_spool/attach/report_file_$$.txt" >> "$report_spool/report_attachments"
+                cp ${this_include_file} "${report_spool}/${report_name}/attach/report_file_$$.txt"
+                echo "${report_spool}/${report_name}/attach/report_file_$$.txt" >> "${report_spool}/${report_name}/report_attachments"
             fi
         fi
     fi
