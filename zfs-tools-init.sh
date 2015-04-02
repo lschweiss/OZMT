@@ -229,6 +229,10 @@ if [ "$zfs_replication_sync_filelist" == "" ]; then
     zfs_replication_sync_filelist="/etc/hosts:{pool}/etc/config.common"
 fi
 
+if [ -z $suspend_all_jobs_timeout ]; then
+    suspend_all_jobs_timeout=60
+fi
+
 
 # Test essential binaries
 

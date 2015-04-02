@@ -322,57 +322,61 @@ deactivate_vip () {
 
 for pool in $pools; do
     vip_dir="/${pool}/zfs_tools/var/replication/vip"
-    folders=`ls -1 "${vip_dir}" | sort`
-    for folder in $folders; do
-        while read vip; do
-            # Break down the vIP definition
-            IFS='|'
-            read -r vIP routes ipifs <<< "${vip}"
-            unset IFS
-            debug "vIP: $vIP routes: $routes ipifs: $ipifs"
-            if [[ $vIP == *","* ]];then
-                # vIP is pool attached
-                IFS='/'
-                read -r t_vIP t_pool <<< "$vIP"
+    if [ -d "$vip_dir" ]; then
+        folders=`ls -1 "${vip_dir}" | sort`
+        for folder in $folders; do
+            while read vip; do
+                # Break down the vIP definition
+                IFS='|'
+                read -r vIP routes ipifs <<< "${vip}"
                 unset IFS
-                debug "t_vIP: $t_vIP t_pool: $t_pool"
-                if [[ $t_pool == *"$pools"* ]]; then 
-                    activate_vip "$t_vIP" "$routes" "$ipifs"
-                else
-                    deactivate_vip "$t_vIP"
-                fi
-            else
-                # vIP is attached to the active dataset
-                if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
-                    # Get the dataset name
-                    debug "pool: $pool  folder: $folder"
-                    zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
-                    if [ $? -ne 0 ]; then
-                        # This is not the active dataset, we don't even have the dataset yet.
-                        rm ${TMP}/vip_dataset_$$ 2> /dev/null
-                        deactivate_vip "$vIP"
-                        continue
-                    else
-                        dataset_name=`cat ${TMP}/vip_dataset_$$`
-                        rm ${TMP}/vip_dataset_$$
-                    fi
-                    debug "dataset_name: $dataset_name"
-                    active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+                debug "vIP: $vIP routes: $routes ipifs: $ipifs"
+                if [[ $vIP == *","* ]];then
+                    # vIP is pool attached
                     IFS='/'
-                    read -r active_pool active_folder <<< "$active_source"
+                    read -r t_vIP t_pool <<< "$vIP"
                     unset IFS
-                    debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
-                    if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
-                        activate_vip "$vIP" "$routes" "$ipifs"
+                    debug "t_vIP: $t_vIP t_pool: $t_pool"
+                    echo "t_pool: $t_pool"
+                    echo "pools: $pools"
+                    if [[ $t_pool == *"$pools"* ]]; then 
+                        activate_vip "$t_vIP" "$routes" "$ipifs"
                     else
-                        deactivate_vip "$vIP"
+                        deactivate_vip "$t_vIP"
                     fi
                 else
-                    activate_vip "$vIP" "$routes" "$ipifs"
+                    # vIP is attached to the active dataset
+                    if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
+                        # Get the dataset name
+                        debug "pool: $pool  folder: $folder"
+                        zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
+                        if [ $? -ne 0 ]; then
+                            # This is not the active dataset, we don't even have the dataset yet.
+                            rm ${TMP}/vip_dataset_$$ 2> /dev/null
+                            deactivate_vip "$vIP"
+                            continue
+                        else
+                            dataset_name=`cat ${TMP}/vip_dataset_$$`
+                            rm ${TMP}/vip_dataset_$$
+                        fi
+                        debug "dataset_name: $dataset_name"
+                        active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+                        IFS='/'
+                        read -r active_pool active_folder <<< "$active_source"
+                        unset IFS
+                        debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
+                        if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
+                            activate_vip "$vIP" "$routes" "$ipifs"
+                        else
+                            deactivate_vip "$vIP"
+                        fi
+                    else
+                        activate_vip "$vIP" "$routes" "$ipifs"
+                    fi
                 fi
-            fi
-        done < "${vip_dir}/${folder}"  # while read vip
-    done # for folder in $folders
+            done < "${vip_dir}/${folder}"  # while read vip
+        done # for folder in $folders
+    fi # if $vip_dir
 done # for pool in $pools
 
 

@@ -39,6 +39,16 @@ now_stamp () {
     ${DATE} +"%F_%H:%M:%S%z"
 }
 
+pause () {
+    if [ -t 1 ]; then
+        local trash=
+        # Used when testing new script functions
+        echo -n "Press enter to continue..."
+        read trash
+    fi
+}
+
+
 check_key () {
     
     # confirm the key
@@ -285,12 +295,13 @@ replication_source () {
 
 update_job_status () {
 
-    # TODO: Make this thread safe so jobs can be made multipart.
-
     # Takes 3 or 4 input parameters.
     # 1: Job status file
     # 2: Variable to update or add
     # 3: Content of the variable
+    #    Set to #REMOVE# to remove the variable
+    #    Use + or - to add or subtract to the current value.  
+    #      (Will not allow negative values)
     # 4: specify 'local' if varable is prefixed with 'local' declarative (optional)
 
     local line=

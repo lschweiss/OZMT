@@ -32,6 +32,15 @@ pools="$(pools)"
 
 # TODO: Add checks to make sure we don't do this while jobs can be disturbed. (Job start times)
 
+
+for pool in $pools; do
+    # Suspend replication
+    if [ -d "/${pool}/zfs_tools/var/replication/jobs" ]; then
+        debug "Suspending replication on pool $pool"
+        echo "Setup filesystems running" > "/${pool}/zfs_tools/var/replication/jobs/suspend_all_jobs"
+    fi
+done
+
 for pool in $pools; do
 
     if [ -f "/${pool}/zfs_tools/etc/pool-filesystems" ] ; then
@@ -97,3 +106,10 @@ if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
     ./setup-filesystems.sh
 fi
 
+
+# Resume replication
+for pool in $pools; do
+    if [ -f "/${pool}/zfs_tools/var/replication/jobs/suspend_all_jobs" ]; then
+        rm "/${pool}/zfs_tools/var/replication/jobs/suspend_all_jobs"
+    fi
+done

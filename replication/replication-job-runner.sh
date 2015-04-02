@@ -134,6 +134,11 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 for pool in $pools; do
     debug "Finding FAILED replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+    # Check if all jobs suspended
+    if [ -f "$replication_dir/suspend_all_jobs" ]; then
+        notice "All jobs suspended. Not running jobs on pool: $pool"
+        continue
+    fi
     if [ -d "${replication_dir}/failed" ]; then
         jobs=`ls -1 "${replication_dir}/failed"|sort`
         for job in $jobs; do
@@ -229,6 +234,10 @@ done
 for pool in $pools; do
     debug "Finding PENDING replication jobs on pool $pool"
     replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+    if [ -f "$replication_dir/suspend_all_jobs" ]; then
+        notice "All jobs suspended. Not running jobs on pool: $pool"
+        continue
+    fi
     if [ -d "${replication_dir}/pending" ]; then
         jobs=`ls -1 "${replication_dir}/pending"|sort`
         for job in $jobs; do

@@ -224,7 +224,7 @@ setupzfs () {
                 debug "Setting name to: $dataset_name"
                 ;;
             R)  # Add a replication target
-                replication_targets="$replication_target $OPTARG"
+                replication_targets="$replication_targets $OPTARG"
                 replication_count=$(( replication_count + 1 ))
                 debug "Adding replication target: $OPTARG"
                 ;;
@@ -358,10 +358,12 @@ setupzfs () {
         if [ $? -eq 0 ]; then
             echo "${pool}/${zfspath} already exists, resetting options"
             setzfs "${pool}/${zfspath}" "$options"
+            new_folder='false'
         else
             echo "Creating ${pool}/${zfspath} and setting options"
             zfs create -p $pool/$zfspath
             setzfs "${pool}/${zfspath}" "$options"
+            new_folder='true'
         fi
     fi
         
@@ -587,8 +589,9 @@ setupzfs () {
          done
     fi
 
-
-    # Create replication jobs
+    ##
+    # Collect already defined replication information
+    ##
     replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"    
     source_tracker="/${pool}/zfs_tools/var/replication/source/${dataset_name}"
     dataset_targets="/${pool}/zfs_tools/var/replication/targets/${dataset_name}"
@@ -608,16 +611,54 @@ setupzfs () {
     else
         replication_parent="-"
     fi
+
+#    pause
+
+#    ##
+#    # Prepare replication for new children
+#    ##
+#    set -x    
+#
+#    if [[ "$parent_replication" == 'on' && "$new_folder" == 'true' ]]; then
+#        # Find replication jobs and add info to the job_status file
+#        if [ -d "/$pool/zfs_tools/var/replication/jobs/definitions" ]; then  
+#            definitions=`find "/$pool/zfs_tools/var/replication/jobs/definitions/" -type f`
+#            for definition in $definitions; do
+#                cat $definition | ${GREP}  "dataset_name" | ${GREP} -q "$replication_dataset_name"
+#                if [ $? -eq 0 ]; then
+#                    pause
+#                    # Normally we would just source the definition and status file, however,
+#                    # this could potentially disrupt local variables.
+#                    this_job_status_file=`cat $definition | \
+#                                          ${GREP} "job_status" | \
+#                                          ${AWK} -F "=" '{print $2}' | \
+#                                          ${SED} 's/"//g'`
+#                    update_job_status "$this_job_status_file" "new_children" "+1"
+#                    this_child_count=`cat $this_job_status_file | \
+#                                          ${GREP} "new_children" | \
+#                                          ${AWK} -F "=" '{print $2}' | \
+#                                          ${SED} 's/"//g'`
+#                    update_job_status "$this_job_status_file" "new_child[${this_child_count}]" "$zfspath"
+#                fi
+#            done
+#        fi
+#    fi
+#
+#    set +x
+#
+#    pause
+
     
 
-    # TODO: new requirements:  Need to support more than one replicaiton pair.
+    # TODO: new requirements:  Need to support more than one replication pair.
     #       No target host specification.  Pool names must resolve to an IP or vIP.
     #       New variable: targets, containing all pool/folder targets for this dataset
     #           If more than two targets are active snapshot deletion becomes a post
     #           sync process across all inactive targets.
     
+    ##
     # Clean up if replication has been removed from the definition
-
+    ##
     echo "Replication parent: $replication_parent"
 
     if [[ "$replication_parent" == "$zfspath" && "$replication_targets" == "" ]]; then
@@ -651,11 +692,18 @@ setupzfs () {
 
    
     # Flush dataset_targets file and rebuild
-    rm "$datset_targets" 2> /dev/null
-    rm "${TMP}/dataset_targets_$$" 2> /dev/null
+    if [ "$dataset_name" != "" ]; then
+        rm "$datset_targets" 2> /dev/null
+        rm "${TMP}/dataset_targets_$$" 2> /dev/null
+    fi
 
+
+    ##
+    # Build replication jobs
+    ##
 
     if [ "$replication_targets" != "" ]; then
+
         if [[ "$replication_parent" != '-' && "$replication_parent" != "${zfspath}" ]]; then
             warning "Replication is already defined on parent zfs dataset $replication_parent"
         fi         

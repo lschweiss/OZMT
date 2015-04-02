@@ -142,9 +142,17 @@ previous_snapshot=
 job_definition="${1}"
 
 source "$job_definition"
-if [ -f "${job_status}" ]; then
-    source "${job_status}"
+
+# Check if all jobs suspended
+if [ -f "$replication_dir/suspend_all_jobs" ]; then
+    notice "All jobs suspended. Trigger replication aborted for job $job_definition."
+    exit 0
 fi
+
+wait_for_lock "${job_status}"
+source "${job_status}"
+release_lock "${job_status}"
+
 # previous_snapshot may have been defined in job_status file for a first run.
 if [ "$previous_snapshot" == "" ]; then
     previous_snapshot="$last_snapshot"
@@ -166,9 +174,34 @@ now_stamp="$(now_stamp)"
 last_run=`${DATE} +"%F %H:%M:%S%z"`
 
 if [ "$suspended" == 'true' ]; then
-    debug "Replication is suspended.  Not proceeding."
+    debug "Replication is suspended for data set $dataset_name"
     exit 0
 fi
+
+# ##
+# # Get new children folder in sync and move info into specific job definition
+# ##
+# 
+# pause 
+# 
+# set -x
+# 
+# if [ "$new_children" != "" ]; then
+#     if [ "$last_snapshot" == "" ]; then
+#         skip_new_children='true'
+#     else
+#         count=1
+#         while [ $count -le $new_children ]; do
+#             # Create "previous" snapshots
+#             timeout 2m zfs snapshot ${pool}/${new_child[$count]}@${last_snapshot}
+#             count=$(( count + 1 ))
+#         done
+#     fi
+# fi
+# 
+# set +x
+# 
+# pause
 
 # Generate new snapshot
 
@@ -221,6 +254,24 @@ echo "snapshot=\"${zfs_replication_snapshot_name}_${now_stamp}\"" >> $jobfile
 echo "previous_snapshot=\"${previous_snapshot}\"" >> $jobfile
 echo "creation_time=\"${last_run}\"" >> $jobfile
 echo "execution_number=\"1\"" >> $jobfile
+
+# if [ "$new_children" != "" ]; then
+#     if [ "$skip_new_children" != 'true' ]; then
+#         # Move new children information to the job file.
+#         echo "new_children=\"$new_children\"" >> $jobfile
+#     fi
+#     update_job_status "${job_status}" "new_children" "#REMOVE#"
+#     count=1
+#     while [ $count -le $new_children ]; do
+#         count=$(( count + 1 ))
+#         if [ "$skip_new_children" != 'true' ]; then
+#             echo "new_child[$count]=\"${new_child[$count]}\"" >> $jobfile
+#             update_job_status "${job_status}" "${new_child[$count]}" "#REMOVE#"
+#         fi
+#     done
+# fi
+# 
+# pause
 
 # Update last run time in the status file 
 

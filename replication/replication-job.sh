@@ -143,6 +143,7 @@ job_definition="${1}"
 source "$job_definition"
 
 replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+
 wait_for_lock "${job_status}"
 source "${job_status}"
 release_lock "${job_status}"
@@ -160,6 +161,7 @@ else
 fi
 
 migrating='false'
+
 
 
 # Execute ZFS send script
