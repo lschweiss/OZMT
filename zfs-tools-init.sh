@@ -167,6 +167,10 @@ if [ -z $BC ]; then
     BC=`gnu_source bc`
 fi
 
+if [ -z $PARALLEL ]; then
+    PARALLEL=`gnu_source parallel`
+fi
+
 if [ -z $bbcp ]; then
     bbcp=`gnu_source bbcp`
 fi

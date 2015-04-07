@@ -119,16 +119,22 @@ for pool in $pools; do
 
     jobfolder="/${pool}/zfs_tools/etc/snapshots/jobs"
 
-    for snaptype in $snaptypes; do
-        debug "Checking snaptype: $snaptype"
-        if [ -d "$jobfolder/$snaptype" ]; then
-            # collect jobs
-            jobs=`ls -1 $jobfolder/$snaptype|sort`
-            debug "$snaptype jobs: $jobs"
-            for job in $jobs; do
-                launch clean_job "$snaptype" "$job" 
-            done
-        fi
-    done
+    if [ -d $jobfolder ]; then
+        mkdir -p /${pool}/zfs_tools/var/spool/snapshot
+    
+        zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
+
+        for snaptype in $snaptypes; do
+            debug "Checking snaptype: $snaptype"
+            if [ -d "$jobfolder/$snaptype" ]; then
+                # collect jobs
+                jobs=`ls -1 $jobfolder/$snaptype|sort`
+                debug "$snaptype jobs: $jobs"
+                for job in $jobs; do
+                    launch clean_job "$snaptype" "$job" 
+                done
+            fi
+        done
+    fi
 
 done
