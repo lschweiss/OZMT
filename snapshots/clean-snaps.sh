@@ -45,6 +45,7 @@ clean_job () {
     local pool=
     local folder=
     local zfsfolder=`echo $job|${SED} 's,%,/,g'`
+    local folder_props=
     IFS='/'
     read -r pool folder <<< "$zfsfolder"
     unset IFS
@@ -59,17 +60,22 @@ clean_job () {
     local snap_folders=
     local snap_folder=
 
+    folder_props=`cat /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties | ${GREP} "^${zfsfolder}\s"`
+
     # Make sure we should clean this folder
-    replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
+    #replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
+    replication=`echo $folder_props | ${CUT} -d ' ' -f 2`
     if [ "$replication" == "on" ]; then
         debug "Replication is ON for $zfsfolder"
-        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
+        #replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
+        replication_dataset=`echo $folder_props | ${CUT} -d ' ' -f 3`
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         debug "Replication source: $replication_source"
         if [[ "${pool}:${folder}" == "$replication_source"* ]]; then
             clean_this_folder='true'
         else
-            replication_endpoints=`zfs get -H -o value $zfs_replication_endpoints_property ${zfsfolder} 2>/dev/null`
+            #replication_endpoints=`zfs get -H -o value $zfs_replication_endpoints_property ${zfsfolder} 2>/dev/null`
+            replication_endpoints=`echo $folder_props | ${CUT} -d ' ' -f 4`
             if [ $replication_endpoints -gt 2 ]; then
                 clean_this_folder='true'
             fi
@@ -93,10 +99,11 @@ clean_job () {
     fi
 
     if [[ "$keepcount" != "" && $keepcount -ne 0 ]]; then
-    # Remove snapshots
+        # Remove snapshots
         if [ "$recursive" == 'true' ]; then
             debug "Recursively cleaning $zfsfolder for $snaptype snapshots"
-            snap_folders=`zfs list -H -o name -r -t filesystem $zfsfolder`
+            #snap_folders=`zfs list -H -o name -r -t filesystem $zfsfolder`
+            snap_folders=`echo $folder_props | ${CUT} -d ' ' -f 1`
             debug "Folder list: $snap_folders"
             for snap_folder in $snap_folders; do
                 launch ${TOOLS_ROOT}/snapshots/remove-old-snapshots.sh -c $keepcount -z $snap_folder -p $snaptype
@@ -121,14 +128,16 @@ for pool in $pools; do
 
     if [ -d $jobfolder ]; then
         mkdir -p /${pool}/zfs_tools/var/spool/snapshot
-    
+        # Collect snapshot data
         zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
+        zfs list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,$zfs_replication_endpoints_property ${pool} > \
+            /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 
 
         for snaptype in $snaptypes; do
             debug "Checking snaptype: $snaptype"
             if [ -d "$jobfolder/$snaptype" ]; then
                 # collect jobs
-                jobs=`ls -1 $jobfolder/$snaptype|sort`
+                jobs=`ls -1 $jobfolder/$snaptype| ${SORT}`
                 debug "$snaptype jobs: $jobs"
                 for job in $jobs; do
                     launch clean_job "$snaptype" "$job" 
