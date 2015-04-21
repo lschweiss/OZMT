@@ -251,6 +251,7 @@ else
             # Move the job to completed status
             debug "Moving job to completed status"
             touch "${job_definition}"
+            mkdir -p "${replication_dir}/complete/"
             mv "${job_definition}" "${replication_dir}/complete/" 
         fi
         rm /${TMP}/zfs_destroy_$$.txt 2>/dev/null
@@ -259,6 +260,7 @@ else
         if [ "$delete_snaps" != "" ]; then
             debug "Moving job to completed status"
             touch "${job_definition}"
+            mkdir -p "${replication_dir}/complete/"
             mv "${job_definition}" "${replication_dir}/complete/"
         else
             debug "Moving job to synced status"

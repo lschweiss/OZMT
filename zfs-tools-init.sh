@@ -105,7 +105,10 @@ gnu_source () {
         fi
     done
     # Last resort
-    which $binary
+    which $binary 2> /dev/null
+    if [ $? -ne 0 ]; then
+        echo "/bin/false"
+    fi
     return 1           
 }
 
