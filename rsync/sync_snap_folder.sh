@@ -468,28 +468,37 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
         basedir="${snapdir}/${snap}"
 
         # Collect lists
-        debug "${jobname}: Collecting lists.  Part 1:"
+        debug "${jobname}: Collecting lists - Directories:"
         if [ "$iflag" == "1" ]; then
             ssh $source_host find $basedir -mindepth $zval -maxdepth $zval -type d | \
-                ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
+                ${GREP} -x -v ".snapshot" | \
+		${GREP} -x -v ".zfs" | \
+		${GREP} -v ".history" | \
+		${SED} "s,${basedir}/,," > \ 
+		${TMP}/sync_folder_list_$$
         else
             find $basedir -mindepth $zval -maxdepth $zval -type d | \
-                ${GREP} -x -v ".snapshot"|${GREP} -x -v ".zfs"|${GREP} -v ".history" > ${TMP}/sync_folder_list_$$
+                ${GREP} -x -v ".snapshot" | \
+		${GREP} -x -v ".zfs" | \
+		${GREP} -v ".history" | \
+		${SED} "s,${basedir}/,," > \
+		${TMP}/sync_folder_list_$$
         fi
 
-        # Sript the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
-        cat ${TMP}/sync_folder_list_$$ | ${SED} "s,${basedir}/,," | ${SED} 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
-
         # Add files that may be at a depth less than or equal to the test above
-        debug "${jobname}: Collecting lists.  Part 2:"
+        debug "${jobname}: Collecting lists - Files:"
 
         if [ "$iflag" == "1" ]; then
             ssh $source_host find $basedir -maxdepth $zval \! -type d | \
-                ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+                ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
         else
             find $basedir -maxdepth $zval \! -type d | \
-                ${SED} "s,${basedir},,"  >> ${TMP}/sync_folder_list_$$_trim
+                ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
         fi
+
+        # Strip the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
+#	debug "${jobname}: Collecting lists - Trimming base directory:"
+#        cat ${TMP}/sync_folder_list_$$ | ${SED} "s,${basedir}/,," | ${SED} 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
 
         # Remove exclusions
 
@@ -499,9 +508,10 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
                 while read line; do
                     echo "${basedir}/$line" >> ${TMP}/sync_folder_list_$$_exclude_list
                     debug "${jobname}: Excluding $line"
-                    cat ${TMP}/sync_folder_list_$$_trim|${GREP} -v "^${line}" > \
-                        ${TMP}/sync_folder_list_$$_trim_exclude
-                    mv ${TMP}/sync_folder_list_$$_trim_exclude ${TMP}/sync_folder_list_$$_trim
+                    cat ${TMP}/sync_folder_list_$$ | \
+			${GREP} -v "^${line}" > \
+                        ${TMP}/sync_folder_list_$$_exclude
+                    mv ${TMP}/sync_folder_list_$$_exclude ${TMP}/sync_folder_list_$$
                 done < $xval
                 extra_options="$extra_options --exclude-from=${TMP}/sync_folder_list_$$_exclude_list"
             else
@@ -511,11 +521,11 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
  
         # Randomize the list to better spread the load across jobs 
 
-        cat ${TMP}/sync_folder_list_$$_trim | sort -R > ${TMP}/sync_folder_list_$$_rand
+        cat ${TMP}/sync_folder_list_$$ | sort -R > ${TMP}/sync_folder_list_$$_rand
         
        
         
-#        echo "Check the folder list: ${TMP}/sync_folder_list_$$_trim"
+#        echo "Check the folder list: ${TMP}/sync_folder_list_$$"
 #        read pause
 
         x=0
@@ -529,7 +539,9 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
 
         while [ $x -lt $sval ]; do
             skip=$(( $x * $linesperjob ))
-            cat ${TMP}/sync_folder_list_$$_rand | tail -n +${skip} | head -n ${linesperjob} > ${TMP}/sync_folder_list_$$_${x}
+            cat ${TMP}/sync_folder_list_$$_rand | \
+		tail -n +${skip} | \
+		head -n ${linesperjob} > ${TMP}/sync_folder_list_$$_${x}
                 # sed "s,^,/," > ${TMP}/sync_folder_list_$$_${x}
             split_rsync "${TMP}/sync_folder_list_$$_${x}" &
             if [ $sval -gt 5 ]; then
@@ -627,7 +639,6 @@ else
     # clean up
 
     rm -f ${TMP}/sync_folder_list_$$ \
-          ${TMP}/sync_folder_list_$$_trim \
           ${TMP}/sync_folder_list_$$_rand \
           ${TMP}/sync_folder_$$_*.log \
           ${TMP}/sync_folder_$$_*.complete &>/dev/null
