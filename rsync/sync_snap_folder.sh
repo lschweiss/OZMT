@@ -28,6 +28,7 @@ show_usage() {
     echo "  [-d date] Date must be of the same format as in snapshot folder name"
     echo "  [-c cns_folder_exclude_file] Exclude file listing CNS folders to exclude from this job"
     echo "  [-k compare based on checKsum not metadata]"
+    echo "  [-D] Don't delete on target"
     echo "  [-t] trial mode.  Only output what would happen"
     echo "  [-p] Turn on --progress and --verbose for rsync."
     echo "  [-a] Turn on verbose and attach output to logs."
@@ -51,6 +52,7 @@ fi
 
 xflag=
 dflag=
+Dflag=
 tflag=
 cflag=
 kflag=
@@ -68,7 +70,7 @@ zval=1
 
 progress=""
 
-while getopts apkirtc:x:d:s:e:z:l:n: opt; do
+while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
     case $opt in
         x)  # Exclude File Specified
             xflag=1
@@ -86,6 +88,8 @@ while getopts apkirtc:x:d:s:e:z:l:n: opt; do
             aflag=1;;
         p)  # Turn on progress and verbose
             pflag=1;;
+	D)  # Don't delete on the target
+	    dflag=1;;
         t)  # Trial mode
             debug "Using trial mode"
             tflag=1;;
@@ -146,6 +150,15 @@ debug "Using Date: $this_date"
 
 if [ ! -z "$pflag" ]; then
     progress="--verbose --progress"
+fi
+
+# Don't delete on target
+if [ ! -z $Dflag ]; then
+    debug "NOT deleting on the target"
+    delete_on_target=''
+else
+    debug "DELETING on the target"
+    delete_on_target='--delete'
 fi
 
 #Move to remaining arguments
@@ -243,12 +256,12 @@ split_rsync () {
     fi
 
     # Function used to run a parallel rsync job
-    debug "${RSYNC} -arS --delete --relative \
+    debug "${RSYNC} -arS ${delete_on_target} --relative \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
     if [ "$tflag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
-            ${RSYNC} -arS --delete --relative  \
+            ${RSYNC} -arS ${delete_on_target} --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
                 --files-from=${1} $basedir/ $target_folder &> ${1}.log 
     	    rsync_result=$? 
@@ -434,11 +447,11 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
             basedir="${snapdir}/${snap}"
         fi
         # Run rsync
-        debug "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
+        debug "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
         if [ "$tflag" != "1" ]; then
-            echo "rsync -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
+            echo "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file \
                 $basedir/ $target_folder" > ${TMP}/sync_snap_folder_$$.log
-            ${RSYNC} -aS --delete --stats $extra_options --exclude=.snapshot $exclude_file \
+            ${RSYNC} -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file \
                 $basedir/ $target_folder &>> ${TMP}/sync_snap_folder_$$.log
             rsync_result=$?
 
@@ -596,9 +609,9 @@ else
                 snap_label="snap-daily_${snap}"
                 basedir="${snapdir}/${snap}"
                 # Run rsync
-                debug "rsync -aS --delete --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
+                debug "rsync -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
                 if [ "$tflag" != "1" ]; then
-                    ${RSYNC} -aS --delete --stats $progress --exclude=.snapshot $exclude_file \
+                    ${RSYNC} -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file \
                         $basedir/ $target_folder/${folder} &> ${TMP}/sync_folder_$$_${folder}.log
 
                     rsync_result=$?
