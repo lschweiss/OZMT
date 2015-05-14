@@ -158,6 +158,7 @@ activate_vip () {
                     ;;
             esac
 
+
         fi # if $ip_host
 
     done # for ipif
@@ -321,7 +322,7 @@ deactivate_vip () {
 ###
 
 for pool in $pools; do
-    vip_dir="/${pool}/zfs_tools/var/replication/vip"
+    vip_dir="/${pool}/zfs_tools/var/vip"
     if [ -d "$vip_dir" ]; then
         folders=`ls -1 "${vip_dir}" | sort`
         for folder in $folders; do
@@ -346,12 +347,14 @@ for pool in $pools; do
                     fi
                 else
                     # vIP is attached to the active dataset
+                    debug "vIP is attached to the dataset: ${folder}"
                     if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
                         # Get the dataset name
                         debug "pool: $pool  folder: $folder"
                         zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
                         if [ $? -ne 0 ]; then
                             # This is not the active dataset, we don't even have the dataset yet.
+                            debug "Dataset NOT on this system: pool: $pool  folder: $folder   Deactivateing vIP: $vIP"
                             rm ${TMP}/vip_dataset_$$ 2> /dev/null
                             deactivate_vip "$vIP"
                             continue
@@ -359,18 +362,21 @@ for pool in $pools; do
                             dataset_name=`cat ${TMP}/vip_dataset_$$`
                             rm ${TMP}/vip_dataset_$$
                         fi
-                        debug "dataset_name: $dataset_name"
+                        debug "Activating vIP: $vIP   dataset_name: $dataset_name"
                         active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
                         IFS='/'
                         read -r active_pool active_folder <<< "$active_source"
                         unset IFS
                         debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
                         if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
+                            debug "pool $pool is the active pool, activating vIP: $vIP"
                             activate_vip "$vIP" "$routes" "$ipifs"
                         else
+                            debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
                             deactivate_vip "$vIP"
                         fi
                     else
+                        debug "No source reference for dataset ${folder}  Activating vIP: $vIP"
                         activate_vip "$vIP" "$routes" "$ipifs"
                     fi
                 fi
@@ -378,6 +384,8 @@ for pool in $pools; do
         done # for folder in $folders
     fi # if $vip_dir
 done # for pool in $pools
+
+
 
 
 

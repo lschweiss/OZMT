@@ -953,15 +953,15 @@ setupzfs () {
 
     # Define vIP
 
-    mkdir -p /${pool}/zfs_tools/var/replication/vip
+    mkdir -p /${pool}/zfs_tools/var/vip
 
     if [ $vip -ne 0 ]; then
         if [ "$replication_targets" == "" ]; then
         warning "VIP assigned without replication definition.  This VIP will always be activated."
         fi
         rm -f ${TMP}/previous_vip_$$ 2> /dev/null
-        if [ -f "/${pool}/zfs_tools/var/replication/vip/${simple_jobname}" ]; then
-            mv "/${pool}/zfs_tools/var/replication/vip/${simple_jobname}" ${TMP}/previous_vip_$$
+        if [ -f "/${pool}/zfs_tools/var/vip/${simple_jobname}" ]; then
+            mv "/${pool}/zfs_tools/var/vip/${simple_jobname}" ${TMP}/previous_vip_$$
         fi
         
         x=1
@@ -976,7 +976,7 @@ setupzfs () {
 
 
             debug "Adding vIP $vIP to folder definition $simple_jobname"
-            echo "${vip[$x]}" >> /${pool}/zfs_tools/var/replication/vip/${simple_jobname}
+            echo "${vip[$x]}" >> /${pool}/zfs_tools/var/vip/${simple_jobname}
             x=$(( x + 1 ))
         done
 
