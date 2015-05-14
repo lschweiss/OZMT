@@ -173,6 +173,7 @@ setupzfs () {
     local replication_failure_limit=
     local replication_previous_snapshot=
     local vip=0
+    local cifs=
     local backup_target=
     local zfs_backup=
     local target_properties=
@@ -197,7 +198,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t: opt; do
+    while getopts Cz:o:s:S:n:R:V:F:L:P:b:q:t: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -232,6 +233,9 @@ setupzfs () {
                 vip=$(( vip + 1 ))
                 vip[$vip]="$OPTARG"
                 debug "Adding vIP ${vip[$vip]}"
+                ;;
+            C)  # enable CIFS on this dataset
+                cifs='true'
                 ;;
             F)  # Default source pool
                 default_source_folder="$OPTARG"
@@ -985,6 +989,26 @@ setupzfs () {
         #       In short, any vIP that changes, remove it and recreate it.
 
     fi
+
+    # Setup CIFS
+
+    mkdir -p /${pool}/zfs_tools/{etc,var}/samba
+    
+
+    if [ "$cifs" == 'true' ]; then
+        if [ "$dataset_name" != '' ]; then
+            mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
+            zfs set ${zfs_cifs_property}=${dataset_name} ${pool}/${zfspath}
+        else
+            error "CIFS enables without specifying dataset name"
+        fi
+    else
+        zfs inherit ${zfs_cifs_property} ${pool}/${zfspath}
+    fi
+            
+
+
+    
     
 }
 

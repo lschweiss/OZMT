@@ -212,6 +212,10 @@ if [ "$zfs_replication_endpoints_property" == "" ]; then
     zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
 fi
 
+if [ "$zfs_cifs_property" == "" ]; then
+    zfs_cifs_property="edu.wustl.nrg:cifs"
+fi
+
 if [ "$zfs_replication_failure_limit" == "" ]; then
     zfs_replication_failure_limit="30m"
 fi

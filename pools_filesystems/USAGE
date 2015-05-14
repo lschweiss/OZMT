@@ -102,6 +102,15 @@ Usage:
     
                                     Typically associated with a replication configuration, but not necessarily.    
 
+
+      [-C]                        Enable CIFS
+                           
+                                    Requires /{pool}/etc/samba/{name}/smb.conf
+                                      name: the same name specified with '-N'
+
+                                    If the config directory does not exit, a stub will be created.
+
+
     Quota Reporting:
 
       [-q "{free}|{alert_type}|{destination}|{frequency}"]
