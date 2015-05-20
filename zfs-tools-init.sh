@@ -1,4 +1,4 @@
-# /bin/bash
+#! /bin/bash
 
 # zfs-tools-init.sh
 #
@@ -214,6 +214,14 @@ fi
 
 if [ "$zfs_cifs_property" == "" ]; then
     zfs_cifs_property="edu.wustl.nrg:cifs"
+fi
+
+if [ "$zfs_vip_property" == "" ]; then
+    zfs_vip_property="edu.wustl.nrg:vip"
+fi
+
+if [ "$zfs_cifs_default_share_template" == "" ]; then
+    zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
 fi
 
 if [ "$zfs_replication_failure_limit" == "" ]; then

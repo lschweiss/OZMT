@@ -174,6 +174,7 @@ setupzfs () {
     local replication_previous_snapshot=
     local vip=0
     local cifs=
+    local cifs_share=
     local backup_target=
     local zfs_backup=
     local target_properties=
@@ -198,7 +199,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts Cz:o:s:S:n:R:V:F:L:P:b:q:t: opt; do
+    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t:Cc: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -236,6 +237,11 @@ setupzfs () {
                 ;;
             C)  # enable CIFS on this dataset
                 cifs='true'
+                debug "Enabling CIFS on this dataset"
+                ;;
+            c)  # share this folder via CIFS
+                cifs_share="$OPTARG"
+                debug "Setting CIFS share using $cifs_share"
                 ;;
             F)  # Default source pool
                 default_source_folder="$OPTARG"
@@ -957,17 +963,32 @@ setupzfs () {
 
     # Define vIP
 
+
+    # Remove any definitions in the zfs parameters and reload them
+    # TODO: Only remove them if there are changes
+
+    zfs_vips=
+    zfs_vip=`zfs get -H -o value -s local $zfs_vip_property ${pool}/${zfspath}`
+    if [ "$zfs_vip" != "" ]; then
+        zfs inherit ${zfs_vip_property} ${pool}/${zfspath}
+        x=1
+        while [ $x -le $zfs_vip ]; do
+            zfs inherit ${zfs_vip_property}:${x} ${pool}/${zfspath}
+            x=$(( x + 1 ))
+        done
+    fi
+
     mkdir -p /${pool}/zfs_tools/var/vip
 
     if [ $vip -ne 0 ]; then
         if [ "$replication_targets" == "" ]; then
-        warning "VIP assigned without replication definition.  This VIP will always be activated."
+            warning "VIP assigned without replication definition.  This VIP will always be activated."
         fi
         rm -f ${TMP}/previous_vip_$$ 2> /dev/null
         if [ -f "/${pool}/zfs_tools/var/vip/${simple_jobname}" ]; then
             mv "/${pool}/zfs_tools/var/vip/${simple_jobname}" ${TMP}/previous_vip_$$
         fi
-        
+
         x=1
         while [ $x -le $vip ]; do
             # Break down the vIP definition
@@ -981,8 +1002,11 @@ setupzfs () {
 
             debug "Adding vIP $vIP to folder definition $simple_jobname"
             echo "${vip[$x]}" >> /${pool}/zfs_tools/var/vip/${simple_jobname}
+            zfs set ${zfs_vip_property}:${x}="${vip[$x]}" ${pool}/${zfspath}
             x=$(( x + 1 ))
         done
+
+        zfs set ${zfs_vip_property}="$(( x - 1 ))" ${pool}/${zfspath}
 
         # TODO: Post process changes from ${TMP}/previous_vip_$$.  
         #       Remove any vIP no longer defined, update changes routes, etc.
@@ -994,18 +1018,58 @@ setupzfs () {
 
     mkdir -p /${pool}/zfs_tools/{etc,var}/samba
     
-
     if [ "$cifs" == 'true' ]; then
         if [ "$dataset_name" != '' ]; then
             mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
             zfs set ${zfs_cifs_property}=${dataset_name} ${pool}/${zfspath}
         else
-            error "CIFS enables without specifying dataset name"
+            error "CIFS enabled without specifying dataset name"
         fi
     else
         zfs inherit ${zfs_cifs_property} ${pool}/${zfspath}
     fi
-            
+
+    # Setup CIFS share
+
+    if [ "$cifs_share" != "" ]; then
+        cifs_parent_dataset=`zfs get -H -o value ${zfs_cifs_property} ${pool}/${zfspath}`
+        if [ "$cifs_parent_dataset" == '-' ]; then
+            error "CIFS must be enabled at the dataset level before defining shares"
+        else
+            case $cifs_share in
+                *.conf|*.conf.template)
+                    if [ -f /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_share ]; then
+                        debug "Setting share via /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_share"
+                        zfs set ${zfs_cifs_property}:share="datset:$cifs_share" ${pool}/${zfspath}
+                    else if [ -f /$pool/zfs_tools/etc/samba/$cifs_share ]; then
+                        debug "Setting share via /$pool/zfs_tools/etc/samba/$cifs_share"
+                        zfs set ${zfs_cifs_property}:share="pool:$cifs_share" ${pool}/${zfspath}
+                    else if [ -f /etc/ozmt/samba/$cifs_share ]; then
+                        debug "Setting share via /etc/ozmt/samba/$cifs_share"
+                        zfs set ${zfs_cifs_property}:share="system:$cifs_share" ${pool}/${zfspath}
+                    else
+                        error "Cannot define cifs share.  Configuration file $cifs_share not found in /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_share or /$pool/zfs_tools/etc/samba/$cifs_share or /etc/ozmt/samba/$cifs_share"
+                    fi;fi;fi
+                    ;;
+                default)
+                    if [ ! -f $zfs_cifs_default_share_template ]; then
+                        error "Cannot define cifs share.  Configuration file missing: $zfs_cifs_default_share_template"
+                    else
+                        debug "Setting share via $zfs_cifs_default_share_template"
+                        zfs set ${zfs_cifs_property}:share="$default" ${pool}/${zfspath}
+                    fi
+                    ;;
+                *)
+                    error "CIFS share template must be of the form {filename}.conf, {filename}.conf.template, or 'default'"
+                    ;;
+            esac
+
+        fi
+
+    else
+        debug "No cifs share defined for this folder"
+        zfs inherit ${zfs_cifs_property}:share ${pool}/${zfspath}
+    fi
 
 
     

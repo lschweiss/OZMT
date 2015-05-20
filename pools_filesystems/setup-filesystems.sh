@@ -97,7 +97,7 @@ done
 
 if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
     children=`cat "${TMP}/setup_filesystem_replication_children"`
-    cat ${TMP}/setup_filesystem_replication_children
+    #cat ${TMP}/setup_filesystem_replication_children
     sleep 1
     for child in $children; do
         touch ${child}
