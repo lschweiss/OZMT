@@ -92,7 +92,7 @@ activate_vip () {
             ;;      
     esac
 
-    if [ $? -eq 0 ]; then
+    if [ $result -eq 0 ]; then
         # Make sure it is not local
         if islocal $vIP; then
             warning "Activating vIP ${vIP}, however, it is already active on this host."

@@ -1040,7 +1040,7 @@ setupzfs () {
                 *.conf|*.conf.template)
                     if [ -f /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_share ]; then
                         debug "Setting share via /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_share"
-                        zfs set ${zfs_cifs_property}:share="datset:$cifs_share" ${pool}/${zfspath}
+                        zfs set ${zfs_cifs_property}:share="dataset:$cifs_share" ${pool}/${zfspath}
                     else if [ -f /$pool/zfs_tools/etc/samba/$cifs_share ]; then
                         debug "Setting share via /$pool/zfs_tools/etc/samba/$cifs_share"
                         zfs set ${zfs_cifs_property}:share="pool:$cifs_share" ${pool}/${zfspath}

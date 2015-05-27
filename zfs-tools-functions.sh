@@ -192,7 +192,7 @@ islocal () {
         fi
     fi
     # See if we own it.
-
+    debug "Checking if IP $ip is local.."
     # TODO: Support FreeBSD & OSX
 
     case $os in

@@ -190,6 +190,14 @@ if [ -z $gzip ]; then
     gzip=`gnu_source gzip`
 fi
 
+if [ -z $SMBD ]; then
+    SMBD="/usr/local/samba/sbin/smbd"
+fi
+
+if [ -z $NMBD ]; then
+    NMBD="/usr/local/samba/sbin/nmbd"
+fi
+
 # Set defaults
 
 if [ "$minimum_report_frequency" == "" ]; then
