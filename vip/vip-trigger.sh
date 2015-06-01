@@ -35,10 +35,40 @@ fi
 
 pools="$(pools)"
 
+get_ip () {
+
+    local ip_host="$1"
+    local ip=
+
+    if ! valid_ip $ip_host; then
+        getent hosts $ip_hosts | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
+        if [ $? -eq 0 ]; then
+            ip=`cat ${TMP}/islocal_host_$$`
+        else
+            # Try DNS
+            dig +short $host > ${TMP}/islocal_host_$$
+            if [ $? -eq 0 ]; then
+                ip=`cat ${TMP}/islocal_host_$$`
+            else
+                rm ${TMP}/islocal_host_$$
+                echo "0"
+                return 1
+            fi
+        fi
+    else
+        ip="$ip_host"
+    fi
+
+    rm ${TMP}/islocal_host_$$
+    echo "$ip"
+
+}
+
 activate_vip () {
 
     local vIP_full="$1"
     local vIP=
+    local vIP_numeric=
     local netmask=
     local routes="$2"
     local ipifs="$3"
@@ -64,8 +94,15 @@ activate_vip () {
     read vIP netmask <<< "$vIP_full"
     unset IFS
 
+   
+    vIP_numeric=`get_ip $vIP`
 
-    if [ -f "/var/zfs_tools/vip/active/${vIP_dataset}" ]; then
+    if [ "$ip" == "0" ]; then
+        error "vIP $vIP is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
+        return 1
+    fi
+
+    if [ -f "/var/zfs_tools/vip/active/${vIP_numeric}" ]; then
         # vIP is already active
         if islocal $vIP; then
             debug "vIP already configured, doing nothing"
@@ -76,6 +113,9 @@ activate_vip () {
     fi
 
     # Make sure it is not already active elsewhere 
+
+    # TODO:  Ping is not reliable.  We may not have an interface that can talk to it yet.
+    #        Possibly replace with arping.   
 
     case $os in 
         'Linux')
@@ -107,34 +147,18 @@ activate_vip () {
         ip_host=`echo "$ipif" | cut -d '/' -f 1`
         ip_if=`echo "$ipif" | cut -d '/' -f 2`
         if [[ "$ip_host" == "$HOSTNAME" || "$ip_host" == '*' ]]; then
-            # Validate the vIP
-            if ! valid_ip $vIP; then
-                getent hosts $vIP | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
-                if [ $? -eq 0 ]; then
-                    ip=`cat ${TMP}/islocal_host_$$`
-                else
-                    # Try DNS
-                    dig +short $host > ${TMP}/islocal_host_$$
-                    if [ $? -eq 0 ]; then
-                        ip=`cat ${TMP}/islocal_host_$$`
-                    else
-                        error "vIP $vIP is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
-                        return 1
-                    fi
-                fi
-            else
-                ip="$vIP"
-            fi
             alias=1
             available='false'
             while [ "$available" == 'false' ]; do
                 # Find next IP alias
                 case $os in
                     'Linux')
-                        ifconfig ${ip_if}:${alias} | ${GREP} -q "inet addr:"
+                        ifconfig ${ip_if}:${alias} | ${GREP} -q "inet addr:" 1>/dev/null 2>/dev/null
+                        result=$?
                         ;;
                     'SunOS')
                         ifconfig ${ip_if}:${alias} 1>/dev/null 2>/dev/null
+                        result=$?
                         ;;
                     *)
                         error "Unsupported OS, $os"
@@ -142,7 +166,7 @@ activate_vip () {
                         ;;
                 esac
     
-                if [ $? -eq 0 ]; then
+                if [ $result -eq 0 ]; then
                     alias=$(( alias + 1 ))
                 else
                     available='true'
@@ -210,7 +234,7 @@ activate_vip () {
 
     mkdir -p /var/zfs_tools/vip/active
 
-    echo "${vIP}/${netmask}|${routes}|${ipifs}" > "/var/zfs_tools/vip/active/${vIP_dataset}"
+    echo "${pool}|${vIP_dataset}|${vIP}/${netmask}|${routes}|${ipifs}" > "/var/zfs_tools/vip/active/${ip}"
 
     return 0
 
@@ -218,15 +242,15 @@ activate_vip () {
 
 deactivate_vip () {
 
-    local vIP_full="$1"
-    local vIP=
+    local vIP_full=
+    local vIP_file=
     local vIP_dataset=
     local netmask=
     local routes=
     local ipifs=
     local ipif=
     local ip_host=
-    local ip=
+    local ip="$1"
     local alias=
     local available=
     local route=
@@ -238,56 +262,36 @@ deactivate_vip () {
 
     debug "deactivate_vip $1"
 
-    # TODO: Break out vIP / netmask
-
-    IFS='/'
-    read -r vIP netmask <<< "$vIP_full"
-    unset IFS
-
-    if [ ! -f "/var/zfs_tools/vip/active/${vIP_dataset}" ]; then
+    if [ ! -f "/var/zfs_tools/vip/active/${ip}" ]; then
         # deactivating non active vIP 
         debug "vIP not active, doing nothing"
         return 0
     fi
 
     IFS='|'
-    read -r routes ipifs < "/var/zfs_tools/vip/active/${vIP}"
+    read -r pool vIP_dataset vIP_full routes ipifs < "/var/zfs_tools/vip/active/${ip}"
     unset IFS
 
-    # Validate the vIP
-    if ! valid_ip $vIP; then
-        getent hosts $vIP | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
-        if [ $? -eq 0 ]; then
-            ip=`cat ${TMP}/islocal_host_$$`
-        else
-            # Try DNS
-            dig +short $host > ${TMP}/islocal_host_$$
-            if [ $? -eq 0 ]; then
-                ip=`cat ${TMP}/islocal_host_$$`
-            else
-                error "vIP $vIP is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
-                return 1
-            fi
-        fi
-    else
-        ip="$vIP"
-    fi
+    IFS='/'
+    read -r vIP netmask <<< "$vIP_full"
+    unset IFS
+
 
     # Get the alias interface and shut it down
     case $os in
         'Linux')
             ipif=`ifconfig | ${GREP} -B 1 -F "inet addr:${ip}"|head -1|${AWK} -F ": " '{print $1}'`
+            debug "Shutting down $ipif"
             ifconfig $ipif down
             ;;
         'SunOS')
             ipif=`ifconfig -a | ${GREP} -B 1 -F "inet ${ip}"|head -1|${AWK} -F ": " '{print $1}'`
+            debug "Shutting down $ipif"
             ifconfig $ipif unplumb
             ;;
     esac
 
-    if [ -f "/var/zfs_tools/vip/active/${vIP_dataset}" ]; then
-        rm -f "/var/zfs_tools/vip/active/${vIP_dataset}"
-    fi
+    rm -f "/var/zfs_tools/vip/active/${ip}"
 
     # Remove the static routes
     IFS=','
@@ -326,6 +330,86 @@ deactivate_vip () {
 
 }
 
+
+process_vip () {
+
+    local vip_file="$1"
+    local pool=
+    local dataset_name=
+    local folder=
+    local vip=
+    local vIP=
+    local routes=
+    local ipifs=
+    local t_vIP=
+    local t_pool=
+    local active_pool=
+    local active_folder=
+
+    debug "Processing: $vip_file"
+
+    while read vip; do
+        # Break down the vIP definition
+        IFS='|'
+        read -r pool dataset_name vIP routes ipifs <<< "${vip}"
+        unset IFS
+
+        debug "pool: $pool dataset: $dataset_name vIP: $vIP routes: $routes ipifs: $ipifs"
+        if [[ $vIP == *","* ]]; then
+            # vIP is pool attached
+            IFS='/'
+            read -r t_vIP t_pool <<< "$vIP"
+            unset IFS
+            debug "t_vIP: $t_vIP t_pool: $t_pool"
+            echo "t_pool: $t_pool"
+            echo "pools: $pools"
+            if [[ $t_pool == *"$pools"* ]]; then
+                activate_vip "$t_vIP" "$routes" "$ipifs" "$t_pool"
+            else
+                deactivate_vip "$t_vIP" "$t_pool"
+            fi
+        else
+            # vIP is attached to the active dataset
+            debug "vIP is attached to the dataset: $dataset_name"
+            if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
+                # Get the dataset name
+                debug "pool: $pool  folder: $folder"
+                zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
+                if [ $? -ne 0 ]; then
+                    # This is not the active dataset, we don't even have the dataset yet.
+                    debug "Dataset NOT on this system: pool: $pool  folder: $folder   Deactivateing vIP: $vIP"
+                    rm ${TMP}/vip_dataset_$$ 2> /dev/null
+                    deactivate_vip "$vIP"
+                    continue
+                else
+                    dataset_name=`cat ${TMP}/vip_dataset_$$`
+                    rm ${TMP}/vip_dataset_$$
+                fi
+                debug "Activating vIP: $vIP   dataset_name: $dataset_name"
+                active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+                IFS=':'
+                read -r active_pool active_folder <<< "$active_source"
+                unset IFS
+                debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
+                if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
+                    debug "pool $pool is the active pool, activating vIP: $vIP"
+                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                else
+                    debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
+                    deactivate_vip "$vIP"
+                fi
+            else
+                debug "No source reference for dataset ${folder}  Deactivating vIP: $vIP"
+                deactivate_vip "$vIP"
+            fi
+        fi
+    done < "$vip_file"  # while read vip
+    
+
+
+
+}
+
 ###
 ###
 ##
@@ -339,64 +423,17 @@ for pool in $pools; do
     if [ -d "$vip_dir" ]; then
         folders=`ls -1 "${vip_dir}" | sort`
         for folder in $folders; do
-            while read vip; do
-                # Break down the vIP definition
-                IFS='|'
-                read -r vIP routes ipifs <<< "${vip}"
-                unset IFS
-                debug "vIP: $vIP routes: $routes ipifs: $ipifs"
-                if [[ $vIP == *","* ]];then
-                    # vIP is pool attached
-                    IFS='/'
-                    read -r t_vIP t_pool <<< "$vIP"
-                    unset IFS
-                    debug "t_vIP: $t_vIP t_pool: $t_pool"
-                    echo "t_pool: $t_pool"
-                    echo "pools: $pools"
-                    if [[ $t_pool == *"$pools"* ]]; then 
-                        activate_vip "$t_vIP" "$routes" "$ipifs" "$t_pool"
-                    else
-                        deactivate_vip "$t_vIP" "$t_pool"
-                    fi
-                else
-                    # vIP is attached to the active dataset
-                    debug "vIP is attached to the dataset: ${folder}"
-                    if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
-                        # Get the dataset name
-                        debug "pool: $pool  folder: $folder"
-                        zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
-                        if [ $? -ne 0 ]; then
-                            # This is not the active dataset, we don't even have the dataset yet.
-                            debug "Dataset NOT on this system: pool: $pool  folder: $folder   Deactivateing vIP: $vIP"
-                            rm ${TMP}/vip_dataset_$$ 2> /dev/null
-                            deactivate_vip "$vIP" "${pool}:${folder}"
-                            continue
-                        else
-                            dataset_name=`cat ${TMP}/vip_dataset_$$`
-                            rm ${TMP}/vip_dataset_$$
-                        fi
-                        debug "Activating vIP: $vIP   dataset_name: $dataset_name"
-                        active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
-                        IFS=':'
-                        read -r active_pool active_folder <<< "$active_source"
-                        unset IFS
-                        debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
-                        if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
-                            debug "pool $pool is the active pool, activating vIP: $vIP"
-                            activate_vip "$vIP" "$routes" "$ipifs" "${pool}:${folder}"
-                        else
-                            debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
-                            deactivate_vip "$vIP"
-                        fi
-                    else
-                        debug "No source reference for dataset ${folder}  Activating vIP: $vIP"
-                        activate_vip "$vIP" "$routes" "$ipifs" "${pool}:${folder}"
-                    fi
-                fi
-            done < "${vip_dir}/${folder}"  # while read vip
+            process_vip "${vip_dir}/${folder}"
         done # for folder in $folders
     fi # if $vip_dir
 done # for pool in $pools
+
+active_vips=`ls -1 /var/zfs_tools/vip/active | sort `
+
+for vip in $active_vips; do
+    process_vip "/var/zfs_tools/vip/active/${vip}"
+done
+    
 
 
 
