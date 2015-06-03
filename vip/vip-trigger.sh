@@ -41,16 +41,16 @@ get_ip () {
     local ip=
 
     if ! valid_ip $ip_host; then
-        getent hosts $ip_hosts | ${AWK} -F " " '{print $1}' > ${TMP}/islocal_host_$$
+        getent hosts $ip_hosts | ${AWK} -F " " '{print $1}' > ${TMP}/get_ip_$$
         if [ $? -eq 0 ]; then
-            ip=`cat ${TMP}/islocal_host_$$`
+            ip=`cat ${TMP}/get_ip_$$`
         else
             # Try DNS
-            dig +short $host > ${TMP}/islocal_host_$$
+            dig +short $host > ${TMP}/get_ip_$$
             if [ $? -eq 0 ]; then
-                ip=`cat ${TMP}/islocal_host_$$`
+                ip=`cat ${TMP}/get_ip_$$`
             else
-                rm ${TMP}/islocal_host_$$
+                rm ${TMP}/get_ip_$$ 2> /dev/null
                 echo "0"
                 return 1
             fi
@@ -59,7 +59,7 @@ get_ip () {
         ip="$ip_host"
     fi
 
-    rm ${TMP}/islocal_host_$$
+    rm ${TMP}/get_ip_$$ 2> /dev/null
     echo "$ip"
 
 }
@@ -68,7 +68,6 @@ activate_vip () {
 
     local vIP_full="$1"
     local vIP=
-    local vIP_numeric=
     local netmask=
     local routes="$2"
     local ipifs="$3"
@@ -95,14 +94,14 @@ activate_vip () {
     unset IFS
 
    
-    vIP_numeric=`get_ip $vIP`
+    ip=`get_ip $vIP`
 
     if [ "$ip" == "0" ]; then
         error "vIP $vIP is not valid.  It is not an raw IP, in /etc/host or DNS resolvable."
         return 1
     fi
 
-    if [ -f "/var/zfs_tools/vip/active/${vIP_numeric}" ]; then
+    if [ -f "/var/zfs_tools/vip/active/${ip}" ]; then
         # vIP is already active
         if islocal $vIP; then
             debug "vIP already configured, doing nothing"
@@ -371,27 +370,14 @@ process_vip () {
         else
             # vIP is attached to the active dataset
             debug "vIP is attached to the dataset: $dataset_name"
-            if [ -f "/${pool}/zfs_tools/var/replication/source/${folder}" ]; then
-                # Get the dataset name
-                debug "pool: $pool  folder: $folder"
-                zfs get -H -o value $zfs_replication_dataset_property ${pool}/$(jobtofolder ${folder}) > ${TMP}/vip_dataset_$$ 2> /dev/null
-                if [ $? -ne 0 ]; then
-                    # This is not the active dataset, we don't even have the dataset yet.
-                    debug "Dataset NOT on this system: pool: $pool  folder: $folder   Deactivateing vIP: $vIP"
-                    rm ${TMP}/vip_dataset_$$ 2> /dev/null
-                    deactivate_vip "$vIP"
-                    continue
-                else
-                    dataset_name=`cat ${TMP}/vip_dataset_$$`
-                    rm ${TMP}/vip_dataset_$$
-                fi
-                debug "Activating vIP: $vIP   dataset_name: $dataset_name"
+            if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
                 active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
                 IFS=':'
                 read -r active_pool active_folder <<< "$active_source"
                 unset IFS
-                debug "pool: $pool folder: $folder active_pool: $active_pool active_folder: $active_folder"
-                if [[ "$pool" == "$active_pool" && "$folder" == "$(jobtofolder $active_folder)" ]]; then
+                debug "active_pool: $active_pool active_folder: $active_folder"
+                zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
+                if [ $? -eq 0 ]; then
                     debug "pool $pool is the active pool, activating vIP: $vIP"
                     activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
                 else
@@ -427,6 +413,8 @@ for pool in $pools; do
         done # for folder in $folders
     fi # if $vip_dir
 done # for pool in $pools
+
+debug "Processing active vIPs"
 
 active_vips=`ls -1 /var/zfs_tools/vip/active | sort `
 
