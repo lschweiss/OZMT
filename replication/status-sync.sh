@@ -88,18 +88,20 @@ for pool in $pools; do
 done # for pool
 
 # Sync other files in ${zfs_replication_sync_filelist}
-cat ${TMP}/sync_datafiles_$$|sort -U > ${TMP}/sync_datafiles_sort_$$
+cat ${TMP}/sync_datafiles_$$ | ${SORT} --unique > ${TMP}/sync_datafiles_sort_$$
 all_pools=`cat ${TMP}/sync_datafiles_sort_$$`
 rm ${TMP}/sync_datafiles_sort_$$ ${TMP}/sync_datafiles_$$
 
-IFS=':'
-for file in ${zfs_replication_sync_filelist}; do
-    unset IFS
-    if [[ "$file" == *"{pool}"* ]] then
+
+files=`echo ${zfs_replication_sync_filelist} | sed 's,:,\n,g'`
+for file in $files; do
+    debug "Syncing file $file"
+    if [[ "$file" == *"{pool}"* ]]; then
         # Were syncing across all known pools
         for pool in $pools; do
             source_file=`echo $file | ${SED} "s,{pool},${pool},g"`
             for t_pool in $all_pools; do
+                debug "to pool $t_pool"
                 if [ "$pool" != "$t_pool" ]; then
                     zpool list $t_pool &> /dev/null
                     if [ $? -ne 0 ]; then
@@ -129,6 +131,7 @@ for file in ${zfs_replication_sync_filelist}; do
             if [ "$pool" != "$t_pool" ]; then
                 zpool list $t_pool &> /dev/null
                 if [ $? -ne 0 ]; then
+                    debug "to host with pool $t_pool"
                     # t_pool is not local, push and pull from the target pool, fail silently in the background
                     launch ${RSYNC} -cptgo --update -e ssh \
                         ${file} \
@@ -141,7 +144,6 @@ for file in ${zfs_replication_sync_filelist}; do
             fi
         done # for t_pool
     fi
-    IFS=':'
 done # for file
 
 

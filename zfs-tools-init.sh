@@ -253,7 +253,7 @@ if [ "$zfs_replication_snapshot_name" == "" ]; then
 fi
 
 if [ "$zfs_replication_sync_filelist" == "" ]; then
-    zfs_replication_sync_filelist="/etc/hosts:{pool}/etc/config.common"
+    zfs_replication_sync_filelist="/etc/hosts:/etc/ozmt/config.common:{pool}/etc/config.common"
 fi
 
 if [ -z $suspend_all_jobs_timeout ]; then

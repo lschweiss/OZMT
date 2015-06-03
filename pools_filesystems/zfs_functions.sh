@@ -961,11 +961,12 @@ setupzfs () {
 
     fi
 
+    ##    
     # Define vIP
-
+    ##
 
     # Remove any definitions in the zfs parameters and reload them
-    # TODO: Only remove them if there are changes
+    # TODO: Only remove the ones that change
 
     zfs_vips=
     zfs_vip=`zfs get -H -o value -s local $zfs_vip_property ${pool}/${zfspath}`
@@ -982,7 +983,7 @@ setupzfs () {
 
     if [ $vip -ne 0 ]; then
         if [ "$replication_targets" == "" ]; then
-            warning "VIP assigned without replication definition.  This VIP will always be activated."
+            warning "vIP assigned without replication definition.  This vIP will be attached to the pool activated."
         fi
         rm -f ${TMP}/previous_vip_$$ 2> /dev/null
         if [ -f "/${pool}/zfs_tools/var/vip/${simple_jobname}" ]; then
@@ -1001,7 +1002,7 @@ setupzfs () {
 
 
             debug "Adding vIP $vIP to folder definition $simple_jobname"
-            echo "${vip[$x]}" >> /${pool}/zfs_tools/var/vip/${simple_jobname}
+            echo "${pool}|${dataset_name}|${vip[$x]}" >> /${pool}/zfs_tools/var/vip/${simple_jobname}
             zfs set ${zfs_vip_property}:${x}="${vip[$x]}" ${pool}/${zfspath}
             x=$(( x + 1 ))
         done

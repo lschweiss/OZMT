@@ -227,15 +227,25 @@ islocal () {
 ####
 
 pools () {
+    local ex=
+    local pool=
+    local pools=
     # Returns all pools mounted on the system excluding the $skip_pools
 
     zpool list -H -o name > ${TMP}/pools_$$
+    # Strip explicitly declared "skip_pools"
     for ex in $skip_pools; do
         cat ${TMP}/pools_$$ | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$
         rm ${TMP}/pools_$$
         mv ${TMP}/poolsx_$$ ${TMP}/pools_$$
     done
-    cat ${TMP}/pools_$$
+    # Strip pools without a zfs_tools directory
+    pools=`cat ${TMP}/pools_$$`
+    for pool in $pools; do
+        if [ -d "/${pool}/zfs_tools" ]; then
+            echo "$pool"
+        fi
+    done
     rm ${TMP}/pools_$$
 }
 

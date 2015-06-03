@@ -126,15 +126,15 @@ for pool in $pools; do
             if [ -f /${smb_conf_dir}/smb.conf ]; then
 
                 # Make sure server config line is in smb.conf
-                cat /${smb_conf_dir}/smb.conf | ${GREP} -q "include = smb_server.conf"
+                cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_server.conf"
                 if [ $? -ne 0 ]; then
-                    echo "    include = smb_server.conf" >> /${smb_conf_dir}/smb.conf
+                    echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_server.conf" >> /${smb_conf_dir}/smb.conf
                 fi
 
                 # Make sure share include line is in smb.conf
-                cat /${smb_conf_dir}/smb.conf | ${GREP} -q "include = smb_shares.conf"
+                cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_shares.conf"
                 if [ $? -ne 0 ]; then
-                    echo "    include = smb_shares.conf" >> /${smb_conf_dir}/smb.conf
+                    echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_shares.conf" >> /${smb_conf_dir}/smb.conf
                 fi
 
                 # remove and rebuild share defintions
@@ -187,7 +187,7 @@ for pool in $pools; do
             ##
             
             echo "private dir = /${pool}/zfs_tools/var/samba/${dataset_name}" > $server_conf
-            echo "pid dir = /var/zfs_tools/samba/${datset_name}/run" >> $server_conf
+            echo "pid dir = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
             echo "lock directory = /${pool}/zfs_tools/var/samba/${dataset_name}" >> $server_conf
             
             # Collect vIPs
@@ -197,7 +197,8 @@ for pool in $pools; do
             x=1
             while [ $x -le $vip_count ]; do
                 ip=
-                vip_host=`zfs get -H -o value ${zfs_vip_property}:${x} ${zfs_folder}`
+                vip_host=`zfs get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1`
+                debug "vIP host: $vip_host"
                 # Get this in IP form
                 if valid_ip $vip_host; then
                     ip="$vip_host"
@@ -220,6 +221,8 @@ for pool in $pools; do
                         fi
                     fi
                 fi
+
+                debug "Samba interface IP: $ip"
                 
                 if [ "$ip" != "" ]; then
                     debug "Adding $ip to interfaces"
