@@ -63,15 +63,17 @@ for pool in $pools; do
                 if [ $? -ne 0 ]; then
                     # t_pool is not local, push and pull from the target pool
                     # newest version gets copied, fail silently in the background
-                    launch ${RSYNC} -cptgo --update -e ssh \
+                    debug "remote sync"
+                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
                         /${pool}/zfs_tools/var/replication/source/${dataset} \
                         ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
                         debug "Could not sync from /${pool}/zfs_tools/var/replication/source/${dataset} to ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset}"
-                    launch ${RSYNC} -cptgo --update -e ssh \
+                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
                         ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} \
                         /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
                         debug "Could not sync from ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} to /${pool}/zfs_tools/var/replication/source/${dataset}"
                 else
+                    debug "local sync"
                     # t_pool is local, no ssh necessary
                     ${RSYNC} -cptgo --update \
                         /${pool}/zfs_tools/var/replication/source/${dataset} \
@@ -90,6 +92,7 @@ done # for pool
 # Sync other files in ${zfs_replication_sync_filelist}
 cat ${TMP}/sync_datafiles_$$ | ${SORT} --unique > ${TMP}/sync_datafiles_sort_$$
 all_pools=`cat ${TMP}/sync_datafiles_sort_$$`
+debug "all_pools: $all_pools"
 rm ${TMP}/sync_datafiles_sort_$$ ${TMP}/sync_datafiles_$$
 
 
@@ -97,50 +100,59 @@ files=`echo ${zfs_replication_sync_filelist} | sed 's,:,\n,g'`
 for file in $files; do
     debug "Syncing file $file"
     if [[ "$file" == *"{pool}"* ]]; then
+        debug " to pool based folders"
         # Were syncing across all known pools
-        for pool in $pools; do
-            source_file=`echo $file | ${SED} "s,{pool},${pool},g"`
+        for pool in $pools; do 
+            debug "   From pool $pool"
+            source_file=`echo "/${file}" | ${SED} "s,{pool},${pool},g"`
+            debug "       Source file $source_file"
             for t_pool in $all_pools; do
-                debug "to pool $t_pool"
+                debug "            to pool $t_pool"
                 if [ "$pool" != "$t_pool" ]; then
+                    target_file=`echo "/${file}" | ${SED} "s,{pool},${t_pool},g"`
+                    debug "          Target file $target_file"
                     zpool list $t_pool &> /dev/null
                     if [ $? -ne 0 ]; then
+                        debug "remote sync"
                         # t_pool is not local, push and pull from the target pool, fail silently in the background
-                        target_file=`echo $file | ${SED} "s,{pool},${t_pool},g"`
-                        launch ${RSYNC} -cptgo --update -e ssh \
+                        launch ${RSYNC} --rsync-path=${RSYNC} -cptgo -v --update -e ssh \
                             ${source_file} \
-                            ${t_pool}:${target_file} &> /dev/null 
-                        launch ${RSYNC} -cptgo --update -e ssh \
+                            ${t_pool}:${target_file} #&> /dev/null 
+                        launch ${RSYNC} --rsync-path=${RSYNC} -cptgo -v --update -e ssh \
                             ${t_pool}:${target_file} \
-                            ${source_file} &> /dev/null 
+                            ${source_file} #&> /dev/null 
                     else
+                        debug "local sync"
                         # t_pool is local, no ssh necessary
-                        ${RSYNC} -cptgo --update \
+                        ${RSYNC} -cptgo -v --update \
                             ${source_file} \
-                            ${target_file} &> /dev/null
-                        ${RSYNC} -cptgo --update \
+                            ${target_file} #&> /dev/null
+                        ${RSYNC} -cptgo -v --update \
                             ${target_file} \
-                            ${source_file} &> /dev/null
+                            ${source_file} #&> /dev/null
                     fi
                 fi
             done # for t_pool
         done # for pool
     else
         # File is fixed path, sync with all pool holding hosts
+        debug " to fixed path"
         for t_pool in $all_pools; do
             if [ "$pool" != "$t_pool" ]; then
                 zpool list $t_pool &> /dev/null
                 if [ $? -ne 0 ]; then
                     debug "to host with pool $t_pool"
                     # t_pool is not local, push and pull from the target pool, fail silently in the background
-                    launch ${RSYNC} -cptgo --update -e ssh \
+                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
                         ${file} \
-                        ${t_pool}:${file} &> /dev/null 
-                    launch ${RSYNC} -cptgo --update -e ssh \
+                        ${t_pool}:${file} # &> /dev/null 
+                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
                         ${t_pool}:${file} \
-                        ${file} &> /dev/null 
+                        ${file} #&> /dev/null 
+                else
+                    # Nothing to do for local
+                    debug "nothing to do for local"
                 fi
-                # Nothing to do for local
             fi
         done # for t_pool
     fi
