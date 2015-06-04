@@ -409,7 +409,7 @@ for pool in $pools; do
     if [ -d "$vip_dir" ]; then
         folders=`ls -1 "${vip_dir}" | sort`
         for folder in $folders; do
-            process_vip "${vip_dir}/${folder}"
+            launch process_vip "${vip_dir}/${folder}" 
         done # for folder in $folders
     fi # if $vip_dir
 done # for pool in $pools
@@ -419,7 +419,7 @@ debug "Processing active vIPs"
 active_vips=`ls -1 /var/zfs_tools/vip/active | sort `
 
 for vip in $active_vips; do
-    process_vip "/var/zfs_tools/vip/active/${vip}"
+    launch process_vip "/var/zfs_tools/vip/active/${vip}"
 done
     
 
