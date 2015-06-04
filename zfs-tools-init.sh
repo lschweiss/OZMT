@@ -174,6 +174,10 @@ if [ -z $PARALLEL ]; then
     PARALLEL=`gnu_source parallel`
 fi
 
+if [ -z $ARPING ]; then
+    ARPING=`gnu_source arping`
+fi
+
 if [ -z $bbcp ]; then
     bbcp=`gnu_source bbcp`
 fi
