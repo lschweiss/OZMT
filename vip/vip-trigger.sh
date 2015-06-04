@@ -35,6 +35,8 @@ fi
 
 pools="$(pools)"
 
+active_ip_dir="/var/zfs_tools/vip/active"
+
 get_ip () {
 
     local ip_host="$1"
@@ -101,7 +103,7 @@ activate_vip () {
         return 1
     fi
 
-    if [ -f "/var/zfs_tools/vip/active/${ip}" ]; then
+    if [ -f "${active_ip_dir}/${ip}" ]; then
         # vIP is already active
         if islocal $vIP; then
             debug "vIP already configured, doing nothing"
@@ -231,9 +233,9 @@ activate_vip () {
     done  
     unset IFS 
 
-    mkdir -p /var/zfs_tools/vip/active
+    mkdir -p ${active_ip_dir}
 
-    echo "${pool}|${vIP_dataset}|${vIP}/${netmask}|${routes}|${ipifs}" > "/var/zfs_tools/vip/active/${ip}"
+    echo "${pool}|${vIP_dataset}|${vIP}/${netmask}|${routes}|${ipifs}" > "${active_ip_dir}/${ip}"
 
     return 0
 
@@ -261,14 +263,14 @@ deactivate_vip () {
 
     debug "deactivate_vip $1"
 
-    if [ ! -f "/var/zfs_tools/vip/active/${ip}" ]; then
+    if [ ! -f "${active_ip_dir}/${ip}" ]; then
         # deactivating non active vIP 
         debug "vIP not active, doing nothing"
         return 0
     fi
 
     IFS='|'
-    read -r pool vIP_dataset vIP_full routes ipifs < "/var/zfs_tools/vip/active/${ip}"
+    read -r pool vIP_dataset vIP_full routes ipifs < "${active_ip_dir}/${ip}"
     unset IFS
 
     IFS='/'
@@ -290,7 +292,7 @@ deactivate_vip () {
             ;;
     esac
 
-    rm -f "/var/zfs_tools/vip/active/${ip}"
+    rm -f "${active_ip_dir}/${ip}"
 
     # Remove the static routes
     IFS=','
@@ -404,24 +406,45 @@ process_vip () {
 ###
 ###
 
-for pool in $pools; do
-    vip_dir="/${pool}/zfs_tools/var/vip"
-    if [ -d "$vip_dir" ]; then
-        folders=`ls -1 "${vip_dir}" | sort`
-        for folder in $folders; do
-            launch process_vip "${vip_dir}/${folder}" 
-        done # for folder in $folders
-    fi # if $vip_dir
-done # for pool in $pools
+case $1 in
+    "deactivate")
+        # Deactive all vIPs on a specified pool or dataset
+        active_vips=`ls -1 ${active_ip_dir} | sort `
+        for vip in $active_vips; do
+            IFS='|'
+            read -r pool vIP_dataset vIP_full routes ipifs < "${active_ip_dir}/${ip}"
+            unset IFS
+            if [[ "$2" == "$pool" || "$2" == "$vIP_dataset" ]]; then
+                deactivate_vip "${active_ip_dir}/${vip}"
+            fi
+        done
+    ;;
 
-debug "Processing active vIPs"
+    "activate")
+        activate_vip "$2"
+    ;;
 
-active_vips=`ls -1 /var/zfs_tools/vip/active | sort `
+    *)
+        for pool in $pools; do
+            vip_dir="/${pool}/zfs_tools/var/vip"
+            if [ -d "$vip_dir" ]; then
+                folders=`ls -1 "${vip_dir}" | sort`
+                for folder in $folders; do
+                    launch process_vip "${vip_dir}/${folder}" 
+                done # for folder in $folders
+            fi # if $vip_dir
+        done # for pool in $pools
+        
+        debug "Processing active vIPs"
+        
+        active_vips=`ls -1 ${active_ip_dir} | sort `
+        
+        for vip in $active_vips; do
+            launch process_vip "${active_ip_dir}/${vip}"
+        done
+    ;;
 
-for vip in $active_vips; do
-    launch process_vip "/var/zfs_tools/vip/active/${vip}"
-done
-    
+esac    
 
 
 
