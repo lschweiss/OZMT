@@ -228,6 +228,14 @@ if [ "$zfs_cifs_property" == "" ]; then
     zfs_cifs_property="edu.wustl.nrg:cifs"
 fi
 
+if [ "$zfs_samba_server_prefix" == "" ]; then
+    zfs_samba_server_prefix="ZFS-"
+fi
+
+if [ "$zfs_samba_server_suffix" == "" ]; then
+    zfs_samba_server_suffix=""
+fi
+
 if [ "$zfs_vip_property" == "" ]; then
     zfs_vip_property="edu.wustl.nrg:vip"
 fi

@@ -1021,8 +1021,9 @@ setupzfs () {
     
     if [ "$cifs" == 'true' ]; then
         if [ "$dataset_name" != '' ]; then
+            server_name="${zfs_samba_server_prefix}${dataset_name}${zfs_samba_server_suffix}"
             mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
-            zfs set ${zfs_cifs_property}=${dataset_name} ${pool}/${zfspath}
+            zfs set ${zfs_cifs_property}=${server_name} ${pool}/${zfspath}
         else
             error "CIFS enabled without specifying dataset name"
         fi

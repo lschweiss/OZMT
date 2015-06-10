@@ -71,22 +71,36 @@ for pool in $pools; do
         server_name=`zfs get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
         active_smb="/var/zfs_tools/samba/active/$dataset_name"
         if [ -f $active_smb ]; then
+            smbd_pid=
+            nmbd_pid=
             # We have an active record for this dataset
             # Check if the server is running
             wait_for_lock $active_smb
             source $active_smb
             release_lock $active_smb
-            
+
+            if [ -f "/var/zfs_tools/samba/${dataset_name}/run/smbd.pid" ]; then
+                smbd_pid=`cat /var/zfs_tools/samba/${dataset_name}/run/smbd.pid`
+            fi
+            if [ -f "/var/zfs_tools/samba/${dataset_name}/run/nmbd.pid" ]; then
+                nmbd_pid=`cat /var/zfs_tools/samba/${dataset_name}/run/nmbd.pid`
+            fi
+    
+            debug "smbd.bin = $smbd_bin"
+            debug "smbd.pid = $smbd_pid"
+            debug "nmbd.bin = $nmbd_bin"
+            debug "nmbd.pid = $nmbd_pid"
+
             case $os in 
                 SunOS)
-                    if [[ -d /proc/$smbd_pid && "$smbd_bin" == `ls -l /proc/${smbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
+                    if [[ -f /proc/${smbd_pid}/path/a.out && "$smbd_bin" == `ls -l /proc/${smbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                         smbd_running='true'
                     else
                         warning "Samba smbd server for $dataset_name is defunct.   Restarting server."
                         smbd_running='false'
-                        rm $active_smb
+                        rm $active_smb 2> /dev/null
                     fi
-                    if [[ -d /proc/$nmbd_pid && "$nmbd_bin" == `ls -l /proc/${nmbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
+                    if [[ -f /proc/${nmbd_pid}/path/a.out && "$nmbd_bin" == `ls -l /proc/${nmbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                         if [ "$smbd_running" == 'false' ]; then
                             warning "Samba nmbd server running, but smbd is defunt.  Killing nmbd and restarting both."
                             kill $nmbd_pid
@@ -98,7 +112,7 @@ for pool in $pools; do
                         warning "Samba nmbd server for $dataset_name is defunct.   Restarting server."
                         nmbd_running='false'
                         if [ "$smbd_running" == 'false' ]; then
-                            rm $active_smb
+                            rm $active_smb 2> /dev/null
                         fi
                     fi
                     ;;
@@ -142,8 +156,9 @@ for pool in $pools; do
 
                 # Construct shares config
                 shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
+                debug "Shared folders: $shared_folders"
                 for shared_folder in $shared_folders; do
-                    cifs_share=`echo "$zfs_folder" | ${AWK} -F '/' '{print $NF}'`
+                    cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
                     mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
                     share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
                     debug "Adding share $cifs_share to $server_name for $mountpoint"
@@ -151,13 +166,13 @@ for pool in $pools; do
                     read -r conf_type conf_name <<< "$share_config"
                     unset IFS
                     case $conf_type in
-                        dataset)
+                        'dataset')
                             share_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
                             ;;
-                        pool)
+                        'pool')
                             share_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
                             ;;
-                        system)
+                        'system')
                             share_config_file="/etc/ozmt/samba/${conf_name}"
                             ;;
                     esac
@@ -165,17 +180,20 @@ for pool in $pools; do
                         error "Missing cifs config file ${share_config_file} for dataset ${dataset_name} share ${cifs_share}"
                         continue
                     fi
-                    if [ "${share_config_file:-9}" == ".template" ]; then
-                        cat "$share_config_file" | \ 
-                            ${SED} s,#CIFS_SHARE#,${cifs_share},g | \
+
+                    if [[ "${share_config_file}" == *".template" ]]; then
+                        debug "template: ${share_config_file}"
+
+                            ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
                             ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
-                            ${SED} s,#DATASET_NAME#,${dataset_name},g | \
-                            ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
-                            ${smb_conf_dir}/smb_share_${cifs_share}
+                            ${SED} s,#SERVER_NAME#,${server_name},g | \
+                            ${SED} s,#MOUNTPOINT#,${mountpoint},g > \
+                            "${smb_conf_dir}/smb_share_${cifs_share}.conf"
+
                     else
                         cp "$share_config_file" "${smb_conf_dir}/smb_share_${cifs_share}.conf"
                     fi
-                    echo "include = smb_share_${cifs_share}.conf" >> "${smb_conf_dir}/smb_shares.conf"
+                    echo "include = ${smb_conf_dir}/smb_share_${cifs_share}.conf" >> "${smb_conf_dir}/smb_shares.conf"
                 done
             else
                 error "Missing smb.conf for dataset ${dataset_name}, ${smb_conf_dir}/smb.conf"
@@ -187,7 +205,7 @@ for pool in $pools; do
             ##
             
             echo "private dir = /${pool}/zfs_tools/var/samba/${dataset_name}" > $server_conf
-            echo "pid dir = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
+            echo "pid directory = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
             echo "lock directory = /${pool}/zfs_tools/var/samba/${dataset_name}" >> $server_conf
             
             # Collect vIPs
@@ -235,7 +253,10 @@ for pool in $pools; do
             echo "bind interfaces only = yes" >> $server_conf
             echo "netbios name = ${server_name}" >> $server_conf
 
-        fi                        
+        else
+            debug "smbd and nmbd running for $dataset_name"
+        fi
+                        
 
         ##
         # Start smbd, nmbd
@@ -257,9 +278,8 @@ for pool in $pools; do
             debug "Starting smbd"
             ${SMBD} -D -s $smb_conf -l $log_dir &
             smbd_pid=$!
-            echo $smbd_pid > $smb_pidfile
+            #echo $smbd_pid > $smb_pidfile
             smbd_running='true'
-            update_job_status "$active_smb" "smbd_pid" "$smbd_pid"
             update_job_status "$active_smb" "smbd_bin" "${SMBD}"
         fi
 
@@ -267,10 +287,9 @@ for pool in $pools; do
             debug "Starting nmbd"
             ${NMBD} -D -s $smb_conf -l $log_dir &
             nmbd_pid=$!
-            echo $nmbd_pid > $nmb_pidfile
+            #echo $nmbd_pid > $nmb_pidfile
             nmbd_running='true'
-            update_job_status "$active_smb" "nmbd_pid" "$nmbd_pid"
-            update_job_status "$active_smb" "smbd_bin" "${NMBD}"
+            update_job_status "$active_smb" "nmbd_bin" "${NMBD}"
         fi
 
     done 
