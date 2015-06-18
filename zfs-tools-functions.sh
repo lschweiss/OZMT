@@ -1,10 +1,10 @@
 #! /bin/bash
 
-# zfs-tools-init.sh
+# zfs-tools-functions.sh
 #
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012  Chip Schweiss
+# Copyright (C) 2012 - 2015  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -63,7 +63,6 @@ check_key () {
     fi
 
 }
-
 
 ####
 #

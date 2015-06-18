@@ -33,6 +33,13 @@ else
     report_name="$default_report_name"
 fi
 
+if [ -f ${TOOLS_ROOT}/network/$os/interface-functions.sh ]; then
+    source ${TOOLS_ROOT}/network/$os/interface-functions.sh
+else
+    error "vip-trigger.sh: unsupported OS: $os Need: ${TOOLS_ROOT}/network/$os/interface-functions.sh" 
+    exit 1
+fi
+
 pools="$(pools)"
 
 active_ip_dir="/var/zfs_tools/vip/active"
@@ -147,6 +154,10 @@ activate_vip () {
     for ipif in $ipifs; do
         ip_host=`echo "$ipif" | cut -d '/' -f 1`
         ip_if=`echo "$ipif" | cut -d '/' -f 2`
+        ifconfig ${ip_if} 1> /dev/null 2> /dev/null
+        if [ $? -ne 0 ]; then
+            activate_if $ip_if
+        fi
         if [[ "$ip_host" == "$HOSTNAME" || "$ip_host" == '*' ]]; then
             alias=1
             available='false'
