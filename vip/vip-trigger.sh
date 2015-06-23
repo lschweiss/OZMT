@@ -80,6 +80,7 @@ activate_vip () {
     local netmask=
     local routes="$2"
     local ipifs="$3"
+    local ipifs_list=
     local ipif=
     local vIP_dataset="$4"
     local ip_host=
@@ -150,8 +151,11 @@ activate_vip () {
         fi
     fi
 
-    IFS=','
-    for ipif in $ipifs; do
+    # Split ipifs into newline separated list, so IFS switching isn't a problem in a loop
+
+    ipifs_list=`echo "$ipifs" | sed 's/,/\n/g'`
+
+    for ipif in $ipifs_list; do
         ip_host=`echo "$ipif" | cut -d '/' -f 1`
         ip_if=`echo "$ipif" | cut -d '/' -f 2`
         ifconfig ${ip_if} 1> /dev/null 2> /dev/null
@@ -207,7 +211,6 @@ activate_vip () {
         fi # if $ip_host
 
     done # for ipif
-    unset IFS
 
     # Set static routes
     IFS=','
@@ -422,11 +425,12 @@ case $1 in
         # Deactive all vIPs on a specified pool or dataset
         active_vips=`ls -1 ${active_ip_dir} | sort `
         for vip in $active_vips; do
+            debug "Deactivate: testing vIP $vip"
             IFS='|'
-            read -r pool vIP_dataset vIP_full routes ipifs < "${active_ip_dir}/${ip}"
+            read -r pool vIP_dataset vIP_full routes ipifs < "${active_ip_dir}/${vip}"
             unset IFS
             if [[ "$2" == "$pool" || "$2" == "$vIP_dataset" ]]; then
-                deactivate_vip "${active_ip_dir}/${vip}"
+                deactivate_vip "${vip}"
             fi
         done
     ;;
