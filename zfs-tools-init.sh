@@ -146,6 +146,10 @@ if [ -z $WC ]; then
     WC=`gnu_source wc`
 fi
 
+if [ -z $TAC ]; then
+    TAC=`gnu_source tac`
+fi
+
 if [ -z $MUTT ]; then
     MUTT=`gnu_source mutt`
 fi
