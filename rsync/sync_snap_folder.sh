@@ -89,7 +89,7 @@ while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
         p)  # Turn on progress and verbose
             pflag=1;;
 	D)  # Don't delete on the target
-	    dflag=1;;
+	    Dflag=1;;
         t)  # Trial mode
             debug "Using trial mode"
             tflag=1;;
