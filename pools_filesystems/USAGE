@@ -103,12 +103,33 @@ Usage:
                                     Typically associated with a replication configuration, but not necessarily.    
 
 
-      [-C]                        Enable CIFS
+      [-C {template}]             Enable CIFS
                            
                                     Requires /{pool}/etc/samba/{name}/smb.conf
                                       name: the same name specified with '-N'
 
                                     If the config directory does not exit, a stub will be created.
+
+                                    template: The smb.conf template to create base dataset smb.conf
+                                      This template can be of the form {filename}.conf.template, or {filename}.conf
+
+                                      {filename}.conf.template:
+                                        Every smb start or reload will process the template file to create smb-{dataset_name}.conf that
+                                        will be included in the dataset's smb.conf.
+
+                                        This file must reside in /{pool}/etc/samba/{dataset_name}/,
+                                          /{pool}/etc/samba/ or /etc/ozmt/samba/
+
+                                      {filename}.conf:
+                                        A static definition that will be included in the dataset's smb.conf.
+
+                                        This file must reside in /{pool}/etc/samba/{dataset_name}/,
+                                          /{pool}/etc/samba/ or /etc/ozmt/samba/
+
+                                      default:
+                                        Set {template} to 'default' and the template defined in /etc/ozmt/config
+                                          with the variable 'zfs_cifs_default_template' will be used.
+                                          This must be a full path name, no directory location is assumed.
 
       [-c {template}]             Share this folder via CIFS
 

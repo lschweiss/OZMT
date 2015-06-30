@@ -174,6 +174,7 @@ setupzfs () {
     local replication_previous_snapshot=
     local vip=0
     local cifs=
+    local cifs_template=
     local cifs_share=
     local backup_target=
     local zfs_backup=
@@ -199,7 +200,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t:Cc: opt; do
+    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t:C:c: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -237,6 +238,7 @@ setupzfs () {
                 ;;
             C)  # enable CIFS on this dataset
                 cifs='true'
+                cifs_template="$OPTARG"
                 debug "Enabling CIFS on this dataset"
                 ;;
             c)  # share this folder via CIFS
@@ -1015,7 +1017,9 @@ setupzfs () {
 
     fi
 
+    ##    
     # Setup CIFS
+    ##
 
     mkdir -p /${pool}/zfs_tools/{etc,var}/samba
     
@@ -1024,11 +1028,39 @@ setupzfs () {
             server_name="${zfs_samba_server_prefix}${dataset_name}${zfs_samba_server_suffix}"
             mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
             zfs set ${zfs_cifs_property}=${server_name} ${pool}/${zfspath}
+            case $cifs_template in
+                *.conf|*.conf.template)
+                    if [ -f /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_template ]; then
+                        debug "Setting smb_${dataset_name}.conf via /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_template"
+                        zfs set ${zfs_cifs_property}:template="dataset:$cifs_template" ${pool}/${zfspath}
+                    else if [ -f /$pool/zfs_tools/etc/samba/$cifs_template ]; then
+                        debug "Setting smb_${dataset_name}.conf via /$pool/zfs_tools/etc/samba/$cifs_template"
+                        zfs set ${zfs_cifs_property}:template="pool:$cifs_template" ${pool}/${zfspath}
+                    else if [ -f /etc/ozmt/samba/$cifs_template ]; then
+                        debug "Setting smb_${dataset_name}.conf via /etc/ozmt/samba/$cifs_template"
+                        zfs set ${zfs_cifs_property}:template="system:$cifs_template" ${pool}/${zfspath}
+                    else
+                        error "Cannot define cifs template.  Configuration file $cifs_template not found in /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_template or /$pool/zfs_tools/etc/samba/$cifs_template or /etc/ozmt/samba/$cifs_template"
+                    fi;fi;fi
+                    ;;
+                default)
+                    if [ ! -f $zfs_cifs_default_template ]; then
+                        error "Cannot define cifs template.  Configuration file missing: $zfs_cifs_default_template"
+                    else
+                        debug "Setting template via $zfs_cifs_default_template"
+                        zfs set ${zfs_cifs_property}:template="$default" ${pool}/${zfspath}
+                    fi
+                    ;;
+                *)
+                    error "CIFS template must be of the form {filename}.conf, {filename}.conf.template, or 'default'"
+                    ;;
+            esac
         else
             error "CIFS enabled without specifying dataset name"
         fi
     else
         zfs inherit ${zfs_cifs_property} ${pool}/${zfspath}
+        zfs inherit ${zfs_cifs_property}:template ${pool}/${zfspath}
     fi
 
     # Setup CIFS share

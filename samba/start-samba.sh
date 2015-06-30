@@ -137,68 +137,112 @@ for pool in $pools; do
             # Start samba for this dataset
             smb_conf_dir="/${pool}/zfs_tools/etc/samba/$dataset_name"
             server_conf="$smb_conf_dir/smb_server.conf"
-            if [ -f /${smb_conf_dir}/smb.conf ]; then
 
-                # Make sure server config line is in smb.conf
-                cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_server.conf"
-                if [ $? -ne 0 ]; then
-                    echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_server.conf" >> /${smb_conf_dir}/smb.conf
-                fi
-
-                # Make sure share include line is in smb.conf
-                cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_shares.conf"
-                if [ $? -ne 0 ]; then
-                    echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_shares.conf" >> /${smb_conf_dir}/smb.conf
-                fi
-
-                # remove and rebuild share defintions
-                rm -f /${smb_conf_dir}/smb_share*.conf
-
-                # Construct shares config
-                shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
-                debug "Shared folders: $shared_folders"
-                for shared_folder in $shared_folders; do
-                    cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
-                    mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
-                    share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
-                    debug "Adding share $cifs_share to $server_name for $mountpoint"
-                    IFS=':'
-                    read -r conf_type conf_name <<< "$share_config"
-                    unset IFS
-                    case $conf_type in
-                        'dataset')
-                            share_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
-                            ;;
-                        'pool')
-                            share_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
-                            ;;
-                        'system')
-                            share_config_file="/etc/ozmt/samba/${conf_name}"
-                            ;;
-                    esac
-                    if [ ! -f ${share_config_file} ]; then
-                        error "Missing cifs config file ${share_config_file} for dataset ${dataset_name} share ${cifs_share}"
-                        continue
-                    fi
-
-                    if [[ "${share_config_file}" == *".template" ]]; then
-                        debug "template: ${share_config_file}"
-
-                            ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
-                            ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
-                            ${SED} s,#SERVER_NAME#,${server_name},g | \
-                            ${SED} s,#MOUNTPOINT#,${mountpoint},g > \
-                            "${smb_conf_dir}/smb_share_${cifs_share}.conf"
-
-                    else
-                        cp "$share_config_file" "${smb_conf_dir}/smb_share_${cifs_share}.conf"
-                    fi
-                    echo "include = ${smb_conf_dir}/smb_share_${cifs_share}.conf" >> "${smb_conf_dir}/smb_shares.conf"
-                done
-            else
-                error "Missing smb.conf for dataset ${dataset_name}, ${smb_conf_dir}/smb.conf"
+            # Build the smb_{dataset_name}.conf
+            cifs_template=`zfs get -H -o name -s local ${zfs_cifs_property}:template ${zfs_folder} 2>/dev/null`
+            if [ "$cifs_template" == "" ]; then
+                error "Missing cifs template definition for dataset $dataset_name"
                 continue
             fi
+
+            IFS=':'
+            read -r conf_type conf_name <<< "$cifs_template"
+            unset IFS
+        
+            case $conf_type in
+                'dataset')
+                    template_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
+                    ;;
+                'pool')
+                    template_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
+                    ;;
+                'system')
+                    template_config_file="/etc/ozmt/samba/${conf_name}"
+                    ;;
+            esac
+            if [ ! -f ${template_config_file} ]; then
+                error "Missing cifs config file ${template_config_file} for dataset ${dataset_name}"
+                continue
+            fi
+
+            if [[ "${template_config_file}" == *".template" ]]; then
+                debug "template: ${template_config_file}"
+
+                ${SED} s,#ZFS_FOLDER#,${zfs_folder},g "${template_config_file}" | \
+                    ${SED} s,#SERVER_NAME#,${server_name},g > \
+                    "${smb_conf_dir}/smb_${dataset_name}.conf"
+
+            else
+                cp "$template_config_file" "${smb_conf_dir}/smb_${dataset_name}.conf"
+            fi
+
+            # If no smb.conf for the dataset exists create an empty file
+            if [ ! -f /${smb_conf_dir}/smb.conf ]; then
+                touch /${smb_conf_dir}/smb.conf
+            fi
+
+            # Make sure template config line is in smb.conf
+            cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_${dataset_name}.conf"
+            if [ $? -ne 0 ]; then
+                echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_${dataset_name}.conf" >> /${smb_conf_dir}/smb.conf
+            fi
+
+            # Make sure server config line is in smb.conf
+            cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_server.conf"
+            if [ $? -ne 0 ]; then
+                echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_server.conf" >> /${smb_conf_dir}/smb.conf
+            fi
+
+            # Make sure share include line is in smb.conf
+            cat /${smb_conf_dir}/smb.conf | ${GREP} "include =" | ${GREP} -q "smb_shares.conf"
+            if [ $? -ne 0 ]; then
+                echo "    include = /${pool}/zfs_tools/etc/samba/$dataset_name/smb_shares.conf" >> /${smb_conf_dir}/smb.conf
+            fi
+
+            # remove and rebuild share defintions
+            rm -f /${smb_conf_dir}/smb_share*.conf
+
+            # Construct shares config
+            shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
+            debug "Shared folders: $shared_folders"
+            for shared_folder in $shared_folders; do
+                cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
+                mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
+                share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
+                debug "Adding share $cifs_share to $server_name for $mountpoint"
+                IFS=':'
+                read -r conf_type conf_name <<< "$share_config"
+                unset IFS
+                case $conf_type in
+                    'dataset')
+                        share_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
+                        ;;
+                    'pool')
+                        share_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
+                        ;;
+                    'system')
+                        share_config_file="/etc/ozmt/samba/${conf_name}"
+                        ;;
+                esac
+                if [ ! -f ${share_config_file} ]; then
+                    error "Missing cifs config file ${share_config_file} for dataset ${dataset_name} share ${cifs_share}"
+                    continue
+                fi
+
+                if [[ "${share_config_file}" == *".template" ]]; then
+                    debug "template: ${share_config_file}"
+
+                    ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
+                        ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
+                        ${SED} s,#SERVER_NAME#,${server_name},g | \
+                        ${SED} s,#MOUNTPOINT#,${mountpoint},g > \
+                        "${smb_conf_dir}/smb_share_${cifs_share}.conf"
+
+                else
+                    cp "$share_config_file" "${smb_conf_dir}/smb_share_${cifs_share}.conf"
+                fi
+                echo "include = ${smb_conf_dir}/smb_share_${cifs_share}.conf" >> "${smb_conf_dir}/smb_shares.conf"
+            done
 
             ##
             # Build the smb_server.conf
