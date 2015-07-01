@@ -139,7 +139,7 @@ for pool in $pools; do
             server_conf="$smb_conf_dir/smb_server.conf"
 
             # Build the smb_{dataset_name}.conf
-            cifs_template=`zfs get -H -o name -s local ${zfs_cifs_property}:template ${zfs_folder} 2>/dev/null`
+            cifs_template=`zfs get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder} 2>/dev/null`
             if [ "$cifs_template" == "" ]; then
                 error "Missing cifs template definition for dataset $dataset_name"
                 continue
@@ -148,6 +148,8 @@ for pool in $pools; do
             IFS=':'
             read -r conf_type conf_name <<< "$cifs_template"
             unset IFS
+
+            debug "Config type: $conf_type  Config name: $conf_name"
         
             case $conf_type in
                 'dataset')
