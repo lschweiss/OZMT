@@ -44,8 +44,7 @@ exportfs | ${GREP} "@${export_pool}" | ${AWK} -F " " '{print $2}' | ${SORT} > ${
 $TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_nfs_exports.$$ echo # exportfs -u
 
 if [ $? -eq 0 ]; then
-    echo "Success"
-#    rm -f ${TMP}/zpool_export_nfs_exports.$$
+    rm -f ${TMP}/zpool_export_nfs_exports.$$
 else
     warning "Some NFS exports failed to unmount"
 fi
@@ -56,8 +55,6 @@ fi
 # Unmount zfs folders
 ##
 
-echo "${GREP} ${AWK} ${GREP}"
-
 
 /usr/sbin/zfs list -o mounted,name -r ${export_pool} | ${GREP} "   yes" | \
     ${AWK} -F " " '{print $2}' | \
@@ -65,12 +62,13 @@ echo "${GREP} ${AWK} ${GREP}"
 
 cat ${TMP}/zpool_export_zfs.$$ | cut -d '/' -f 2 | ${AWK} '!a[$0]++' > ${TMP}/zpool_export_zfs_roots.$$
 
-$TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_zfs_roots.$$ ./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ 
+${SED} "s,^,${export_pool}/," ${TMP}/zpool_export_zfs_roots.$$ > ${TMP}/zpool_export_zfs_root_folders.$$
+
+$TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_zfs_root_folders.$$ ./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ 
 
 if [ $? -eq 0 ]; then
-    # zfs unmount -f ${export_pool}
-    echo "Success"
-    #    rm -f ${TMP}/zpool_export_zfs.$$ ${TMP}/zpool_export_zfs_roots.$$
+    zfs unmount -f ${export_pool}
+    rm -f ${TMP}/zpool_export_zfs.$$ ${TMP}/zpool_export_zfs_roots.$$ ${TMP}/zpool_export_zfs_root_folders.$$
 else
     warning "Some ZFS folders failed to unmount"
 fi

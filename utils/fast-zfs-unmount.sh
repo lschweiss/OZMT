@@ -38,15 +38,16 @@ debug "ZFS unmount $1 $2"
 # Collect children
 cat $zfs_folders | ${GREP} "^${unmount_zfs_folder}" | ${GREP} -v "^${unmount_zfs_folder}$" > ${TMP}/fast_unmount_zfs.$$
 
-echo "testing ${TMP}/fast_unmount_zfs.$$"
-
 if [ $(cat ${TMP}/fast_unmount_zfs.$$ | wc -l) -gt 0 ]; then
+    echo "Launching unmount on $unmount_zfs_folder children"
+    cat ${TMP}/fast_unmount_zfs.$$
     $TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/fast_unmount_zfs.$$ ./fast-zfs-unmount.sh $zfs_folders
 fi
 
-echo "zfs unmount -f $unmount_zfs_folder"
+zfs unmount -f $unmount_zfs_folder
 if [ $? -ne 0 ] ; then 
     warning "Could not unmount $unmount_zfs_folder"
 else
     debug "Unmounted $unmount_zfs_folder"
+    rm -f ${TMP}/fast_unmount_zfs.$$
 fi
