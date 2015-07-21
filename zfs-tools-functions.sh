@@ -302,6 +302,40 @@ replication_source () {
 
 }
 
+get_pid () {
+    # Retrives the PID from a pid file
+    # Checks every 1/2 second
+    # Returns -1 if pid file is not generated in X seconds
+
+    local pid_file="$1"
+    local pid=
+    local timeout="$2"
+    local duration=0
+
+    
+    if [ "$timeout" == "" ]; then
+        timeout=10
+    fi
+
+    while [ "$pid" == "" ]; do
+        if [ -f $pid_file ]; then
+            sleep 0.1
+            pid=`cat "$pid_file"`
+            echo $pid
+            return 0
+        else
+            sleep 0.5
+            duration=$(( duration + 0.5 ))
+            if [ $duration -ge $timeout ]; then
+                echo "-1"
+                return 1
+            fi
+        fi
+    done
+}    
+        
+
+
 update_job_status () {
 
     # Takes 3 or 4 input parameters.
