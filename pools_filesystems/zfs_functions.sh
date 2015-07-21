@@ -325,6 +325,10 @@ setupzfs () {
         else
             error "Dataset name $dataset_name contains invalid characters."
         fi
+
+        zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
+        mkdir -p ${pool}/zfs_tools/var/replication/datasets
+        echo "${pool}/${zfspath}" > ${pool}/zfs_tools/var/replication/datasets/${dataset_name}
     fi
 
     # Replication requirements

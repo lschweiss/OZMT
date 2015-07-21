@@ -360,6 +360,8 @@ process_vip () {
     local t_pool=
     local active_pool=
     local active_folder=
+    local zfs_folder=
+    local replication=
 
     debug "Processing: $vip_file"
 
@@ -401,8 +403,17 @@ process_vip () {
                     deactivate_vip "$vIP"
                 fi
             else
-                debug "No source reference for dataset ${folder}  Deactivating vIP: $vIP"
-                deactivate_vip "$vIP"
+                debug "No source reference for dataset ${dataset_name}"
+                # Get the zfs folder for the dataset
+                zfs_folder=`cat ${pool}/zfs_tools/var/replication/datasets/${dataset_name}`
+                replication=`zfs get $zfs_replication_property ${pool}/${zfs_folder}`
+                if [ "$replication" == 'on' ]; then
+                    error "Replication is on, no source set.  Deactivating vip."
+                    deactivate_vip "$vIP"
+                else
+                    debug "Replication not defined for dataset.  Activating vip."
+                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                fi
             fi
         fi
     done < "$vip_file"  # while read vip
