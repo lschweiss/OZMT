@@ -37,6 +37,14 @@ logfile="$default_logfile"
 
 report_name="$default_report_name"
 
+# Minimum number of arguments needed by this program
+MIN_ARGS=1
+
+if [ "$#" -lt "$MIN_ARGS" ]; then
+    echo "Must supply a pool name to export"
+    exit 1
+fi
+
 # The last parameter must be the pool name
 
 for last; do : ; done
@@ -86,5 +94,5 @@ fi
 # Export the pool
 ##
 
-echo "zpool export $@"
+zpool export $@
 exit $?
