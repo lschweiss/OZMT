@@ -25,6 +25,10 @@
 # All exported NFS folders will be un-exported in parallel followed by
 # "zfs unmount" being call in parallel from children to parrent all the way to the root
 
+# Requires gnu parallel
+# Tange (2011): GNU Parallel - The Command-Line Power Tool
+# http://www.gnu.org/software/parallel/
+
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
