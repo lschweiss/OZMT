@@ -18,6 +18,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
+# fast-zpool-export.sh is drop in replacement for 'zpool export' and will drastically 
+# decrease the time to export a zpool
+
+# Any parameter passed before the pool name will be preserved and passed to zpool export.
+# All exported NFS folders will be un-exported in parallel followed by
+# "zfs unmount" being call in parallel from children to parrent all the way to the root
+
+
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
@@ -25,12 +33,15 @@ logfile="$default_logfile"
 
 report_name="$default_report_name"
 
-export_pool="$1"
+# The last parameter must be the pool name
+
+for last; do : ; done
+
+export_pool="$last"
 
 zpool list $export_pool 1> /dev/null 2> /dev/null
-
 if [ $? -ne 0 ]; then
-    warning "Pool $export_pool does not appear to be imported.  Nothing to do."
+    warning "Pool \"$export_pool\" does not appear to be imported.  Nothing to do."
     exit 1
 fi
 
@@ -39,10 +50,11 @@ fi
 # exportfs each NFS export
 ##
 
+debug "Parallel exporting NFS shares for pool $export_pool"
+
 exportfs | ${GREP} "@${export_pool}" | ${AWK} -F " " '{print $2}' | ${SORT} > ${TMP}/zpool_export_nfs_exports.$$
 
-$TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_nfs_exports.$$ echo # exportfs -u
-
+$TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_nfs_exports.$$ exportfs -u
 if [ $? -eq 0 ]; then
     rm -f ${TMP}/zpool_export_nfs_exports.$$
 else
@@ -50,25 +62,25 @@ else
 fi
 
 
-
 ##
 # Unmount zfs folders
 ##
-
 
 /usr/sbin/zfs list -o mounted,name -r ${export_pool} | ${GREP} "   yes" | \
     ${AWK} -F " " '{print $2}' | \
     ${GREP} -v "^${export_pool}$" > ${TMP}/zpool_export_zfs.$$
 
-cat ${TMP}/zpool_export_zfs.$$ | cut -d '/' -f 2 | ${AWK} '!a[$0]++' > ${TMP}/zpool_export_zfs_roots.$$
-
-${SED} "s,^,${export_pool}/," ${TMP}/zpool_export_zfs_roots.$$ > ${TMP}/zpool_export_zfs_root_folders.$$
-
-$TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/zpool_export_zfs_root_folders.$$ ./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ 
-
+./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ mirpool01
 if [ $? -eq 0 ]; then
-    zfs unmount -f ${export_pool}
+    #debug "zfs unmount -f ${export_pool}"
     rm -f ${TMP}/zpool_export_zfs.$$ ${TMP}/zpool_export_zfs_roots.$$ ${TMP}/zpool_export_zfs_root_folders.$$
 else
     warning "Some ZFS folders failed to unmount"
 fi
+
+##
+# Export the pool
+##
+
+echo "zpool export $@"
+exit $?

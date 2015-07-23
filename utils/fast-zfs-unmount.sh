@@ -33,15 +33,22 @@ zfs_folders="$1"
 
 unmount_zfs_folder="$2"
 
-debug "ZFS unmount $1 $2"
+debug "fast-zfs-unmount $1 $2"
 
-# Collect children
-cat $zfs_folders | ${GREP} "^${unmount_zfs_folder}" | ${GREP} -v "^${unmount_zfs_folder}$" > ${TMP}/fast_unmount_zfs.$$
+# Collect children from full list of folders
+cat $zfs_folders | \
+    ${GREP} "^${unmount_zfs_folder}/" | \
+    ${GREP} -v "^${unmount_zfs_folder}$" | \
+    ${SED} "s,^${unmount_zfs_folder}/,," | \
+    ${CUT} -d '/' -f 1 | \
+    ${SORT} -u | \
+    ${SED} -e "s,^,${unmount_zfs_folder}/," > ${TMP}/fast_unmount_zfs.$$
 
 if [ $(cat ${TMP}/fast_unmount_zfs.$$ | wc -l) -gt 0 ]; then
-    echo "Launching unmount on $unmount_zfs_folder children"
-    cat ${TMP}/fast_unmount_zfs.$$
+    debug "Launching unmount on $unmount_zfs_folder children.  ${TMP}/fast_unmount_zfs.$$"
+    # cat ${TMP}/fast_unmount_zfs.$$
     $TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/fast_unmount_zfs.$$ ./fast-zfs-unmount.sh $zfs_folders
+    debug "Children finished unmounting on ${unmount_zfs_folder}.  ${TMP}/fast_unmount_zfs.$$"
 fi
 
 zfs unmount -f $unmount_zfs_folder
