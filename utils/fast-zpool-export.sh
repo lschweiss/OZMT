@@ -26,7 +26,7 @@
 # "zfs unmount" being call in parallel from children to parrent all the way to the root
 
 # Requires gnu parallel
-# Tange (2011): GNU Parallel - The Command-Line Power Tool
+# GNU Parallel - The Command-Line Power Tool
 # http://www.gnu.org/software/parallel/
 
 

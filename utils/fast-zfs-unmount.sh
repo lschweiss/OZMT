@@ -23,7 +23,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 # Requires gnu parallel
-# Tange (2011): GNU Parallel - The Command-Line Power Tool
+# GNU Parallel - The Command-Line Power Tool
 # http://www.gnu.org/software/parallel/
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
