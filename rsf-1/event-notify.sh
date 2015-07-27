@@ -34,6 +34,38 @@ match()
     return 1
 }
 
+# Setup binary paths without calling zfs_tools_init.sh
+
+# Skip disk heartbeats
 match "$*" "*RSF_HEARTBEAT*type=disc*" && exit 0
+
+# OZMT events that require action
+
+if [ "$1" == "LOG_INFO" ]; then
+    case "$2" in
+        "RSF_NETIF_UP") 
+            # vIP has been triggered to start on a pool
+            cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+            . ../zfs-tools-init.sh
+            vip=`echo $5| ${CUT} -d '=' -f 2`
+            service=`cat /opt/HAC/RSF-1/etc/config | ${GREP} "^SERVICE" | ${GREP} "${vip}" | ${CUT} -d ' ' -f 2`
+            echo "Activating VIPs and samba for $service"
+            $TOOLS_ROOT/vip/vip-trigger.sh activate $service
+            $TOOLS_ROOT/samba/samba-trigger.sh activate $service &
+            ;;
+        "RSF_NETIF_DOWN")
+            # vIP has been triggered to stop on a pool
+            cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+            . ../zfs-tools-init.sh
+            vip=`echo $5| ${CUT} -d '=' -f 2`
+            service=`cat /opt/HAC/RSF-1/etc/config | ${GREP} "^SERVICE" | ${GREP} "${vip}" | ${CUT} -d ' ' -f 2`
+            echo "Deactivating VIPs and samba for $service"
+            $TOOLS_ROOT/vip/vip-trigger.sh deactivate $service
+            $TOOLS_ROOT/samba/samba-trigger.sh deactivate $service &
+            ;;
+    esac
+fi
+
+
 exec "$real_event_notifier" "$@"
 ~
