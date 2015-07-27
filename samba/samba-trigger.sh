@@ -40,36 +40,87 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
 
-##
-# Kill any samba servers for pools that are no longer on this system
-##
+active_smb_dir="/var/zfs_tools/samba/active"
 
-mkdir -p /var/zfs_tools/samba/active
-
-servers=`ls -1 /var/zfs_tools/samba/active`
-
-for server in $servers; do
-
-    echo "TODO: setup server killing"    
-
-done
-
-# Shares:
-# zfs get -H -o name,value -s local -r edu.wustl.nrg:cifs:share 
+mkdir -p $active_smb_dir
 
 
 ##
-# Start any samba server for datasets that need one.
+# Start any samba server for specified dataset or pool
 ##
 
-for pool in $pools; do
-    debug "Looking for samba servers on pool $pool"
-    zfs_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+activate_smb () {
+
+    local smb_target="$1"
+    local pool=
+    local zfs_folder=
+    local zfs_folders=
+    local test_folders=
+    local dataset_name=
+    local active_smb=
+    local smbd_pid=
+    local nmbd_pid=
+    local smbd_bin=
+    local nmbd_bin=
+    local smbd_running=
+    local nmbd_running=
+    local smb_conf_dir=
+    local server_conf=
+    local cifs_template=
+    local template_config_file=
+    local shared_folder=
+    local shared_folders=
+    local cifs_share=
+    local mountpoint=
+    local share_config=
+    local share_config_file=
+    local conf_type=
+    local conf_name=
+    local vip_count=
+    local interfaces=
+    local x=
+    local ip=
+    local vip_host=
+    local smb_pidfile=
+    local nmb_pidfile=
+    local smb_conf=
+    local log_dir=
+        
+
+    # Is this a local pool?
+    echo ${pools} | ${GREP} -q $smb_target
+    if [ $? -eq 0 ] then
+        pool="$smb_target"
+        zfs_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+    else
+        # smb_target is a dataset 
+        # Find the pool with this dataset
+        for pool in $pools; do
+            test_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+            for zfs_folder in $test_folders; do
+                dataset_name=`zfs get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
+                if [ "$dataset_name" == "$smb_target" ]; then
+                    zfs_folders="$zfs_folder"
+                    break
+                fi
+            done
+            if [ "$zfs_folders" != "" ]; then
+                break
+            fi
+        done
+    fi
+
+    if [ "$zfs_folders" == "" ]; then
+        error "activate_smb: Could not find $smb_target on this host"
+        return 1
+    fi
+    
+
     for zfs_folder in $zfs_folders; do
         debug "Configuring CIFS for $zfs_folder"
         dataset_name=`zfs get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
         server_name=`zfs get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
-        active_smb="/var/zfs_tools/samba/active/$dataset_name"
+        active_smb="${active_smb_dir}/${dataset_name}"
         if [ -f $active_smb ]; then
             smbd_pid=
             nmbd_pid=
@@ -117,7 +168,7 @@ for pool in $pools; do
                     fi
                     ;;
                 *)
-                    error "Unsupported operation system for samba: $os"
+                    error "Unsupported operating system for samba: $os"
                     exit 1
                     ;;
             esac
@@ -322,24 +373,81 @@ for pool in $pools; do
     
         if [ "$smbd_running" == 'false' ]; then
             debug "Starting smbd"
+            rm -f $smb_pidfile 2> /dev/null
             ${SMBD} -D -s $smb_conf -l $log_dir &
-            smbd_pid=$!
-            #echo $smbd_pid > $smb_pidfile
+            smbd_pid=`get_pid $smb_pidfile $zfs_samba_server_startup_timeout`
             smbd_running='true'
             update_job_status "$active_smb" "smbd_bin" "${SMBD}"
+            update_job_status "$active_smb" "pool" "$pool" 
+            update_job_status "$active_smb" "smbd_pid" "$smbd_pid"
+            
         fi
 
         if [ "$nmbd_running" == 'false' ]; then
             debug "Starting nmbd"
+            rm -f $nmb_pidfile 2> /dev/null
             ${NMBD} -D -s $smb_conf -l $log_dir &
-            nmbd_pid=$!
-            #echo $nmbd_pid > $nmb_pidfile
+            nmbd_pid=`get_pid $nmb_pidfile $zfs_samba_server_startup_timeout`
             nmbd_running='true'
             update_job_status "$active_smb" "nmbd_bin" "${NMBD}"
+            update_job_status "$active_smb" "nmbd_pid" "$nmbd_pid"
         fi
 
     done 
 
+}
 
-done
 
+deactivate_smb () {
+
+    local smb="$1"   
+    $(local_source ${active_smb_dir}/$smb)
+
+
+    # Check if smbd is running
+
+
+
+
+    # Check if nmbd is running
+
+
+
+}
+
+
+###
+###
+##
+## Main loop which checks the status of all samba servers and triggers changes
+##
+###
+###
+
+case $1 in
+    "deactivate")
+        # Deactive all samba servers on a specified pool or dataset
+        active_smbs=`ls -1 $active_smb_dir | ${GREP} -v '\.lock\|\.unlock'`
+        for smb in $active_smbs; do
+            source ${active_smb_dir}/${smb}
+            if [ "$2" == "$smb" || "$2" == "$pool" ]; then        
+                deactivate_smb $smb
+                exit 0
+            fi
+        done
+        # If we got here we didn't match any active samba servers
+        error "deactivate \"$2\" did not match any pool or datasets with active samba servers"
+        exit 1
+    ;;
+
+    "activate")
+        activate_smb "$2"
+    ;;
+
+    *)
+        for pool in $pools; do
+            activate_smb $pool
+        done
+    ;;
+
+esac
