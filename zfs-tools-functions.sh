@@ -565,6 +565,34 @@ release_lock() {
 
 }
 
+local_source () {
+
+    # processes a data file line by line outputing 'local' at the begining of each line
+    # so variables will be local to sourcing bash function
+
+    # Usage:
+    #
+    # Add in a bash function:
+    #
+    # $(local_source {file_name})   
+
+    # File must contain only lines defining variables.
+
+    local line=
+
+    if [ -f "$1" ]; then
+        while IFS='' read -r line || [[ -n $line ]]; do
+            echo $line | ${GREP} -q "^local"
+            if [ $? -eq 0 ]; then
+                echo $line
+            else
+                echo "local $line"
+            fi
+        done < "$1"
+    fi
+
+}
+
 # Launch a command in the background if NOT running on the console
 launch () {
     if [[ -t 1 && "$BACKGROUND" != "true" ]]; then
