@@ -240,6 +240,10 @@ if [ "$zfs_samba_server_suffix" == "" ]; then
     zfs_samba_server_suffix=""
 fi
 
+if [ "$zfs_samba_server_startup_timeout" == "" ]; then
+    zfs_samba_server_startup_timeout="10"
+fi
+
 if [ "$zfs_vip_property" == "" ]; then
     zfs_vip_property="edu.wustl.nrg:vip"
 fi
