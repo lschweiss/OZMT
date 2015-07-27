@@ -48,6 +48,11 @@ else
     VERBOSE=''
 fi
 
+mkdir -p ${TMP}/parallel
+if [ "$HOME" == "" ];then
+    export HOME="${TMP}/parallel"
+fi
+
 # Test if this folder is already mounted.  If not, mount it.
 case $os in 
     'SunOS')
@@ -93,7 +98,7 @@ cat $zfs_folders | \
 if [ $(cat ${TMP}/fast_mount_zfs.$$ | wc -l) -gt 0 ]; then
     debug "Launching mount on $mount_zfs_folder children.  ${TMP}/fast_mount_zfs.$$"
     # cat ${TMP}/fast_mount_zfs.$$
-    $TOOLS_ROOT/bin/$os/parallel --will-cite -a ${TMP}/fast_mount_zfs.$$ ./fast-zfs-mount.sh $zfs_folders
+    $TOOLS_ROOT/bin/$os/parallel --will-cite --workdir ${TMP}/parallel -a ${TMP}/fast_mount_zfs.$$ ./fast-zfs-mount.sh $zfs_folders
     result=$?
     debug "Children finished mounting on ${mount_zfs_folder}.  ${TMP}/fast_mount_zfs.$$"
 fi

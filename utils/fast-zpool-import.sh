@@ -37,6 +37,8 @@ logfile="$default_logfile"
 
 report_name="$default_report_name"
 
+export DEBUG="true"
+
 # Minimum number of arguments needed by this program
 MIN_ARGS=1
 
@@ -52,6 +54,7 @@ for last; do : ; done
 import_pool="$last"
 
 zpool import -N $@ 
+result=$?
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then

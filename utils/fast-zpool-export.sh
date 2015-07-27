@@ -82,7 +82,7 @@ fi
     ${AWK} -F " " '{print $2}' | \
     ${GREP} -v "^${export_pool}$" > ${TMP}/zpool_export_zfs.$$
 
-./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ mirpool01
+./fast-zfs-unmount.sh ${TMP}/zpool_export_zfs.$$ ${export_pool}
 if [ $? -eq 0 ]; then
     #debug "zfs unmount -f ${export_pool}"
     rm -f ${TMP}/zpool_export_zfs.$$ ${TMP}/zpool_export_zfs_roots.$$ ${TMP}/zpool_export_zfs_root_folders.$$
