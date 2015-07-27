@@ -126,30 +126,30 @@ activate_vip () {
     # TODO:  Ping is not reliable.  We may not have an interface that can talk to it yet.
     #        Possibly replace with arping.   
 
-    case $os in 
-        'Linux')
-            ping -c 1 -q -W 1 $vIP 1>/dev/null 2>/dev/null
-            result=$?
-            ;;
-        'SunOS')
-            ping $vIP 1>/dev/null 2>/dev/null
-            result=$?
-            ;;
-        *)
-            error "Unsupported OS, $os"
-            return 1
-            ;;      
-    esac
-
-    if [ $result -eq 0 ]; then
-        # Make sure it is not local
-        if islocal $vIP; then
-            warning "Activating vIP ${vIP}, however, it is already active on this host."
-        else
-            error "Attempted to activate vIP ${vIP}, however, it is already active elsewhere."
-            return 1
-        fi
-    fi
+#    case $os in 
+#        'Linux')
+#            timeout 5 ping -c 1 -q -W 1 $vIP 1>/dev/null 2>/dev/null
+#            result=$?
+#            ;;
+#        'SunOS')
+#            timeout 5 ping $vIP 1>/dev/null 2>/dev/null
+#            result=$?
+#            ;;
+#        *)
+#            error "Unsupported OS, $os"
+#            return 1
+#            ;;      
+#    esac
+#
+#    if [ $result -eq 0 ]; then
+#        # Make sure it is not local
+#        if islocal $vIP; then
+#            warning "Activating vIP ${vIP}, however, it is already active on this host."
+#        else
+#            error "Attempted to activate vIP ${vIP}, however, it is already active elsewhere."
+#            return 1
+#        fi
+#    fi
 
     # Split ipifs into newline separated list, so IFS switching isn't a problem in a loop
 
@@ -362,6 +362,7 @@ process_vip () {
     local active_folder=
     local zfs_folder=
     local replication=
+    local mode="$2"
 
     debug "Processing: $vip_file"
 
@@ -447,7 +448,25 @@ case $1 in
     ;;
 
     "activate")
-        activate_vip "$2"
+        pool="$2"
+        zpool list $pool 1>/dev/null 2>/dev/null
+        if [ $? -eq 0 ]; then 
+            vip_dir="/${pool}/zfs_tools/var/vip"
+            if [ -d "$vip_dir" ]; then
+                folders=`ls -1 "${vip_dir}" | sort`
+                for folder in $folders; do
+                    process_vip "${vip_dir}/${folder}"
+                done # for folder in $folders
+            fi # if $vip_dir
+        else
+            # Possible dataset name given
+            for pool in $pools; do
+                vip_dir="/${pool}/zfs_tools/var/vip"
+                if [ -f "${vip_dir}/${2}" ]; then
+                    process_vip "${vip_dir}/${2}"
+                fi
+            done # for pool in $pools
+        fi
     ;;
 
     *)
@@ -466,7 +485,7 @@ case $1 in
         active_vips=`ls -1 ${active_ip_dir} | sort `
         
         for vip in $active_vips; do
-            launch process_vip "${active_ip_dir}/${vip}"
+            process_vip "${active_ip_dir}/${vip}"
         done
     ;;
 
