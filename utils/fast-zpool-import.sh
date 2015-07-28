@@ -70,7 +70,7 @@ fi
     ${AWK} -F " " '{print $2}' | \
     ${GREP} -v "^${import_pool}$" > ${TMP}/zpool_import_zfs.$$
 
-./fast-zfs-mount.sh ${TMP}/zpool_import_zfs.$$ mirpool01
+./fast-zfs-mount.sh ${TMP}/zpool_import_zfs.$$ ${import_pool}
 result=$?
 if [ $result -eq 0 ]; then
     rm -f ${TMP}/zpool_import_zfs.$$ ${TMP}/zpool_import_zfs_roots.$$ ${TMP}/zpool_import_zfs_root_folders.$$
