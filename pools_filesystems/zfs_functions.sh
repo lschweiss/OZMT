@@ -709,7 +709,7 @@ setupzfs () {
    
     # Flush dataset_targets file and rebuild
     if [ "$dataset_name" != "" ]; then
-        rm "$datset_targets" 2> /dev/null
+        rm "$dataset_targets" 2> /dev/null
         rm "${TMP}/dataset_targets_$$" 2> /dev/null
     fi
 
@@ -873,7 +873,10 @@ setupzfs () {
 
     # Syncronize all replication targets
 
-    if [ "$replication" == "on" ]; then
+
+    if [[ "$replication" == "on" && "$replication_setup" != 'true' ]]; then
+
+        
         # Get target(s) from parent definition
         
         if [ "$parent_replication" == 'on' ]; then
@@ -883,6 +886,11 @@ setupzfs () {
             parent_jobname="${simple_jobname}"
             echo "Replication jobname: $parent_jobname"
         fi
+
+        notice "Setting reset on replication for $replication_dataset_name"
+        echo $replication_dataset_name >> ${TMP}/setup_filesystem_reset_replication
+
+        
         replication_targets=`ls -1 ${replication_job_dir}/definitions/${parent_jobname}`
         for replication_target in $replication_targets; do
             source ${replication_job_dir}/definitions/${parent_jobname}/${replication_target}
@@ -909,6 +917,8 @@ setupzfs () {
 
             sync_jobname="$simple_jobname"
 
+            timeout 30s ssh root@${t_pool} touch /${t_pool}/zfs_tools/etc/pool-filesystems/.replication_setup
+
             # Recursively push defintions up to the root so all necessary defintions are replicated
             # Only push missing definitions
 
@@ -923,7 +933,7 @@ setupzfs () {
                     ignore=""
                 fi
 
-                timeout 30s ${RSYNC} -cptgov --update ${ignore}-e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                timeout 30s ${RSYNC} -cptgov --update ${ignore} -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
                     root@${t_pool}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                     ${TMP}/setup_filesystem_replication_$$.txt
                 if [ $? -ne 0 ]; then
@@ -953,12 +963,17 @@ setupzfs () {
                 fi
             done
         done
+    fi
+
+    if [ "$replication" == "on" ]; then
         # Trigger any child folders to also be re-examined and synced.
         # This is most important when replication is added to an existing zfs folder to assure all child folders
         # are synced to all targets.
-        children=`ls -1 /${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname}%* 2>/dev/null`
+        current_folder_def_name="/${pool}/zfs_tools/etc/pool-filesystems/${simple_jobname}"
+        strip_len=$(( ${#current_folder_def_name} + 2 ))
+        children=`ls -1 ${current_folder_def_name}%* 2>/dev/null | ${CUT} -c ${strip_len}-`
         for child in $children; do
-            echo "${child}" >> "${TMP}/setup_filesystem_replication_children"
+            echo "${simple_jobname}%${child}" >> "${TMP}/setup_filesystem_replication_children"
         done
         if [ -f ${TMP}/setup_filesystem_replication_children ]; then
             echo "Replication children definitions:"

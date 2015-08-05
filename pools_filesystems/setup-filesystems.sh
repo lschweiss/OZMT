@@ -62,12 +62,21 @@ for pool in $pools; do
             ls -1At --color=never /${pool}/zfs_tools/etc/pool-filesystems | \
                 ${SED} '/\.last_setup_run/q' | \
                 ${GREP} -v ".last_setup_run" | \
+                ${GREP} -v ".replication_setup" | \
                 sort | \
                 tee ${TMP}/pool-filesystems.update
+
+            if [ -f "/${pool}/zfs_tools/etc/pool-filesystems/.replication_setup" ]; then
+                replication_setup='true'
+                rm "/${pool}/zfs_tools/etc/pool-filesystems/.replication_setup"
+            else
+                replication_setup='false'
+            fi
 
             folders=`cat ${TMP}/pool-filesystems.update`
             for folder in $folders; do
                 rm /${pool}/zfs_tools/etc/{snapshots,backup,reports,replication}/jobs/*/${pool}%${folder} 2> /dev/null
+                notice "Processing folder: $folder"
                 source /${pool}/zfs_tools/etc/pool-filesystems/${folder}
                 if [ $? -ne 0 ]; then
                     error "Configuration for ${pool}/$(jobtofolder $folder) has failed."
@@ -78,6 +87,25 @@ for pool in $pools; do
                 debug "All changes successful for pool $pool"
                 touch /${pool}/zfs_tools/etc/pool-filesystems/.last_setup_run
             fi
+
+            # Setup children which have been added 
+            if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
+                children=`cat "${TMP}/setup_filesystem_replication_children"`
+                for child in $children; do
+                    cat ${TMP}/pool-filesystems.update | ${GREP} -q "^${child}$"
+                    if [ $? -ne 0 ]; then
+                        notice "Processing additional child folder: $child"
+                        source /${pool}/zfs_tools/etc/pool-filesystems/${child}
+                        if [ $? -ne 0 ]; then
+                            error "Configuration for ${pool}/$(jobtofolder $folder) has failed."
+                            failures=$(( failures + 1 ))
+                        fi
+                    fi
+                done
+                rm "${TMP}/setup_filesystem_replication_children"
+                
+            fi
+
             # Update replication targets
             if [ -f ${TMP}/setup_filesystem_replication_targets ]; then
                 t_list=`cat ${TMP}/setup_filesystem_replication_targets|sort -u`
@@ -95,16 +123,24 @@ for pool in $pools; do
 
 done
 
-if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
-    children=`cat "${TMP}/setup_filesystem_replication_children"`
-    #cat ${TMP}/setup_filesystem_replication_children
-    sleep 1
-    for child in $children; do
-        touch ${child}
+if [ -f "${TMP}/setup_filesystem_reset_replication" ]; then
+    datasets=`cat ${TMP}/setup_filesystem_reset_replication | ${SORT} -u`
+    for dataset in $datasets; do
+        ../replication/reset-replication $dataset
     done
-    notice "Re-running to force sync of children of replicated folder."
-    ./setup-filesystems.sh
+    rm ${TMP}/setup_filesystem_reset_replication
 fi
+
+#if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
+#    children=`cat "${TMP}/setup_filesystem_replication_children"`
+#    #cat ${TMP}/setup_filesystem_replication_children
+#    sleep 1
+#    for child in $children; do
+#        touch ${child}
+#    done
+#    notice "Re-running to force sync of children of replicated folder."
+#    ./setup-filesystems.sh
+#fi
 
 
 # Resume replication
