@@ -92,6 +92,7 @@ for check_pool in $pools; do
         for definition in $definitions; do
             source $definition
             if [ "$dataset_name" == "$dataset" ]; then
+                debug "Found job definition $definition for $dataset"
                 jobs="$definition $jobs"
                 job_count=$(( job_count + 1 ))
             fi

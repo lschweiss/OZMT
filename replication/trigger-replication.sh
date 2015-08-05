@@ -160,15 +160,32 @@ fi
 
 # Confirm on the target host that this is truely the source
 
-target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}`
-if [ "$target_source_reference" != "${pool}:${folder}" ]; then
-    error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
-    # Suspend replication for this job
-    #mv "$job_definition" "${pool}/zfs_tools/var/replication/jobs/suspended/"
-    update_job_status "${job_status}" "suspended" "true"
-    suspended="true"
-fi
- 
+timeout 1m ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name} \
+    > ${TMP}/target_check_$$ \
+    2> ${TMP}/target_check_errror_$$
+errorcode=$?
+
+case "$errorcode" in 
+    '124')
+        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host timed out after 1m.  Setting job to failed."
+        update_job_status "${job_status}" "failed" "+1"
+        exit 1
+        ;;
+    '0')  
+        target_source_reference=`cat ${TMP}/target_check_$$`
+        if [ "$target_source_reference" != "${pool}:${folder}" ]; then
+            error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
+            update_job_status "${job_status}" "suspended" "true"
+            suspended="true"
+        fi
+        ;;
+    *)  
+        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_errror_$$
+        update_job_status "${job_status}" "failed" "+1"
+        exit 1
+        ;;
+esac
+
 
 now_stamp="$(now_stamp)"
 last_run=`${DATE} +"%F %H:%M:%S%z"`
@@ -214,7 +231,7 @@ errorcode=$?
 if [ $errorcode -ne 0 ]; then
     error "Replication: Failed to create snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} errorcode $errorcode" \
         ${TMP}/replication_snapshot_$$.txt
-    mv "${job_definition}" "${pool}/zfs_tools/var/replication/jobs/failed/"
+    mv "${job_definition}" "/${pool}/zfs_tools/var/replication/jobs/failed/"
     update_job_status "${job_status}" "suspended" "true"
     rm ${TMP}/replication_snapshot_$$.txt 2> /dev/null
     exit 1

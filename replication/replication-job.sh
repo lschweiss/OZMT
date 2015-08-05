@@ -154,11 +154,11 @@ fi
 
 endpoint_count=`zfs get -H -o value ${zfs_replication_endpoints_property} ${pool}/${folder}`
 
-if [ $endpoint_count -eq 2 ]; then
-    delete_snaps='-d'
-else
-    delete_snaps=''
-fi
+#if [ $endpoint_count -eq 2 ]; then
+#    delete_snaps='-d'
+#else
+#    delete_snaps=''
+#fi
 
 migrating='false'
 
