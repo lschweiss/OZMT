@@ -28,7 +28,11 @@ source zfs_functions.sh
 # Stop infinite loop
 rm "${TMP}/setup_filesystem_replication_children" 2>/dev/null
 
-pools="$(pools)"
+if [ $# -ne 0 ]; then
+    pools="$*"
+else
+    pools="$(pools)"
+fi
 
 # TODO: Add checks to make sure we don't do this while jobs can be disturbed. (Job start times)
 
@@ -82,6 +86,10 @@ for pool in $pools; do
                     error "Configuration for ${pool}/$(jobtofolder $folder) has failed."
                     failures=$(( failures + 1 ))
                 fi
+                if [ "$DEBUG" == 'true' ]; then
+                    echo "Pausing 10 seconds...."
+                    sleep 10
+                fi
             done
             if [ $failures -eq 0 ]; then
                 debug "All changes successful for pool $pool"
@@ -95,6 +103,7 @@ for pool in $pools; do
                     cat ${TMP}/pool-filesystems.update | ${GREP} -q "^${child}$"
                     if [ $? -ne 0 ]; then
                         notice "Processing additional child folder: $child"
+                        folder="$child"
                         source /${pool}/zfs_tools/etc/pool-filesystems/${child}
                         if [ $? -ne 0 ]; then
                             error "Configuration for ${pool}/$(jobtofolder $folder) has failed."
@@ -125,8 +134,14 @@ done
 
 if [ -f "${TMP}/setup_filesystem_reset_replication" ]; then
     datasets=`cat ${TMP}/setup_filesystem_reset_replication | ${SORT} -u`
+    # Collect folders to ignore
+    ignore_folders=
+    if [ -f "${TMP}/setup_filesystem_reset_replication_ignore" ]; then
+       ignore_folders=`cat "${TMP}/setup_filesystem_reset_replication_ignore" | ${SED} ':a;N;$!ba;s/\n/,/g'`
+    fi
     for dataset in $datasets; do
-        ../replication/reset-replication $dataset
+        notice "Resetting replication for dataset: $dataset"
+        ../replication/reset-replication.sh $dataset $ignore_folders
     done
     rm ${TMP}/setup_filesystem_reset_replication
 fi
@@ -146,6 +161,7 @@ fi
 # Resume replication
 for pool in $pools; do
     if [ -f "/${pool}/zfs_tools/var/replication/jobs/suspend_all_jobs" ]; then
+        notice "Resuming replication for pool $pool"
         rm "/${pool}/zfs_tools/var/replication/jobs/suspend_all_jobs"
     fi
 done

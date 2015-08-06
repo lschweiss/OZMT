@@ -29,10 +29,17 @@ fi
 
 show_usage () {
     echo
-    echo "Usage: $0 {dataset_name}"
+    echo "Usage: $0 {dataset_name} [{ignore_folder_list}]"
     echo "  {dataset_name}   Name of the data set to clean all replication jobs and"
     echo "                   replication snapshots except the latest fully syncd snapshot."
     echo "                   It then puts the job back in to a status for resuming replication."  
+    echo ""
+    echo "  {ignore_folder_list} (optional)"
+    echo "                   List of folder to ignore sanity check and clean up."
+    echo "                   This is primarily used when new ZFS folders are created, that"
+    echo "                   have not yet been replicated." 
+    echo "                   This should be a comma separated list of ZFS folders within"
+    echo "                   the dataset."
     echo ""
     echo "  The host this command is run on must be either the source host for this dataset."
     echo ""
@@ -60,6 +67,9 @@ dataset="$1"
 job_count=0
 ds_source=
 
+ignore_folder_list="$2"
+
+
 ##
 # Gather information about the dataset
 ##
@@ -79,6 +89,10 @@ if [ "$ds_source" == "" ]; then
     exit 1
 else
     debug "Found dataset $dataset on pool $pool"
+fi
+
+if [ "$ignore_folder_list" != "" ]; then
+    debug "Ignoring folders: $ignore_folder_list"
 fi
 
 # Where are the targets?
@@ -178,7 +192,23 @@ echo "Resetting replication for $dataset" > /$source_pool/zfs_tools/var/replicat
 ## 
 
 # Gather a list children folders on the source
-children_folders=`zfs list -H -r -o name ${source_pool}/${source_folder} | ${TAIL} -n+2`
+# TODO: Filter excluded folders
+
+zfs list -H -r -o name ${source_pool}/${source_folder} | ${TAIL} -n+2 > ${TMP}/reset_replication_child_folders_$$
+
+if [ "$ignore_folder_list" != "" ]; then
+    IFS=','
+    for ignore_folder in $ignore_folder_list; do
+        debug "Stripping $ignore_folder from children folders"
+        cat ${TMP}/reset_replication_child_folders_$$ | ${GREP} -v "^${ignore_folder}$" > ${TMP}/reset_replication_child_folders_$$_2
+        mv ${TMP}/reset_replication_child_folders_$$_2 ${TMP}/reset_replication_child_folders_$$
+    done
+    unset IFS
+fi 
+
+
+children_folders=`cat ${TMP}/reset_replication_child_folders_$$`
+rm ${TMP}/reset_replication_child_folders_$$
 
 # Gather a list of replication snapshots from the source zfs folder. 
 # Reverse sort them so we work from newest to oldest.
@@ -189,10 +219,12 @@ parent_replication_snaps=`printf '%s\n' "$replication_snaps" | \
                            ${GREP} "^${source_pool}/${source_folder}@"`
 parent_valid_snaps=
 
+debug "Found snaps in parent folder ${source_pool}/${source_folder}: $parent_replication_snaps"
 
 # Make sure each snapshot is also in all the children
 # Eliminate from the list any snapshot that is not in all children
 if [ "$children_folders" != "" ]; then
+    debug "Testing if snaps are in children folders"
     for parent_snap in $parent_replication_snaps; do
         valid_snap='true'
         parent_snap_name=`echo $parent_snap|${CUT} -d '@' -f2`
@@ -202,6 +234,7 @@ if [ "$children_folders" != "" ]; then
             # Test if snap is good
             echo $child_snaps | ${GREP} -q "$parent_snap_name"
             if [ $? -ne 0 ]; then
+                debug "Parent snapshot ${parent_snap}, is not in child folder $child_folder"
                 valid_snap='false'
             fi
         done

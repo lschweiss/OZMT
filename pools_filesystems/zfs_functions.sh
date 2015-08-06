@@ -327,8 +327,8 @@ setupzfs () {
         fi
 
         zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
-        mkdir -p ${pool}/zfs_tools/var/replication/datasets
-        echo "${pool}/${zfspath}" > ${pool}/zfs_tools/var/replication/datasets/${dataset_name}
+        mkdir -p /${pool}/zfs_tools/var/replication/datasets
+        echo "${pool}/${zfspath}" > /${pool}/zfs_tools/var/replication/datasets/${dataset_name}
     fi
 
     # Replication requirements
@@ -380,6 +380,7 @@ setupzfs () {
             zfs create -p $pool/$zfspath
             setzfs "${pool}/${zfspath}" "$options"
             new_folder='true'
+            echo "$pool/$zfspath" >> ${TMP}/setup_filesystem_reset_replication_ignore
         fi
     fi
         
@@ -975,9 +976,9 @@ setupzfs () {
         for child in $children; do
             echo "${simple_jobname}%${child}" >> "${TMP}/setup_filesystem_replication_children"
         done
-        if [ -f ${TMP}/setup_filesystem_replication_children ]; then
+        if [[ "$DEBUG" == 'true' &&  -f ${TMP}/setup_filesystem_replication_children ]]; then
             echo "Replication children definitions:"
-            cat ${TMP}/setup_filesystem_replication_children
+            cat ${TMP}/setup_filesystem_replication_children | ${SORT} -u 
         fi
 
     fi
