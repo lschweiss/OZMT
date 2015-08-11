@@ -314,7 +314,9 @@ get_pid () {
 
     
     if [ "$timeout" == "" ]; then
-        timeout=10
+        timeout=20
+    else 
+        timeout=$(( timeout * 2 ))
     fi
 
     while [ "$pid" == "" ]; do
@@ -325,7 +327,7 @@ get_pid () {
             return 0
         else
             sleep 0.5
-            duration=$(( duration + 0.5 ))
+            duration=$(( duration + 1 ))
             if [ $duration -ge $timeout ]; then
                 echo "-1"
                 return 1
