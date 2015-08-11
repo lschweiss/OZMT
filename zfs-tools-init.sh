@@ -174,6 +174,10 @@ if [ -z $BC ]; then
     BC=`gnu_source bc`
 fi
 
+if [ -z $BASENAME ]; then
+    BASENAME=`gnu_source basename`
+fi
+
 if [ -z $PARALLEL ]; then
     PARALLEL=`gnu_source parallel`
 fi
@@ -186,16 +190,32 @@ if [ -z $bbcp ]; then
     bbcp=`gnu_source bbcp`
 fi
 
+if [ -z $BBCP ]; then
+    BBCP=`gnu_source bbcp`
+fi
+
 if [ -z $mbuffer ]; then
     mbuffer=`gnu_source mbuffer` 
+fi
+
+if [ -z $MBUFFER ]; then
+    MBUFFER=`gnu_source mbuffer`
 fi
 
 if [ -z $lz4 ]; then
     lz4=`gnu_source lz4`
 fi
 
+if [ -z $LZ4 ]; then
+    LZ4=`gnu_source lz4`
+fi
+
 if [ -z $gzip ]; then
     gzip=`gnu_source gzip`
+fi
+
+if [ -z $GZIP ]; then
+    GZIP=`gnu_source gzip`
 fi
 
 if [ -z $SMBD ]; then
