@@ -211,20 +211,24 @@ case $mode in
          exit 1 ;;
 esac
 
-
+mkdir -p ${TMP}/replication
 
 if [ "$previous_snapshot" == "" ]; then
     debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
     ../utils/zfs-send.sh -n "${dataset_name}" -r ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
-        -l "${pool}/${folder}@${snapshot}"
+        -l "${pool}/${folder}@${snapshot}" \
+        -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
+        -T "${TMP}/replication/job_target_info.$(${BASENAME} ${job_definition})"
     send_result=$?
 else
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
     ../utils/zfs-send.sh -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
-        -l "${pool}/${folder}@${snapshot}"
+        -l "${pool}/${folder}@${snapshot}" \
+        -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
+        -T "${TMP}/replication/job_target_info.$(${BASENAME} ${job_definition})"
     send_result=$?
 fi
 
