@@ -176,6 +176,7 @@ setupzfs () {
     local cifs=
     local cifs_template=
     local cifs_share=
+    local smb_valid_users=
     local backup_target=
     local zfs_backup=
     local target_properties=
@@ -200,7 +201,7 @@ setupzfs () {
         fi
     fi
    
-    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t:C:c: opt; do
+    while getopts z:o:s:S:n:R:V:F:L:P:b:q:t:C:c:v: opt; do
         case $opt in
             z)  # Set zfspath
                 zfspath="$OPTARG"
@@ -244,6 +245,10 @@ setupzfs () {
             c)  # share this folder via CIFS
                 cifs_share="$OPTARG"
                 debug "Setting CIFS share using $cifs_share"
+                ;;
+            v)  # valid cifs users
+                smb_valid_users="$OPTARG"
+                debug "Setting CIFS valid user to: $smb_valid_users"
                 ;;
             F)  # Default source pool
                 default_source_folder="$OPTARG"
@@ -905,7 +910,6 @@ setupzfs () {
             #   will list the definition being updated if it sync'd.  This will cause the
             #   trigger of a run to happen only if there were changes, short circuiting the 
             #   potential for an endless loop.
-
             if [ "$replication_parent" != "$t_path" ]; then
                 echo "Replication source: $replication_parent"
                 echo "zfspath:            $zfspath"
@@ -926,7 +930,7 @@ setupzfs () {
             sub_folder=0
             while [ $sub_folder -eq 0 ]; do
                 debug "Pushing configuration for $sync_jobname to pool $t_pool folder $target_simple_jobname"
-
+                    
                 # Don't update existing parent folders only add missing ones
                 if [ "$simple_jobname" != "${sync_jobname}" ]; then
                     ignore="--ignore-existing"
@@ -934,12 +938,13 @@ setupzfs () {
                     ignore=""
                 fi
 
-                timeout 30s ${RSYNC} -cptgov --update ${ignore} -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
+                timeout 30s ${RSYNC} -cptgov --rsync-path=/opt/csw/bin/rsync --update ${ignore} -e ssh /${pool}/zfs_tools/etc/pool-filesystems/${sync_jobname} \
                     root@${t_pool}:/${t_pool}/zfs_tools/etc/pool-filesystems/${target_simple_jobname} > \
                     ${TMP}/setup_filesystem_replication_$$.txt
                 if [ $? -ne 0 ]; then
                     error "Could not replicate definition ${sync_jobname} to ${t_pool}:${target_simple_jobname}" \
                         ${TMP}/setup_filesystem_replication_$$.txt
+                    cat ${TMP}/setup_filesystem_replication_$$.txt
                 else
                     cat ${TMP}/setup_filesystem_replication_$$.txt | \
                         grep -q -F "$simple_jobname"
@@ -949,7 +954,6 @@ setupzfs () {
                 fi
 
                 rm ${TMP}/setup_filesystem_replication_$$.txt 2>/dev/null
-                
 
                 echo "${sync_jobname}" | ${GREP} -q "%"
                 if [ $? -eq 0 ]; then
@@ -1044,14 +1048,15 @@ setupzfs () {
     mkdir -p /${pool}/zfs_tools/{etc,var}/samba
     
     if [ "$cifs" == 'true' ]; then
+        debug "cifs: true"
         if [ "$dataset_name" != '' ]; then
             server_name="${zfs_samba_server_prefix}${dataset_name}${zfs_samba_server_suffix}"
             mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
             zfs set ${zfs_cifs_property}=${server_name} ${pool}/${zfspath}
             case $cifs_template in
                 *.conf|*.conf.template)
-                    if [ -f /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_template ]; then
-                        debug "Setting smb_${dataset_name}.conf via /$pool/zfs_tools/etc/samba/$cifs_parent_dataset/$cifs_template"
+                    if [ -f /$pool/zfs_tools/etc/samba/${dataset_name}/$cifs_template ]; then
+                        debug "Setting smb_${dataset_name}.conf via /$pool/zfs_tools/etc/samba/${dataset_name}/$cifs_template"
                         zfs set ${zfs_cifs_property}:template="dataset:$cifs_template" ${pool}/${zfspath}
                     else if [ -f /$pool/zfs_tools/etc/samba/$cifs_template ]; then
                         debug "Setting smb_${dataset_name}.conf via /$pool/zfs_tools/etc/samba/$cifs_template"
@@ -1118,6 +1123,10 @@ setupzfs () {
                     ;;
             esac
 
+        fi
+        if [ "$smb_valid_users" != "" ]; then
+            debug "Setting valid CIFS users to: $smb_valid_users"
+            zfs set ${zfs_cifs_property}:users="$smb_valid_users" ${pool}/${zfspath}
         fi
 
     else

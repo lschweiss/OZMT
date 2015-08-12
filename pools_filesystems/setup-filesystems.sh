@@ -119,8 +119,12 @@ for pool in $pools; do
             if [ -f ${TMP}/setup_filesystem_replication_targets ]; then
                 t_list=`cat ${TMP}/setup_filesystem_replication_targets|sort -u`
                 for t_host in $t_list; do
-                    debug "Target config updated on ${t_host}.  Triggering setup run."
-                    ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+                    if [ "$DEBUG" == 'true' ]; then
+                        debug "Target config updated on ${t_host}.  Debug enabled.  Run manually on the target."
+                    else
+                        debug "Target config updated on ${t_host}.  Triggering setup run."
+                        ssh root@${t_host} "${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh"
+                    fi
                 done
                 rm ${TMP}/setup_filesystem_replication_targets
             fi
@@ -132,31 +136,22 @@ for pool in $pools; do
 
 done
 
-if [ -f "${TMP}/setup_filesystem_reset_replication" ]; then
-    datasets=`cat ${TMP}/setup_filesystem_reset_replication | ${SORT} -u`
-    # Collect folders to ignore
-    ignore_folders=
-    if [ -f "${TMP}/setup_filesystem_reset_replication_ignore" ]; then
-       ignore_folders=`cat "${TMP}/setup_filesystem_reset_replication_ignore" | ${SED} ':a;N;$!ba;s/\n/,/g'`
-    fi
-    for dataset in $datasets; do
-        notice "Resetting replication for dataset: $dataset"
-        ../replication/reset-replication.sh $dataset $ignore_folders
-    done
-    rm ${TMP}/setup_filesystem_reset_replication
-fi
-
-#if [ -f "${TMP}/setup_filesystem_replication_children" ]; then
-#    children=`cat "${TMP}/setup_filesystem_replication_children"`
-#    #cat ${TMP}/setup_filesystem_replication_children
-#    sleep 1
-#    for child in $children; do
-#        touch ${child}
+#if [ -f "${TMP}/setup_filesystem_reset_replication" ]; then
+#    datasets=`cat ${TMP}/setup_filesystem_reset_replication | ${SORT} -u`
+#    # Collect folders to ignore
+#    ignore_folders=
+#    if [ -f "${TMP}/setup_filesystem_reset_replication_ignore" ]; then
+#       ignore_folders=`cat "${TMP}/setup_filesystem_reset_replication_ignore" | ${SED} ':a;N;$!ba;s/\n/,/g'`
+#    fi
+#    for dataset in $datasets; do
+#        notice "Resetting replication for dataset: $dataset"
+#        export keep_suspended='true'
+#        ../replication/reset-replication.sh $dataset $ignore_folders
 #    done
-#    notice "Re-running to force sync of children of replicated folder."
-#    ./setup-filesystems.sh
+#    rm ${TMP}/setup_filesystem_reset_replication
 #fi
 
+export keep_suspended='false'
 
 # Resume replication
 for pool in $pools; do

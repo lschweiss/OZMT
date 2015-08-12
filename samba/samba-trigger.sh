@@ -74,6 +74,7 @@ activate_smb () {
     local mountpoint=
     local share_config=
     local share_config_file=
+    local smb_valid_users=
     local conf_type=
     local conf_name=
     local vip_count=
@@ -89,7 +90,7 @@ activate_smb () {
 
     # Is this a local pool?
     echo ${pools} | ${GREP} -q $smb_target
-    if [ $? -eq 0 ] then
+    if [ $? -eq 0 ]; then
         pool="$smb_target"
         zfs_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
     else
@@ -262,6 +263,10 @@ activate_smb () {
                 cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
                 mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
                 share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
+                smb_valid_users=`zfs get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
+                if [ "$smb_valid_users" == '-' ]; then
+                    smb_valid_users=''
+                fi
                 debug "Adding share $cifs_share to $server_name for $mountpoint"
                 IFS=':'
                 read -r conf_type conf_name <<< "$share_config"
@@ -288,7 +293,8 @@ activate_smb () {
                     ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
                         ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
                         ${SED} s,#SERVER_NAME#,${server_name},g | \
-                        ${SED} s,#MOUNTPOINT#,${mountpoint},g > \
+                        ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
+                        ${SED} s,#VALID_USERS#,${smb_valid_users},g > \
                         "${smb_conf_dir}/smb_share_${cifs_share}.conf"
 
                 else

@@ -157,6 +157,12 @@ Usage:
                                         Set {template} to 'default' and the template defined in /etc/ozmt/config 
                                           with the variable 'zfs_cifs_default_share_template' will be used.
                                           This must be a full path name, no directory location is assumed.
+
+
+        [-v {list}]               CIFS valid users
+
+                                    Comma separated list of users and groups that are allowed to connect to the share.
+                                    Groups must be prefixed by '@'  
     
 
 
