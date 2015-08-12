@@ -90,6 +90,17 @@ clean_up () {
         debug "Returning remote port $remote_port to the port pool"
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh return_port $remote_port"
     fi 
+
+    # Clean up info files
+
+    if [[ "$pid_info" != "" && -f "$pid_info" ]]; then
+        rm -f "$pid_info"
+    fi
+
+    if [[ "$t_pid_info" != "" && -f "$t_pid_info" ]]; then
+        rm -f "$t_pid_info"
+    fi
+ 
     exit $1
 }
 
@@ -127,9 +138,11 @@ show_usage() {
     echo "  [-F]                Target is a flat file.  No zfs receive will be used."
     echo "  [-k {file} ]        Generate a md5 sum.  Store it in {file}."
     echo "  [-K {file} ]        Generate a md5 sum.  Store it in remote {file}."
-    echo "  [-L]                Overide default log file location."
-    echo "  [-R]                Overide default report name."
-    echo "  [-n]                Name for this job."
+    echo "  [-L {file} ]        Overide default log file location."
+    echo "  [-R {report_name} ] Overide default report name."
+    echo "  [-n {name} ]        Name for this job."
+    echo "  [-P {file} ]        File to place PID info path on the source side"
+    echo "  [-T {file ]         File to place PID on the target side"
 }
 
 # Minimum number of arguments needed by this program
@@ -162,8 +175,11 @@ lz4_level=0
 flat_file='false'
 gen_chksum=
 job_name='zfs_send'
+pid_info=
+t_pid_info=
 
-while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
+
+while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -269,6 +285,14 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
             job_name="$OPTARG"
             debug "${job_name}: Job name set to $job_name"
             ;;
+        P)  # PID file
+            pid_info="${OPTARG}"
+            debug "${job_name}: PID info file set to $pid_info"
+            ;;
+        T)  # Target system PID file
+            t_pid_info="${OPTARG}"
+            debug "${job_name}: Target system PID info file set to $t_pid_info"
+            ;;
         ?)  # Show program usage and exit
             show_usage
             exit 0
@@ -280,7 +304,15 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n: opt; do
 done
 
 tmpdir=${TMP}/zfs_send_to_$(foldertojob ${target_folder})_$$
+if [ "$pid_info" != "" ]; then
+    echo "$tmpdir" > "$pid_info"
+fi
+
 remote_tmp=${TMP}/zfs_receive_from_$(foldertojob ${source_folder})_$$
+if [ "$t_pid_info" != "" ]; then
+    echo "$remote_tmp" > "$t_pid_info"
+fi
+
 
 
 if [ -d $tmpdir ]; then
@@ -422,9 +454,9 @@ else
         if [ "$increment_type" != '' ]; then
             if [ "$first_snap_name" == "${source_folder}@origin" ]; then
                 send_snaps="${last_snap}"
-                #if [ "$delete_snaps" != 'true' ]; then
-                #    receive_options="-F $receive_options"
-                #fi
+                if [ "$delete_snaps" != 'true' ]; then
+                    receive_options="-F $receive_options"
+                fi
             else
                 send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
             fi
@@ -722,7 +754,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
         if [ $? != 0 ]; then
             error "${job_name}: Could not retrieve remote listening port for mbuffer transport."
-            exit 1
+            clean_up 1
         fi
 
         remote_port=`cat ${TMP}/$$_remote_port`
@@ -941,7 +973,7 @@ fi
 
 debug "${job_name}: Starting zfs send to $target_fifo"
 debug "${job_name}:   zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
-( sleep 2 ; zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
+( sleep 2 ; zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
 echo $! > $tmpdir/zfs_send.pid
 local_watch="zfs_send $local_watch"
 
@@ -970,8 +1002,23 @@ while [ "$running" == 'true' ]; do
                 touch ${tmpdir}/${process}.complete
                 complete="$process $complete"
             else
-                touch ${tmpdir}/${process}.fail
-                running='false'
+                if [ "$process" == "zfs_send" ]; then
+                    # zfs send will report a warning and return error if a new child folder was created.  
+                    # Eliminate that condition as a failure
+                    cat $tmpdir/zfs_send.error | ${GREP} -q "WARNING: could not send.*does not exist" &&
+                        cat $tmpdir/zfs_send.error | ${GREP} -q "^incremental"
+                    if [ $? -eq 0 ]; then
+                        # We will ignore the error state, assuming we had a successful send
+                        touch ${tmpdir}/${process}.complete
+                        complete="$process $complete"
+                    else
+                        touch ${tmpdir}/${process}.fail
+                        running='false'
+                    fi
+                else
+                    touch ${tmpdir}/${process}.fail
+                    running='false'
+                fi
             fi
         fi
     done
