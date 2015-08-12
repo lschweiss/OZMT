@@ -39,13 +39,12 @@ fi
 snap_job () {
 
     local snaptype="$1"
-    shift 1
-    local job="$1"
+    local job="$2"
 
     local pool=
     local folder=
     local zfsfolder=`echo $job|${SED} 's,%,/,g'`
-    IFS='/'
+    local IFS='/'
     read -r pool folder <<< "$zfsfolder"
     unset IFS
     local jobfolder="/${pool}/zfs_tools/etc/snapshots/jobs"
@@ -111,8 +110,8 @@ snap_job () {
     now=`${DATE} +%F_%H:%M%z`
     stamp="${snaptype}_${now}"
     if [ "${keepcount:0:1}" != "x" ]; then
-        zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ ; result=$?
-        if [ "$result" -ne "0" ]; then
+        zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ 
+        if [ $? -ne 0 ]; then
             error "Failed to create snapshot ${recursive} ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
         else
             notice "Created snapshot: ${recursive} ${zfsfolder}@${stamp}"
