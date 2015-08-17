@@ -441,8 +441,10 @@ else
     # Determine if this is a clone
     origin=`zfs get -H origin $source_folder|${AWK} -F " " '{print $3}'`
     if [ "$origin" == '-' ]; then
-        first_snap_name=""
         first_snap_name="${source_folder}@origin"
+        if [ "$delete_snaps" != 'true' ]; then
+            receive_options="-F $receive_options"
+        fi
     else
         originfs=`echo $origin | ${AWK} -F "@" '{print $1}'`
         debug "${job_name}: Source file system is a clone.  Setting source to ${originfs}@origin"
@@ -454,9 +456,6 @@ else
         if [ "$increment_type" != '' ]; then
             if [ "$first_snap_name" == "${source_folder}@origin" ]; then
                 send_snaps="${last_snap}"
-                if [ "$delete_snaps" != 'true' ]; then
-                    receive_options="-F $receive_options"
-                fi
             else
                 send_snaps="${increment_type} ${first_snap_name} ${last_snap}"
             fi
