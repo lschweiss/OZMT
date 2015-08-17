@@ -70,6 +70,22 @@ ds_source=
 ignore_folder_list="$2"
 
 
+die () {
+
+    ##
+    # Resume scheduling new jobs
+    ##
+    
+    if [ "$keep_suspended" != 'true' ]; then
+        rm /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
+    else
+        debug "Keep suspended set.  Not resuming replication."
+    fi
+    
+    exit $1
+
+}
+
 ##
 # Gather information about the dataset
 ##
@@ -139,24 +155,70 @@ for target in $ds_targets; do
     check_source=`${SSH} root@$target_pool cat /$target_pool/zfs_tools/var/replication/source/$dataset`
     if [ "$check_source" != "$ds_source" ]; then
         error "Dataset source is not consistent at all targets.  Target $target reports source to be $check_source.  My source: $ds_source"
-        exit 1
+        die 1
     fi
 done
 
 ##
-# Suspend replication and wait for already running jobs to finish
+# Handle running jobs
 ##
 
-for job in $jobs; do
-    source $job
-    update_job_status "$job_status" "suspended" "true"
-done
-
 # Are there still jobs running?
+running_begin=
+running_end=
 for job in $jobs; do
     source $job
-        ls -1 "/$pool/zfs_tools/var/replication/jobs/running/${dataset}_to_${target_pool}:$(foldertojob $target_folder)_*"  &>/dev/null
-        if [ $? -eq 0 ]; then
+        running_jobs=`ls -1 /${source_pool}/zfs_tools/var/replication/jobs/running/ | ${GREP} "^${dataset_name}_to_${target_pool}"`
+        debug "Reported running jobs: $running_jobs"
+        job_dead='false'
+        info_folder=
+        zfs_send_pid=
+        for running_job in $running_jobs; do
+            set -x
+            # Test if the job is still running
+            if [ -f "${TMP}/replication/job_info.${running_job}" ]; then
+                info_folder=`cat "${TMP}/replication/job_info.${running_job}"`
+                if [ -f "${info_folder}/zfs_send.pid" ]; then
+                    zfs_send_pid=`cat "${info_folder}/zfs_send.pid"`
+                    case $os in 
+                        'SunOS') 
+                            check_zfs_send="/usr/bin/ptree $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}"
+                            ;;
+                        'Linux')
+                            check_zfs_send="pstree -a -n -A -l -p $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}"
+                            ;;
+                    esac
+                else
+                    job_dead='true'
+                fi
+                # Check if it's running
+                $check_zfs_send
+                if [ $? -ne 0 ]; then
+                    job_dead='true'
+                fi
+            fi
+
+            set +x
+ 
+            if [ "$job_dead" == 'true' ]; then
+                # Remove running status
+                notice "Replication job $running_job is defunct.  Removing running status."
+                rm /$pool/zfs_tools/var/replication/jobs/running/${running_job}
+                if [[ "$DEBUG" != 'true' &&  -d "$info_folder" ]]; then
+                    rm -rf "$info_folder"
+                    rm -f "${TMP}/replication/job_info.${running_job}"
+                    rm -f "${TMP}/replication/job_target_info.${running_job}"
+                fi
+            else
+                # Job is still running collect the relevent snapshots
+                # TODO:  In order to support multiple replication targets, this needs to collect snapshots for each job
+                source /$pool/zfs_tools/var/replication/jobs/running/${running_job}
+                running_begin="${previous_snapshot}"
+                running_end="${snapshot}"
+            fi
+        done # for running_job
+
+        if [[ "$wait_for_running" == 'true' && "$job_dead" == 'false' ]]; then
             debug "Waiting for running job(s) to complete for up to $reset_replication_timeout minutes"
             sleep 5
             wait_time=5
@@ -165,9 +227,9 @@ for job in $jobs; do
                 wait_minutes=$(( wait_time / 60 ))
                 if [ $wait_minutes -ge $reset_replication_timeout ]; then
                     error "Waited $reset_replication_timeout minutes for $dataset running jobs to complete.  Giving up."
-                    exit 1
+                    die 1
                 fi
-                ls -1 "/$pool/zfs_tools/var/replication/jobs/running/${dataset}_to_${target_pool}:$(foldertojob $target_folder)_*" &>/dev/null
+                ls -1 "/$pool/zfs_tools/var/replication/jobs/running/" | ${GREP} -q "^${dataset_name}_to_${target_pool}"
                 running=$?
                 if [ $running -eq 0 ]; then
                     sleep 5
@@ -249,7 +311,7 @@ fi
 parent_snap_count=`echo $parent_valid_snaps | ${WC} -w`
 if [ $parent_snap_count -eq 0 ]; then
     error "No replication snapshots exist in ${source_pool}/${source_folder} that are properly propigated through all children ZFS folders"
-    exit 1
+    die 1
 else
     debug "Found $parent_snap_count possible snapshot on the source ${source_pool}/${source_folder}"
 fi
@@ -272,7 +334,7 @@ for parent_snap in $parent_replication_snaps; do
                           ${GREP} "$zfs_replication_snapshot_name"`
             if [ "$target_snaps" == "" ]; then
                 error "Could not collect snapshots from ${target_pool}/${target_folder}"
-                exit 1
+                die 1
             fi
             target_parent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
             debug "Checking for snapshot \"$parent_snap_name\" on $ds_target"
@@ -308,7 +370,21 @@ done
 
 if [[ "$valid_snap" != 'true' || "$common_snap" == "" ]]; then
     error "Could not find a common snapshot to sync for dataset ${dataset}.   Replication will need to be restarted."
-    exit 1
+    die 1
+fi
+
+if [ "$running_end" != "" ]; then
+    if [ "$running_begin" == "$common_snap" ]; then
+        notice "Reset replication matched $common_snap on source and target."
+        notice "Selecting $running_end as reset snapshot to allow running job to complete."
+        common_snap="$running_end"
+        snap_grep="${running_begin}\|${common_snap}"
+    else
+        error "Running zfs send job does not have common beginning snapshot across dataset source and target"
+        die 1
+    fi
+else
+    snap_grep="${common_snap}"
 fi
 
 
@@ -318,7 +394,7 @@ fi
 
 # Destroy source snapshots
 for snap in $replication_snaps; do
-    echo "$snap" | ${GREP} -q "$common_snap"
+    echo "$snap" | ${GREP} -q "$snap_grep" 
     if [ $? -ne 0 ]; then
         debug "Destroying source snapshot $snap"
         if [ "$DEBUG" != 'true' ]; then
@@ -338,10 +414,10 @@ for ds_target in $ds_targets; do
                       ${GREP} "$zfs_replication_snapshot_name"`
         if [ "$target_snaps" == "" ]; then
             error "Could not collect snapshots from ${target_pool}/${target_folder}"
-            exit 1
+            die 1
         fi
         for snap in $target_snaps; do
-            echo "$snap" | ${GREP} -q "$common_snap"
+            echo "$snap" | ${GREP} -q "$snap_grep"
             if [ $? -ne 0 ]; then
                 debug "Destroying target snapshot $snap"
                 if [ "$DEBUG" != 'true' ]; then
@@ -352,39 +428,44 @@ for ds_target in $ds_targets; do
     fi
 done
 
+##
+# Reset job status
+##
+
+
+
 
 
 ##
 # Remove all completed, suspended, failed, pending and synced jobs
 ##
-stattypes="complete suspended failed pending synced"
+stat_types="complete suspended failed pending synced"
+
+debug "Cleaning job status for $dataset"
 
 for job in $jobs; do
+    debug "Checking job $job"    
     source $job
-    for stattype in $stattypes; do
+    for stat_type in $stat_types; do
         if [ "$DEBUG" != 'true' ]; then
-            rm /${pool}/zfs_tools/var/replication/jobs/${stattype}/${dataset}_to_${target_pool}\:$(foldertojob $target_folder)_* 2>/dev/null
+            rm -f /${pool}/zfs_tools/var/replication/jobs/${stat_type}/${dataset}_to_${target_pool}\:$(foldertojob $target_folder)_* 2>/dev/null
             if [ $? -eq 0 ]; then
-                debug "Removed ${stattype} status for ${dataset}_to_${target_pool}"
+                debug "Removed ${stat_type} status for ${dataset}_to_${target_pool}"
             else
-                debug "No ${stattype} status jobs for ${dataset}_to_${target_pool}"
+                debug "No ${stat_type} status jobs for ${dataset}_to_${target_pool}"
             fi
         else
-            debug "Would remove ${stattype} status jobs for ${dataset}_to_${target_pool}"
+            debug "Would remove ${stat_type} status jobs for ${dataset}_to_${target_pool}"
         fi
     done
-    # Reset the status to the latest snapshot
-    echo "previous_snapshot=\"$common_snap\"" > $job_status
+    if [ "$running_end" == "" ]; then
+        # Reset the status to the latest snapshot
+        echo "previous_snapshot=\"$common_snap\"" > $job_status
+    fi
 
 done
 
 
-##
-# Resume scheduling new jobs
-##
-
-rm /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
-
-
 notice "Replication successfully reset for dataset $dataset"
 
+die 0

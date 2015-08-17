@@ -154,11 +154,11 @@ fi
 
 endpoint_count=`zfs get -H -o value ${zfs_replication_endpoints_property} ${pool}/${folder}`
 
-#if [ $endpoint_count -eq 2 ]; then
-#    delete_snaps='-d'
-#else
-#    delete_snaps=''
-#fi
+if [ $endpoint_count -eq 2 ]; then
+    delete_snaps='-d'
+else
+    delete_snaps=''
+fi
 
 migrating='false'
 
@@ -213,17 +213,32 @@ esac
 
 mkdir -p ${TMP}/replication
 
+# TODO: Remove '-d' and '-r' option from zfs-send.sh
+# To do this each folder must be sent independently requiring an increase in effiency in job startup overhead.
+
 if [ "$previous_snapshot" == "" ]; then
+
     debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -n "${dataset_name}" -r ${delete_snaps} -M \
+    ../utils/zfs-send.sh -d -n "${dataset_name}" -r ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -l "${pool}/${folder}@${snapshot}" \
         -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
         -T "${TMP}/replication/job_target_info.$(${BASENAME} ${job_definition})"
     send_result=$?
 else
+    debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
+    debug "  zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}"
+    timeout 60s ssh ${target_pool} "zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}" 2>${TMP}/replication/zfs_rollback_$$  
+    if [ $? -ne 0 ]; then
+        error "Could not rollback target dataset to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${TMP}/replication/zfs_rollback_$$
+        failures=$(( failures + 1 ))
+        mv "${job_definition}" "${replication_dir}/failed/"
+        update_job_status "$job_status" failures $failures
+        exit 1
+    fi
+
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -n "${dataset_name}" -r -I ${delete_snaps} -M \
+    ../utils/zfs-send.sh -d -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
         -l "${pool}/${folder}@${snapshot}" \

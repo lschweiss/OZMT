@@ -147,7 +147,9 @@ job_runner () {
 
 # Launch job runner
 
-job_runner &
+if [ "$DEBUG" != 'true' ]; then
+    job_runner &
+fi
  
 
 # look for jobs to run
