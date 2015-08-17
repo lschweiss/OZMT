@@ -40,13 +40,14 @@ snap_job () {
 
     local snaptype="$1"
     local job="$2"
-
+    
     local pool=
     local folder=
     local zfsfolder=`echo $job|${SED} 's,%,/,g'`
-    local IFS='/'
-    read -r pool folder <<< "$zfsfolder"
-    unset IFS
+   
+    pool=`echo $zfsfolder | ${CUT} -d '/' -f 1`
+    folder=`echo $zfsfolder | ${CUT} -d '/' -f 2`
+
     local jobfolder="/${pool}/zfs_tools/etc/snapshots/jobs"
     local keepcount=`cat $jobfolder/$snaptype/$job`
     local replication=
@@ -60,6 +61,10 @@ snap_job () {
     local now=
     local stamp=
     local recursive=
+    local result=
+
+
+    mkdir -p ${TMP}
 
     # Test the folder exists
     debug "Pool: $pool   Folder: $folder   Job: $job  zfsfolder: $zfsfolder"
@@ -73,21 +78,21 @@ snap_job () {
     # Make sure we should snap this folder
     replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
     if [ "$replication" == "on" ]; then
+        debug "Replication: on"
         replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
         replication_folder_point=`zfs get -H -o source $zfs_replication_dataset_property ${zfsfolder}`
         if [ "$replication_folder_point" == "local" ]; then
             replication_folder="$folder"
         else
             replication_pool_folder=`echo "$replication_folder_point" | ${AWK} -F " " '{print $3}'`
-            IFS='/'
-            read -r junk replication_folder <<< "$replication_pool_folder"
-            unset IFS
+            replication_folder=`echo "$replication_pool_folder" | ${CUT} -d '/' -f 2`
         fi
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         if [ "$replication_source" == "${pool}:${replication_folder}" ]; then
             snap_this_folder='true'
         fi
     else
+        debug "Replication: off"
         snap_this_folder='true'
     fi
 
@@ -110,13 +115,13 @@ snap_job () {
     now=`${DATE} +%F_%H:%M%z`
     stamp="${snaptype}_${now}"
     if [ "${keepcount:0:1}" != "x" ]; then
-        zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2> ${TMP}/process_snap_$$ 
-        if [ $? -ne 0 ]; then
-            error "Failed to create snapshot ${recursive} ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
+        zfs snapshot ${recursive} ${zfsfolder}@${stamp} 2>${TMP}/process_snap_$$ ; result=$?
+        if [ $result -ne 0 ]; then
+            error "Failed to create snapshot, error code: {$result}, $$ ${recursive} ${zfsfolder}@${stamp}" ${TMP}/process_snap_$$
         else
             notice "Created snapshot: ${recursive} ${zfsfolder}@${stamp}"
+            rm ${TMP}/process_snap_$$
         fi
-        rm ${TMP}/process_snap_$$
     fi
     
 }
@@ -127,10 +132,14 @@ snap_job () {
 
 pools="$(pools)"
 
+debug "Pools: $pools"
+
 for pool in $pools; do
+    debug "Pool: $pool"
     jobfolder="/${pool}/zfs_tools/etc/snapshots/jobs"
     if [ -d $jobfolder/$snaptype ]; then
         jobs=`ls -1 $jobfolder/$snaptype`
+        debug "Snapshot jobs: $jobs"
         for job in $jobs; do
             debug "Running $snaptype snapshot jobs for $job"
             launch snap_job "$snaptype" "$job"
