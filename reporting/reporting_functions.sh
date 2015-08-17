@@ -156,6 +156,9 @@ process_message() {
         echo "${this_message}" >> $message_file
 
         if [[ "$#" -eq "5" && -f ${this_include_file} ]]; then
+            if [ -t 1 ]; then
+                cat ${this_include_file}
+            fi
             echo ${this_include_file} > ${message_file}_attachments
         fi
 

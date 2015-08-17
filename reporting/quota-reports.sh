@@ -343,7 +343,7 @@ for pool in $pools; do
 
         for job in $jobs; do
             quota_reports=0
-            launch quota_report "$job"
+            quota_report "$job"
         done
 
     fi
