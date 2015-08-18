@@ -95,17 +95,17 @@ activate_smb () {
     if [ $? -eq 0 ]; then
         debug "Activating pool: $smb_target"
         pool="$smb_target"
-        zfs_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+        zfs_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
     else
         # smb_target is a dataset 
         # Find the pool with this dataset
         debug "Locating dataset: $smb_target"
         for pool in $pools; do
             debug "Checking pool: $pool"
-            test_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+            test_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
             for zfs_folder in $test_folders; do
                 debug "    Checking folder: $zfs_folder"
-                dataset_name=`zfs get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
+                dataset_name=`zfs_cache get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
                 if [ "$dataset_name" == "$smb_target" ]; then
                     zfs_folders="$zfs_folder"
                     debug "  Found dataset folder: $zfs_folder"
@@ -126,8 +126,8 @@ activate_smb () {
 
     for zfs_folder in $zfs_folders; do
         debug "Configuring CIFS for $zfs_folder"
-        dataset_name=`zfs get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
-        server_name=`zfs get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
+        dataset_name=`zfs_cache get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
+        server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
         active_smb="${active_smb_dir}/${dataset_name}"
         if [ -f $active_smb ]; then
             smbd_pid=
@@ -198,7 +198,7 @@ activate_smb () {
             server_conf="$smb_conf_dir/smb_server.conf"
 
             # Build the smb_{dataset_name}.conf
-            cifs_template=`zfs get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder} 2>/dev/null`
+            cifs_template=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder}`
             if [ "$cifs_template" == "" ]; then
                 error "Missing cifs template definition for dataset $dataset_name"
                 continue
@@ -264,23 +264,23 @@ activate_smb () {
             rm -f /${smb_conf_dir}/smb_share*.conf
 
             # Construct shares config
-            shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
+            shared_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
             debug "Shared folders: $shared_folders"
             for shared_folder in $shared_folders; do
                 cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
-                mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
-                share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
-                smb_valid_users=`zfs get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
+                mountpoint=`zfs_cache get -H -o value mountpoint ${shared_folder}`
+                share_config=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
+                smb_valid_users=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
                 if [ "$smb_valid_users" == '-' ]; then
                     smb_valid_users=''
                 fi
-                smbd_path=`zfs get -H -o value -s local ${zfs_cifs_property}:smbd ${shared_folder}`
+                smbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:smbd ${shared_folder}`
                 if [ "$smbd_path" != '' ]; then
                     debug "Overriding default smbd for: $smbd_path"
                 else
                     smbd_path="$SMBD"
                 fi
-                nmbd_path=`zfs get -H -o value -s local ${zfs_cifs_property}:nmbd ${shared_folder}`
+                nmbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:nmbd ${shared_folder}`
                 if [ "$nmbd_path" != '' ]; then
                     debug "Overriding default smbd for: $smbd_path"
                 else
@@ -333,12 +333,12 @@ activate_smb () {
             
             # Collect vIPs
     
-            vip_count=`zfs get -H -o value $zfs_vip_property ${zfs_folder}`
+            vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder}`
             interfaces=
             x=1
             while [ $x -le $vip_count ]; do
                 ip=
-                vip_host=`zfs get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1`
+                vip_host=`zfs_cache get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1`
                 debug "vIP host: $vip_host"
                 # Get this in IP form
                 if valid_ip $vip_host; then

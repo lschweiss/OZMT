@@ -604,3 +604,29 @@ launch () {
         launch_pid=$!
     fi
 }
+
+
+
+# ZFS list/get with caching
+# Requires first argument to be 'get' or 'list'
+# Requires last argument to be pool/folder format
+zfs_cache () {
+    local first="$1"
+    local last="${!#}"
+    local pool=`echo $last | ${CUT} -d '/' -f 1`
+    local fixed_args=`echo "$*" | ${SED} -e 's/ /_/g' -e 's,/,%,g'`
+    local cache_path=
+    local cache_file=
+
+    cache_path="/${pool}/zfs_tools/var/cache/zfs_cache"
+    mkdir -p "${cache_path}"
+
+    cache_file="${cache_path}/zfs_${fixed_args}"
+ 
+    if [ -f "${cache_file}" ]; then
+        cat $cache_file
+    else
+        zfs $* | tee $cache_file
+    fi
+}
+

@@ -130,7 +130,7 @@ for pool in $pools; do
         mkdir -p /${pool}/zfs_tools/var/spool/snapshot
         # Collect snapshot data
         zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
-        zfs list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,$zfs_replication_endpoints_property ${pool} > \
+        zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,$zfs_replication_endpoints_property ${pool} > \
             /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 
 
         for snaptype in $snaptypes; do

@@ -76,6 +76,15 @@ setzfs () {
 }
 
 
+clear_cache () {
+    local pool="$1"
+
+    if [ -d "/${pool}/zfs_tools/var/cache/zfs_cache" ]; then
+        rm -rf "/${pool}/zfs_tools/var/cache/zfs_cache"
+    fi
+}
+
+
 setupreplication () {
 
     local target_maps=
@@ -686,6 +695,7 @@ setupzfs () {
     if [[ "$replication_parent" == "$zfspath" && "$replication_targets" == "" ]]; then
         # Previous replication job for this path has been removed.   Remove the job definitions.
         debug "Removing previous replication job ${simple_jobname}"
+        clear_cache $pool
         rm -rf ${replication_job_dir}/definitions/${simple_jobname}
         rm -f /${pool}/zfs_tools/var/replication/source/${simple_jobname}
         zfs get creation ${pool}/${zfspath} &> /dev/null
@@ -725,6 +735,8 @@ setupzfs () {
     ##
 
     if [ "$replication_targets" != "" ]; then
+
+        clear_cache $pool
 
         if [[ "$replication_parent" != '-' && "$replication_parent" != "${zfspath}" ]]; then
             warning "Replication is already defined on parent zfs dataset $replication_parent"
@@ -896,6 +908,7 @@ setupzfs () {
         notice "Setting reset on replication for $replication_dataset_name"
         echo $replication_dataset_name >> ${TMP}/setup_filesystem_reset_replication
 
+        clear_cache $pool
         
         replication_targets=`ls -1 ${replication_job_dir}/definitions/${parent_jobname}`
         for replication_target in $replication_targets; do
@@ -1049,6 +1062,7 @@ setupzfs () {
     
     if [ "$cifs" == 'true' ]; then
         debug "cifs: true"
+        clear_cache $pool
         if [ "$dataset_name" != '' ]; then
             server_name="${zfs_samba_server_prefix}${dataset_name}${zfs_samba_server_suffix}"
             mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
@@ -1091,6 +1105,7 @@ setupzfs () {
     # Setup CIFS share
 
     if [ "$cifs_share" != "" ]; then
+        clear_cache $pool
         cifs_parent_dataset=`zfs get -H -o value ${zfs_cifs_property} ${pool}/${zfspath}`
         if [ "$cifs_parent_dataset" == '-' ]; then
             error "CIFS must be enabled at the dataset level before defining shares"
@@ -1134,8 +1149,6 @@ setupzfs () {
         zfs inherit ${zfs_cifs_property}:share ${pool}/${zfspath}
     fi
 
-
-    
     
 }
 

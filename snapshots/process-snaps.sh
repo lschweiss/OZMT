@@ -76,11 +76,11 @@ snap_job () {
     fi
 
     # Make sure we should snap this folder
-    replication=`zfs get -H -o value $zfs_replication_property ${zfsfolder} 2>/dev/null`
+    replication=`zfs_cache get -H -o value $zfs_replication_property ${zfsfolder}`
     if [ "$replication" == "on" ]; then
         debug "Replication: on"
-        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
-        replication_folder_point=`zfs get -H -o source $zfs_replication_dataset_property ${zfsfolder}`
+        replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null`
+        replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${zfsfolder}`
         if [ "$replication_folder_point" == "local" ]; then
             replication_folder="$folder"
         else
