@@ -314,7 +314,7 @@ activate_smb () {
                         ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
                         ${SED} s,#SERVER_NAME#,${server_name},g | \
                         ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
-                        ${SED} s,#VALID_USERS#,${smb_valid_users},g > \
+                        ${SED} "s%#VALID_USERS#%${smb_valid_users}%g" > \
                         "${smb_conf_dir}/smb_share_${cifs_share}.conf"
 
                 else
