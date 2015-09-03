@@ -360,11 +360,14 @@ output_stats () {
         for log in ${logs} ; do
             if [ -f ${TMP}/$log ]; then
                 debug "Adding totals for ${TMP}/$log"
+		if [ "$DEBUG" == 'true' ]; then
+		    cat ${TMP}/$log
+		fi
                 this_num_files=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
                 if echo "$this_num_files"|grep -q "reg"; then
                     this_num_files=`echo "$this_num_files"|awk -F " " '{print $1}'`
                 fi
-                this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files transferred:" | ${AWK} -F ": " '{print $2}'`
+                this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "files transferred:" | ${AWK} -F ": " '{print $2}'`
                 this_total_file_size=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
                 this_total_transfered_size=`cat ${TMP}/$log | ${SED} 's/,//g' |${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
                 # Add to totals
@@ -481,33 +484,51 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
         basedir="${snapdir}/${snap}"
 
         # Collect lists
-        debug "${jobname}: Collecting lists - Directories:"
         if [ "$iflag" == "1" ]; then
+	    debug "${jobname}: Collecting lists - Remote Directories:"
             ssh $source_host find $basedir -mindepth $zval -maxdepth $zval -type d | \
-                ${GREP} -x -v ".snapshot" | \
-		${GREP} -x -v ".zfs" | \
-		${GREP} -v ".history" | \
-		${SED} "s,${basedir}/,," > \ 
+		${SED} "s,${basedir}/,," | \
+                ${GREP} -v "$.snapshot" | \
+		${GREP} -v "$.zfs" | \
+		${GREP} -v ".history" > \
 		${TMP}/sync_folder_list_$$
+	    if [ "$DEBUG" == 'true' ]; then
+               cat ${TMP}/sync_folder_list_$$
+            fi
         else
+	    debug "${jobname}: Collecting lists - Local Directories:"
+		set -x
             find $basedir -mindepth $zval -maxdepth $zval -type d | \
-                ${GREP} -x -v ".snapshot" | \
-		${GREP} -x -v ".zfs" | \
-		${GREP} -v ".history" | \
-		${SED} "s,${basedir}/,," > \
+		${SED} "s,${basedir}/,," | \
+                ${GREP} -v "$.snapshot" | \
+		${GREP} -v "$.zfs" | \
+		${GREP} -v ".history" > \
 		${TMP}/sync_folder_list_$$
+		set +x
+	    if [ "$DEBUG" == 'true' ]; then
+		echo "find $basedir -mindepth $zval -maxdepth $zval -type d | ${SED} "s,${basedir}/,," |  ${GREP} -v "$.snapshot" | ${GREP} -v "$.zfs" |  ${GREP} -v ".history" > ${TMP}/sync_folder_list_$$ "
+               cat ${TMP}/sync_folder_list_$$
+            fi
         fi
 
         # Add files that may be at a depth less than or equal to the test above
-        debug "${jobname}: Collecting lists - Files:"
 
         if [ "$iflag" == "1" ]; then
+            debug "${jobname}: Collecting lists - Remote Files:"
             ssh $source_host find $basedir -maxdepth $zval \! -type d | \
                 ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
+	    if [ "$DEBUG" == 'true' ]; then
+               cat ${TMP}/sync_folder_list_$$
+            fi
         else
+            debug "${jobname}: Collecting lists - Local Files:"
             find $basedir -maxdepth $zval \! -type d | \
                 ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
+	    if [ "$DEBUG" == 'true' ]; then
+               cat ${TMP}/sync_folder_list_$$
+            fi
         fi
+
 
         # Strip the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
 #	debug "${jobname}: Collecting lists - Trimming base directory:"
