@@ -497,14 +497,12 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
             fi
         else
 	    debug "${jobname}: Collecting lists - Local Directories:"
-		set -x
             find $basedir -mindepth $zval -maxdepth $zval -type d | \
 		${SED} "s,${basedir}/,," | \
                 ${GREP} -v "$.snapshot" | \
 		${GREP} -v "$.zfs" | \
 		${GREP} -v ".history" > \
 		${TMP}/sync_folder_list_$$
-		set +x
 	    if [ "$DEBUG" == 'true' ]; then
 		echo "find $basedir -mindepth $zval -maxdepth $zval -type d | ${SED} "s,${basedir}/,," |  ${GREP} -v "$.snapshot" | ${GREP} -v "$.zfs" |  ${GREP} -v ".history" > ${TMP}/sync_folder_list_$$ "
                cat ${TMP}/sync_folder_list_$$
