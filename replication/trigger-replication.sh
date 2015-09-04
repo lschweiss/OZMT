@@ -168,7 +168,7 @@ errorcode=$?
 case "$errorcode" in 
     '124')
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host timed out after 1m.  Setting job to failed."
-        update_job_status "${job_status}" "failed" "+1"
+        update_job_status "${job_status}" "failures" "+1"
         exit 1
         ;;
     '0')  
@@ -181,7 +181,7 @@ case "$errorcode" in
         ;;
     *)  
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_errror_$$
-        update_job_status "${job_status}" "failed" "+1"
+        update_job_status "${job_status}" "failures" "+1"
         exit 1
         ;;
 esac
