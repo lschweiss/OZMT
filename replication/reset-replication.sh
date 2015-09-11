@@ -275,7 +275,7 @@ rm ${TMP}/reset_replication_child_folders_$$
 # Gather a list of replication snapshots from the source zfs folder. 
 # Reverse sort them so we work from newest to oldest.
 replication_snaps=`zfs list -H -r -t snapshot -o name ${pool}/${source_folder} | \
-                   ${GREP} "$zfs_replication_snapshot_name" | \
+                   ${GREP} "@$zfs_replication_snapshot_name" | \
                    ${SORT} -r`
 parent_replication_snaps=`printf '%s\n' "$replication_snaps" | \
                            ${GREP} "^${source_pool}/${source_folder}@"`
@@ -331,7 +331,7 @@ for parent_snap in $parent_replication_snaps; do
             # Collect snapshots
             debug "Collecting snapshots from ${target_pool}/${target_folder}"
             target_snaps=`ssh $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null | \
-                          ${GREP} "$zfs_replication_snapshot_name"`
+                          ${GREP} "@$zfs_replication_snapshot_name"`
             if [ "$target_snaps" == "" ]; then
                 error "Could not collect snapshots from ${target_pool}/${target_folder}"
                 die 1
@@ -411,7 +411,7 @@ for ds_target in $ds_targets; do
         # Collect snapshots
         debug "Collecting snapshots from ${target_pool}/${target_folder}"
         target_snaps=`ssh $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null |
-                      ${GREP} "$zfs_replication_snapshot_name"`
+                      ${GREP} "@$zfs_replication_snapshot_name"`
         if [ "$target_snaps" == "" ]; then
             error "Could not collect snapshots from ${target_pool}/${target_folder}"
             die 1
