@@ -599,6 +599,7 @@ local_source () {
 launch () {
     if [[ -t 1 && "$BACKGROUND" != "true" ]]; then
         "$@"
+        launch_pid=
     else
         "$@" &
         launch_pid=$!

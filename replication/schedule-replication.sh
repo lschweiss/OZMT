@@ -125,32 +125,6 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 pools="$(pools)"
 pids=
 
-job_runner () {
-    if [ -t 1 ]; then
-        sleep 10
-    else
-        sleep 5
-    fi
-    count=0
-    if [ -t 1 ]; then
-        limit=1
-    else 
-        limit=10
-    fi
-    while [ $count -le $limit ]; do
-        launch ./replication-job-runner.sh
-        count=$(( count + 1 ))
-        sleep 5
-    done
-}
-
-
-# Launch job runner
-
-if [ "$DEBUG" != 'true' ]; then
-    job_runner &
-fi
- 
 
 # look for jobs to run
 for pool in $pools; do
@@ -165,6 +139,7 @@ for pool in $pools; do
             fi
             continue
         fi
+        touch "${replication_job_dir}/schedule_in_progress"
         folder_defs=`ls -1 "$replication_def_dir"|sort`
         for folder_def in $folder_defs; do
             debug "Replication job for $folder_def found"
@@ -192,7 +167,14 @@ for pool in $pools; do
                 if [ "$active" != "${pool}:${folder}" ]; then
                     # This folder is receiving.
                     debug "is receiving."
-                    continue
+                    # Test if $frequency has passed since last cleanup run
+
+
+
+
+
+
+
                 fi
 
                 # Test if $frequency has passed since last run
@@ -287,15 +269,20 @@ for pool in $pools; do
                     
             done # for target_def
         done # for folder_def
-        
-   
+
     fi # if [ -d "$replication_def_dir" ]
+    
 done # for pool 
 
 # Wait for trigger_replication.sh jobs to completed
 for pid in $pids; do
     debug "Waiting for trigger_replication.sh pid $pid to complete"
     wait $pid
+done
+
+for pool in ${pools}; do
+    replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"
+    rm -f "${replication_job_dir}/schedule_in_progress"
 done
 
 

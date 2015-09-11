@@ -272,6 +272,10 @@ if [ "$zfs_cifs_default_share_template" == "" ]; then
     zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
 fi
 
+if [ "$zfs_replication_job_runner_cycle" == "" ]; then
+    zfs_replication_job_runner_cycle="60"
+fi
+
 if [ "$zfs_replication_failure_limit" == "" ]; then
     zfs_replication_failure_limit="30m"
 fi
