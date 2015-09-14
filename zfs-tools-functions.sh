@@ -219,6 +219,53 @@ islocal () {
 
 }
 
+
+####
+#
+# Deal with broken SunSSHd server on Illumos
+#
+# Note: shortly after writing this function it was found that the bug is related to 
+# MaxStartups being set to 10 in /etc/ssh/sshd_config
+# This is supposed to only restrict unauthenticated connections. However is also
+# restricting authenticated connections.   A simple workaround is to increse this to 
+# 20 or more.
+#
+####
+
+ssh_wrap () {
+
+    local result=255
+    local tries=0
+
+    rm -f ${TMP}/ssh_wrap_$$
+
+    while [[ $tries -lt 20 && $result -eq 255 ]]; do
+
+        "$@" 2> ${TMP}/ssh_wrap_$$
+        result=$?
+
+        if [ $result -ne 255 ]; then
+            if [ -f ${TMP}/ssh_wrap_$$ ]; then
+                >&2 cat ${TMP}/ssh_wrap_$$
+            fi
+        else
+            sleep 20
+        fi
+
+        tries=$(( tries + 1 ))
+
+    done
+
+    if [ "$DEBUG" != 'true' ]; then
+        rm -f ${TMP}/ssh_wrap_$$
+    else
+        echo "Tries: $tries"
+    fi
+
+    return $result
+
+}
+
 ####
 #
 # Pool and file system functions
@@ -468,8 +515,6 @@ init_lock () {
 
 wait_for_lock() {
 
-    #TODO: clean up the sleep times and time accounting
-
     local lockfile="${1}.lock"
     local unlockfile="${1}.unlock"
 
@@ -490,7 +535,7 @@ wait_for_lock() {
         debug "Renamed unlock file to new format: $unlockfile"
     fi
 
-    local waittime=0
+    local starttime=$SECONDS
 
     # This attempts to eliminate race conditions.  However, in the case where a lock
     # exists and the process is dead, two scripts could create a race when removing
@@ -507,16 +552,16 @@ wait_for_lock() {
         else
             lockpid=`cat "$lockfile"`
             # check if it is running
+            # TODO: Make this work on things beside Illumos
             if [ -e /proc/$lockpid ]; then
+                # TODO: Don't use ps, it can be to heavy when the system is load stressed.
                 ps awwx |${GREP} -v grep | ${GREP} -q "$lockpid "
                 result=$?
                 if [ "$result" -eq "0" ]; then
                     # Process id exists.  Sleep 1/2 second and try again.
                     sleep 0.5
-                    (( waittime += 1 ))
-                    if [ "$waittime" -ge "$expire" ]; then
-                        error "Previous run of $0 (PID $lockpid) appears to be hung.  Giving up."
-                        error "Please delete ${lockfile} and touch ${unlockfile}"
+                    if [ $(( $SECONDS - $starttime )) -ge $expire ]; then
+                        warning "Previous run of $0 (PID $lockpid) appears to be hung.  Giving up. To manually clear, delete ${lockfile} and touch ${unlockfile}"
                         return 1
                     fi
                 else
