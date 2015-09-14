@@ -20,7 +20,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
+
 . ../zfs-tools-init.sh
 
 
@@ -28,6 +36,7 @@ show_usage () {
     echo
     echo "Usage: $0 {interface}"
     echo "  {interface}   Name of the network interface to activate.  Must be a physical interface or defined in \$interface_definition"
+    echo "                \$interface_definition currently set to: $interface_definition"
     echo ""
     exit 1
 }

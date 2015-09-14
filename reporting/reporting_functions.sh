@@ -75,6 +75,7 @@ process_message() {
     local importance=
     local messagefile=
     local send_options=
+    local basename=
 
     # Inputs:
     # $1 - The message.  Should be quoted.
@@ -88,6 +89,12 @@ process_message() {
     local this_report_level="$3"
     local this_import_level="$4"
     local this_include_file="$5"
+
+    if [ "$0" == '-bash' ]; then
+        basename="/bin/bash"
+    else
+        basename=`basename $0`
+    fi
 
     mkdir -p "${TMP}/reporting"
 
@@ -115,16 +122,16 @@ process_message() {
             source $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
             # Set the color
             case "$2" in 
-                '0') echo -n "${noreport}$(color bd white)" ;;
-                '1') echo -n "${noreport}$(color bd blue)" ;;
-                '2') echo -n "${noreport}$(color bd yellow)" ;;
-                '3') echo -n "${noreport}$(color bd red)" ;;
+                '0') echo -n "${noreport}$(color bd white)" >&2 ;;
+                '1') echo -n "${noreport}$(color bd blue)" >&2 ;;
+                '2') echo -n "${noreport}$(color bd yellow)" >&2 ;;
+                '3') echo -n "${noreport}$(color bd red)" >&2 ;;
             esac 
             # Display the message
             if [ "${this_message_level}" -gt 1 ]; then
-                echo "$(basename $0) ${this_message}$(color off)" 1>&2
+                echo "${basename} ${this_message}$(color off)" >&2
             else
-                echo "$(basename $0) ${this_message}$(color off)"
+                echo "${basename} ${this_message}$(color off)" >&2
             fi
 
         fi
@@ -146,10 +153,10 @@ process_message() {
         # Send the email report now
         message_file=${TMP}/reporting/process_message_$$
         case "${this_message_level}" in
-            '0') this_subject="DEBUG: $(basename $0) ${report_name} $HOSTNAME" ;;
-            '1') this_subject="NOTICE: $(basename $0) ${report_name} $HOSTNAME" ;;
-            '2') this_subject="WARNING: $(basename $0) ${report_name} $HOSTNAME" ;;
-            '3') this_subject="ERROR: $(basename $0) ${report_name} $HOSTNAME" ;;
+            '0') this_subject="DEBUG: ${basename} ${report_name} $HOSTNAME" ;;
+            '1') this_subject="NOTICE: ${basename} ${report_name} $HOSTNAME" ;;
+            '2') this_subject="WARNING: ${basename} ${report_name} $HOSTNAME" ;;
+            '3') this_subject="ERROR: ${basename} ${report_name} $HOSTNAME" ;;
         esac
 
         echo >> $message_file
@@ -157,7 +164,7 @@ process_message() {
 
         if [[ "$#" -eq "5" && -f ${this_include_file} ]]; then
             if [ -t 1 ]; then
-                cat ${this_include_file}
+                cat ${this_include_file} >&2
             fi
             echo ${this_include_file} > ${message_file}_attachments
         fi
@@ -196,7 +203,7 @@ process_message() {
         if [ "$DEBUG" != "true" ]; then
             echo "${this_message}" >> "${report_spool}/${report_name}/report_pending"
             if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
-                this_file=$(basename ${this_include_file})
+                this_file="$(basename "${this_include_file}")"
                 cp ${this_include_file} "${report_spool}/${report_name}/attach/report_file_$$.txt"
                 echo "${report_spool}/${report_name}/attach/report_file_$$.txt" >> "${report_spool}/${report_name}/report_attachments"
             fi

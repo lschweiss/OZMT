@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012  Chip Schweiss
+# Copyright (C) 2012 - 2015  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,7 +18,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
+
+
 . ../zfs-tools-init.sh
 
 if [ "x$replication_logfile" != "x" ]; then

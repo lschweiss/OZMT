@@ -570,7 +570,7 @@ wait_for_lock() {
                     touch "$unlockfile"
                     #Reduce the odds of a race condition
                     sleep 0.2
-                fi
+               fi
             else
                 debug "Lock file exists, however the process is dead."
                 debug "Claiming previous lock file."
@@ -656,6 +656,10 @@ launch () {
 # ZFS list/get with caching
 # Requires first argument to be 'get' or 'list'
 # Requires last argument to be pool/folder format
+
+# First line of the cache file stores the undoctored command.  It is used to rebuild the cache in the background.
+
+
 zfs_cache () {
     local first="$1"
     local last="${!#}"
@@ -663,6 +667,9 @@ zfs_cache () {
     local fixed_args=`echo "$*" | ${SED} -e 's/ /_/g' -e 's,/,%,g'`
     local cache_path=
     local cache_file=
+    local use_cache='false'
+    local zfs_command=
+    local result=0
 
     cache_path="/${pool}/zfs_tools/var/cache/zfs_cache"
     mkdir -p "${cache_path}"
@@ -670,9 +677,37 @@ zfs_cache () {
     cache_file="${cache_path}/zfs_${fixed_args}"
  
     if [ -f "${cache_file}" ]; then
-        cat $cache_file
-    else
-        zfs $* | tee $cache_file
+        if [ -f "${cache_path}/.cache_stale" ]; then
+            if [ "${cache_path}/.cache_stale" -ot "${cache_file}" ]; then
+                # Cache has been updated since being declared stale.
+                use_cache='true'
+            else
+                # Cache is stale, re-run the command
+                debug "Cache is stale. Updating."
+                use_cache='false'
+            fi              
+        else
+            use_cache='true'
+        fi
     fi
+
+    if [ "$use_cache" == 'true' ]; then
+        zfs_command=`head -1 $cache_file`
+        if [ "$zfs_command" != "zfs $*" ]; then
+            # Return the cache and update cache file to include the command
+            cat $cache_file
+            debug "Updating cache to new format.  File: $cache_file "
+            sed -i '1s,^,zfs $*\n,' $cache_file
+        else
+            debug "Using cache file"
+            tail -n+2 $cache_file
+        fi
+    else
+        echo "zfs $*" > $cache_file
+        zfs $* | tee -a $cache_file
+        result=$?
+    fi
+
+    return $result
 }
 

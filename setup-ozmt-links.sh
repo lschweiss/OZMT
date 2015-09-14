@@ -1,0 +1,60 @@
+#! /bin/bash
+
+#
+# Chip Schweiss - chip.schweiss@wustl.edu
+#
+# Copyright (C) 2012-2015  Chip Schweiss
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+
+cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+. zfs-tools-init.sh
+
+
+# Create symlinks in /usr/sbin for ozmt tools
+
+rm -f /usr/sbin/ozmt-*
+
+ln -s ${TOOLS_ROOT}/pools_filesystem/setup-filesystem.sh /usr/sbin/ozmt-setup-filesystem.sh
+
+ln -s ${TOOLS_ROOT}/rsync/sync_snap_folder.sh /usr/sbin/ozmt-sync-snap-folder.sh
+
+ln -s ${TOOLS_ROOT}/utils/fast-zpool-export.sh /usr/sbin/ozmt-fast-zpool-export.sh
+ln -s ${TOOLS_ROOT}/utils/fast-zpool-import.sh /usr/sbin/ozmt-fast-zpool-import.sh
+ln -s ${TOOLS_ROOT}/utils/zpool-cache-detach.sh /usr/sbin/ozmt-zpool-cache-detach.sh
+ln -s ${TOOLS_ROOT}/utils/zpool-cache-attach.sh /usr/sbin/ozmt-zpool-cache-attach.sh
+ln -s ${TOOLS_ROOT}/utils/zfs-cache-refresh.sh /usr/sbin/ozmt-zfs-cache-refresh.sh
+
+ln -s ${TOOLS_ROOT}/samba/samba-trigger.sh /usr/sbin/ozmt-samba-trigger.sh
+
+ln -s ${TOOLS_ROOT}/vip/vip-trigger.sh /usr/sbin/ozmt-vip-trigger.sh
+
+ln -s ${TOOLS_ROOT}/replication/schedule-replication.sh /usr/sbin/ozmt-schedule-replication.sh
+ln -s ${TOOLS_ROOT}/replication/reset-replication.sh /usr/sbin/ozmt-reset-replication.sh
+ln -s ${TOOLS_ROOT}/replication/status-sync.sh /usr/sbin/ozmt-status-sync.sh
+ln -s ${TOOLS_ROOT}/replication/trigger-replication.sh /usr/sbin/ozmt-trigger-replication.sh
+
+ln -s ${TOOLS_ROOT}/network/enable-network.sh /usr/sbin/ozmt-enable-network.sh
+ln -s ${TOOLS_ROOT}/network/disable-network.sh /usr/sbin/ozmt-disable-network.sh
+
+ln -s ${TOOLS_ROOT}/3rdparty/tools/arcstat.pl /usr/sbin/ozmt-arcstat.pl
+ln -s ${TOOLS_ROOT}/3rdparty/tools/nfssvrtop /usr/sbin/ozmt-nfssvrtop
+ln -s ${TOOLS_ROOT}/3rdparty/tools/zilstat /usr/sbin/ozmt-zilstat
+
+ln -s ${TOOLS_ROOT}/3rdparty/setLEDs.sh /usr/sbin/ozmt-setLEDs.sh
+
+
+

@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012  Chip Schweiss
+# Copyright (C) 2012 - 2015  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,94 +18,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-####
-####
-##
-## Data file reference
-##
-####
-####
 
-# Job definition file:
-# /${pool}/zfs_tools/var/replication/jobs/definitions/${simple_jobname}/${target_pool}:$(foldertojob $target_folder)
-#
-# target=
-# The target definition.
-# {pool}:{folder}
-#
-# job_status=
-# The full path to the job status file.  Defined as:
-# /${pool}/zfs_tools/var/replication/jobs/status/${simple_jobname}#${target_pool}:$(foldertojob $target_folder)\"
-#
-# target_pool=
-# The target pool.
-# {pool}
-#
-# target_folder=
-# The target folder.
-# {folder}
-#
-# dataset_name=
-# Common name of this dataset on at all replication points.
-# Provided by filesystem configuration.
-#
-# pool=
-# The source pool
-#
-# folder=
-# The source folder
-#
-# source_tracker=
-# Full path the the source tracking file that is synced between all replication targets.
-# /${pool}/zfs_tools/var/replication/source/${dataset_name}
-#
-# replication_count=
-# Number of replication paths defined for this dataset
-#
-# mode=
-# Mode of transport
-# L     local replication within the same pool
-# m     mbuffer transport
-# s     ssh tunnel
-# b     bbcp transport
-#
-# options=
-# l     lz4 compress the stream
-# g     gzip compress the stream
-# o     encrypt the stream with openssl
-#
-# frequency=
-# ####{unit}
-# Acceptable units are:
-# m     minutes
-# h     hours
-# d     days
-# w     weeks
-#
-# failure_limit=
-# Failures Limit before halting replication.
-# Can be a positive integer or time in the same form as Frequency
-# Defaults to 5, unless override specified in zfs-config with 'zfs_replication_failure_limit'
-#
-#
-# Job status file:
-# Located by job_status variable from above
-#
-# last_run=
-# Date and time of last trigger for this job
-#     date +"%F %H:%M:%S%z"
-#
-# suspended=
-# Set to 'true' if the job is suspended and will no longer be secheduled.
-#
-# failures=
-# Count of the number of failures since last successful sync.
-#
-# queued_jobs=
-# The number of queued replication jobs for this dataset.
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 
-
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
 if [ "x$replication_logfile" != "x" ]; then
@@ -142,6 +63,8 @@ for pool in $pools; do
         touch "${replication_job_dir}/schedule_in_progress"
         folder_defs=`ls -1 "$replication_def_dir"|sort`
         for folder_def in $folder_defs; do
+            active=
+            source_tracker=
             debug "Replication job for $folder_def found"
             target_defs=`ls -1 "${replication_def_dir}/${folder_def}"|sort`
             for target_def in $target_defs; do
@@ -153,14 +76,20 @@ for pool in $pools; do
                     source "${job_status}"
                 fi 
 
+
                 # Test if this is the active dataset
+                if [ ! -f "$source_tracker" ]; then
+                    warning "Source tracker not defined for dataset $dataset_name"
+                    continue
+                fi
+
                 active=`cat "$source_tracker" 2>/dev/null| head -1`
                 if [ "$active" == "" ]; then
                     warning "active copy not set in $source_tracker"
                     continue
                 fi
                 if [ "$active" == "migrating" ]; then
-                    # Pool is being migrated.  Don't schedule new jobs.
+                    # Dataset is being migrated.  Don't schedule new jobs.
                     debug "is being migrated"
                     continue
                 fi
@@ -173,8 +102,8 @@ for pool in $pools; do
 
 
 
-
-
+                    
+                    continue
                 fi
 
                 # Test if $frequency has passed since last run

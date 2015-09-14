@@ -135,6 +135,23 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 
 while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
 
+    job_runner_lock_dir="/var/zfs_tools/replication/job-runner"
+    job_runner_lock="${job_runner_lock_dir}/job-runner"
+
+    mkdir -p $job_runner_lock_dir
+
+    if [ ! -f ${job_runner_lock} ]; then
+        touch ${job_runner_lock}
+        init_lock ${job_runner_lock}
+    fi
+
+    wait_for_lock ${job_runner_lock} $zfs_replication_job_runner_cycle
+
+    if [ $? -ne 0 ]; then
+        error "replication_job_runner: failed to get lock in $zfs_replication_job_runner_cycle seconds, aborting"
+        exit 1
+    fi
+
     # Parse failed jobs
     
     for pool in $pools; do
@@ -299,3 +316,5 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     sleep 5
     
 done # Less than $zfs_replication_job_runner_cycle
+
+release_lock ${job_runner_lock}

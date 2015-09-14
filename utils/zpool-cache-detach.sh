@@ -22,7 +22,15 @@
 # /{pool}/zfs_tools/etc/cache-disks 
 
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
+
+
 . ../zfs-tools-init.sh
 
 logfile="$default_logfile"

@@ -18,95 +18,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-####
-####
-##
-## Data file reference
-##
-####
-####
 
-# Job definition file:
-# /${pool}/zfs_tools/var/replication/jobs/definitions/${simple_jobname}/${target_pool}:$(foldertojob $target_folder)
-#
-# target=
-# The target definition.  
-# {pool}:{folder}
-# 
-# job_status=
-# The full path to the job status file.  Defined as:
-# /${pool}/zfs_tools/var/replication/jobs/status/${simple_jobname}#${target_pool}:$(foldertojob $target_folder)\" 
-# 
-# target_pool=
-# The target pool.
-# {pool}
-# 
-# target_folder=
-# The target folder.
-# {folder}
-# 
-# dataset_name=
-# Common name of this dataset on at all replication points.   
-# Provided by filesystem configuration.
-# 
-# pool=
-# The source pool
-# 
-# folder=
-# The source folder
-# 
-# source_tracker=
-# Full path the the source tracking file that is synced between all replication targets.
-# /${pool}/zfs_tools/var/replication/source/${dataset_name}
-# 
-# replication_count=
-# Number of replication paths defined for this dataset
-# 
-# mode=
-# Mode of transport
-# L     local replication within the same pool
-# m     mbuffer transport
-# s     ssh tunnel
-# b     bbcp transport
-# 
-# options=
-# l     lz4 compress the stream
-# g     gzip compress the stream
-# o     encrypt the stream with openssl
-# 
-# frequency=
-# ####{unit}
-# Acceptable units are:
-# m     minutes
-# h     hours
-# d     days
-# w     weeks
-# 
-# failure_limit=
-# Failures Limit before halting replication.
-# Can be a positive integer or time in the same form as Frequency
-# Defaults to 5, unless override specified in zfs-config with 'zfs_replication_failure_limit'
-# 
-# 
-# Job status file:
-# Located by job_status variable from above
-# 
-# last_run=
-# Date and time of last trigger for this job
-#     date +"%F %H:%M:%S%z"
-# 
-# suspended=
-# Set to 'true' if the job is suspended and will no longer be secheduled.
-# 
-# failures=
-# Count of the number of failures since last successful sync.
-# 
-# queued_jobs=
-# The number of queued replication jobs for this dataset.
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 
-
-
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source ../zfs-tools-init.sh
 
 if [ "x$replication_logfile" != "x" ]; then
