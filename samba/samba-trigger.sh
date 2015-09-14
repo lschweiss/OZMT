@@ -68,10 +68,13 @@ activate_smb () {
     local active_smb=
     local smbd_pid=
     local nmbd_pid=
+    local winbindd_pid=
     local smbd_bin=
     local nmbd_bin=
+    local winbindd_bin=
     local smbd_running=
     local nmbd_running=
+    local winbindd_running=
     local smb_conf_dir=
     local server_conf=
     local cifs_template=
@@ -157,9 +160,12 @@ activate_smb () {
             debug "smbd.pid = $smbd_pid"
             debug "nmbd.bin = $nmbd_bin"
             debug "nmbd.pid = $nmbd_pid"
+            debug "winbindd.bin = $winbindd_bin"
+            debug "winbindd.pid = $winbindd_pid"
 
             case $os in 
                 SunOS)
+                    # smbd
                     if [[ -f /proc/${smbd_pid}/path/a.out && "$smbd_bin" == `ls -l /proc/${smbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                         smbd_running='true'
                     else
@@ -167,6 +173,7 @@ activate_smb () {
                         smbd_running='false'
                         rm $active_smb 2> /dev/null
                     fi
+                    # nmbd
                     if [[ -f /proc/${nmbd_pid}/path/a.out && "$nmbd_bin" == `ls -l /proc/${nmbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                         if [ "$smbd_running" == 'false' ]; then
                             warning "Samba nmbd server running, but smbd is defunt.  Killing nmbd and restarting both."
@@ -178,6 +185,22 @@ activate_smb () {
                     else
                         warning "Samba nmbd server for $dataset_name is defunct.   Restarting server."
                         nmbd_running='false'
+                        if [ "$smbd_running" == 'false' ]; then
+                            rm $active_smb 2> /dev/null
+                        fi
+                    fi
+                    #winbindd
+                    if [[ -f /proc/${winbindd_pid}/path/a.out && "$winbindd_bin" == `ls -l /proc/${winbindd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
+                        if [ "$smbd_running" == 'false' ]; then
+                            warning "Samba winbindd server running, but smbd is defunt.  Killing winbindd and restarting both."
+                            kill $winbindd_pid
+                            winbindd_running='false'
+                        else
+                            winbindd_running='true'
+                        fi
+                    else
+                        warning "Samba winbindd server for $dataset_name is defunct.   Restarting server."
+                        winbindd_running='false'
                         if [ "$smbd_running" == 'false' ]; then
                             rm $active_smb 2> /dev/null
                         fi
@@ -194,19 +217,20 @@ activate_smb () {
             # no active record for this dataset
             smbd_running='false'
             nmbd_running='false'
+            winbindd_running='false'
         fi
 
         ##
-        # Start the smbd and nmbd daemon
+        # Start the smbd, nmbd and winbindd daemon
         ##
 
-        if [[ "$smbd_running" == 'false' || "$nmbd_running" == 'false' ]]; then
+        if [[ "$smbd_running" == 'false' || "$nmbd_running" == 'false' || "$winbindd_running" == 'false' ]]; then
             # Start samba for this dataset
             smb_conf_dir="/${pool}/zfs_tools/etc/samba/$dataset_name"
             server_conf="$smb_conf_dir/smb_server.conf"
 
             # Build the smb_{dataset_name}.conf
-            cifs_template=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder}`
+            cifs_template=`zfs get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder}`
             if [ "$cifs_template" == "" ]; then
                 error "Missing cifs template definition for dataset $dataset_name"
                 continue
@@ -272,27 +296,36 @@ activate_smb () {
             rm -f /${smb_conf_dir}/smb_share*.conf
 
             # Construct shares config
-            shared_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
+            shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
             debug "Shared folders: $shared_folders"
             for shared_folder in $shared_folders; do
                 cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
                 mountpoint=`zfs_cache get -H -o value mountpoint ${shared_folder}`
-                share_config=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
-                smb_valid_users=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
+                share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
+                smb_valid_users=`zfs get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
                 if [ "$smb_valid_users" == '-' ]; then
                     smb_valid_users=''
                 fi
-                smbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:smbd ${shared_folder}`
+                # smbd
+                smbd_path=`zfs get -H -o value -s local ${zfs_cifs_property}:smbd ${shared_folder}`
                 if [ "$smbd_path" != '' ]; then
                     debug "Overriding default smbd for: $smbd_path"
                 else
                     smbd_path="$SMBD"
                 fi
-                nmbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:nmbd ${shared_folder}`
+                # nmbd
+                nmbd_path=`zfs get -H -o value -s local ${zfs_cifs_property}:nmbd ${shared_folder}`
                 if [ "$nmbd_path" != '' ]; then
-                    debug "Overriding default smbd for: $smbd_path"
+                    debug "Overriding default nmbd for: $smbd_path"
                 else
                     nmbd_path="$NMBD"
+                fi
+                # winbindd
+                winbindd_path=`zfs get -H -o value -s local ${zfs_cifs_property}:winbindd ${shared_folder}`
+                if [ "$winbindd_path" != '' ]; then
+                    debug "Overriding default winbindd for: $winbindd_path"
+                else
+                    winbindd_path="$WINBINDD"
                 fi
             
                 debug "Adding share $cifs_share to $server_name for $mountpoint"
@@ -390,13 +423,14 @@ activate_smb () {
                         
 
         ##
-        # Start smbd, nmbd
+        # Start smbd, nmbd, and winbindd
         ##
 
         mkdir -p /var/zfs_tools/samba/${dataset_name}/run
 
         smb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/smbd.pid"
         nmb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/nmbd.pid"
+        winbindd_pidfile="/var/zfs_tools/samba/${dataset_name}/run/winbindd.pid"
 
         smb_conf="${smb_conf_dir}/smb.conf"
         log_dir="/${pool}/zfs_tools/var/samba/${dataset_name}/log" 
@@ -413,18 +447,24 @@ activate_smb () {
             smbd_running='true'
             update_job_status "$active_smb" "smbd_bin" "${smbd_path}"
             update_job_status "$active_smb" "pool" "$pool" 
-            #update_job_status "$active_smb" "smbd_pid" "$smbd_pid"
-            
         fi
 
         if [ "$nmbd_running" == 'false' ]; then
             debug "Starting nmbd"
-            rm -f $nmb_pidfile 2> /dev/null
+            rm -f $nmbd_pidfile 2> /dev/null
             ${nmbd_path} -D -s $smb_conf -l $log_dir &
             nmbd_pid=`get_pid $nmb_pidfile $zfs_samba_server_startup_timeout`
             nmbd_running='true'
             update_job_status "$active_smb" "nmbd_bin" "${nmbd_path}"
-            #update_job_status "$active_smb" "nmbd_pid" "$nmbd_pid"
+        fi
+
+        if [ "$winbindd_running" == 'false' ]; then
+            debug "Starting winbindd"
+            rm -f $winbindd_pidfile 2> /dev/null
+            ${winbindd_path} -D -s $smb_conf -l $log_dir &
+            winbindd_pid=`get_pid $nmb_pidfile $zfs_samba_server_startup_timeout`
+            winbindd_running='true'
+            update_job_status "$active_smb" "winbindd_bin" "${winbindd_path}"
         fi
 
     done 
@@ -439,6 +479,8 @@ deactivate_smb () {
     local smbd_bin=
     local nmbd_pid=
     local nmbd_bin=
+    local winbindd_pid=
+    local winbindd_bin=
 
     local pool=
     
@@ -449,21 +491,28 @@ deactivate_smb () {
 
     source ${active_smb_dir}/${dataset_name}
 
-    # Check if smbd and nmbd is running
+    # Check if smbd, nmbd and winbindd is running
     if [ -f "/var/zfs_tools/samba/${dataset_name}/run/smbd.pid" ]; then
         smbd_pid=`cat /var/zfs_tools/samba/${dataset_name}/run/smbd.pid`
     fi
     if [ -f "/var/zfs_tools/samba/${dataset_name}/run/nmbd.pid" ]; then
         nmbd_pid=`cat /var/zfs_tools/samba/${dataset_name}/run/nmbd.pid`
     fi
+    if [ -f "/var/zfs_tools/samba/${dataset_name}/run/winbindd.pid" ]; then
+        winbindd_pid=`cat /var/zfs_tools/samba/${dataset_name}/run/winbindd.pid`
+    fi
+
 
     debug "smbd.bin = $smbd_bin"
     debug "smbd.pid = $smbd_pid"
     debug "nmbd.bin = $nmbd_bin"
     debug "nmbd.pid = $nmbd_pid"
+    debug "winbindd.bin = $winbindd_bin"
+    debug "winbindd.pid = $winbindd_pid"
 
     case $os in
         SunOS)
+            # smbd
             if [[ -f /proc/${smbd_pid}/path/a.out && "$smbd_bin" == `ls -l /proc/${smbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                 notice "Smbd process running for ${dataset_name}, sending kill to pid $smbd_pid"
                 if [ "$DRY_RUN" == 'true' ]; then
@@ -474,6 +523,7 @@ deactivate_smb () {
             else
                 debug "Smbd process NOT running for ${dataset_name}.  Doing nothing."
             fi
+            # nmbd
             if [[ -f /proc/${nmbd_pid}/path/a.out && "$nmbd_bin" == `ls -l /proc/${nmbd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
                 notice "Nmbd process running for ${dataset_name}, sending kill to pid $nmbd_pid"
                 if [ "$DRY_RUN" == 'true' ]; then
@@ -484,6 +534,18 @@ deactivate_smb () {
             else
                 debug "Nmbd process NOT running for ${dataset_name}.  Doing nothing."
             fi
+            # winbindd
+            if [[ -f /proc/${winbindd_pid}/path/a.out && "$winbindd_bin" == `ls -l /proc/${winbindd_pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
+                notice "Winbindd process running for ${dataset_name}, sending kill to pid $winbindd_pid"
+                if [ "$DRY_RUN" == 'true' ]; then
+                    debug "Would have killed $winbindd_pid"
+                else
+                    kill $winbindd_pid
+                fi
+            else
+                debug "Nmbd process NOT running for ${dataset_name}.  Doing nothing."
+            fi
+            
             ;;
         *)
             error "Unsupported operating system for samba: $os"
