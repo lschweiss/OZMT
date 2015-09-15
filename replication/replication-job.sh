@@ -162,12 +162,13 @@ fi
 
 migrating='false'
 
-job_lock_dir="${replication_dir}/joblocks"
 
+# Setup job locking
+job_lock_dir="${replication_dir}/joblocks"
 job_lock="${job_lock_dir}/zfs_send_$(echo $jobname | ${CUT} -d ':' -f 1)"
 
-
-mkdir -p
+mkdir -p "$job_lock_dir"
+touch "$job_lock"
 init_lock "$job_lock"
 
 wait_for_lock "$job_lock"
