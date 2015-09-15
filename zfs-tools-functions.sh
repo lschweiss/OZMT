@@ -535,6 +535,11 @@ wait_for_lock() {
         debug "Renamed unlock file to new format: $unlockfile"
     fi
 
+    if [ ! -f "$1" ]; then
+        error "Wait for lock called on non-existant file $1"
+        exit 1
+    fi
+
     local starttime=$SECONDS
 
     # This attempts to eliminate race conditions.  However, in the case where a lock
