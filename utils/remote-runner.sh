@@ -49,13 +49,22 @@ ppid=$!
 ##
 # Find the PID of the actual job
 ##
-ps -eo ppid,pid > ${TMP}/remote_runner_$$.txt
-# Find the child of ppid because ppid is still bash not our process.
-pid=`ps -eo ppid,pid|${GREP} "^\s*${ppid} "|${AWK} -F " " '{print $2}'`
+case os in
+    'SunOS')
+        pid=`/usr/bin/ptree $ppid | ${TAIL} -1 | ${AWK} -F ' ' '{print $1}'`
+        ;;
+
+    'Linux')
+        ps -eo ppid,pid > ${TMP}/remote_runner_$$.txt
+        # Find the child of ppid because ppid is still bash not our process.
+        pid=`ps -eo ppid,pid|${GREP} "^\s*${ppid} "|${AWK} -F " " '{print $2}'`
+        ;;
+esac
+
 if [ "$pid" == "" ]; then
     error "Could not get the PID for \"$@\".  Parrent PID: $ppid  Could cause additional errors." ${TMP}/remote_runner_$$.txt
 fi
-rm ${TMP}/remote_runner_$$.txt
+
 echo $pid > "$pidfile"
 
 ##
