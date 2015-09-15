@@ -162,6 +162,31 @@ fi
 
 migrating='false'
 
+job_lock_dir="${replication_dir}/joblocks"
+
+job_lock="${job_lock_dir}/zfs_send_$(echo $jobname | ${CUT} -d ':' -f 1)"
+
+
+mkdir -p
+init_lock "$job_lock"
+
+wait_for_lock "$job_lock"
+if [ $? -ne 0 ]; then
+    error "${jobname}: timeout waiting for job lock.  Failing job."
+    mv "$job_defintion" "${replication_dir}/failed/"
+    update_job_status "$job_status" failures +1
+    exit 1
+fi
+
+die () {
+
+    release_lock "$job_lock"
+    exit $?
+
+}
+
+    
+
 
 
 # Execute ZFS send script
@@ -191,15 +216,14 @@ if [ $? -eq 0 ]; then
         # Suspend replication
         update_job_status "$job_status" suspended true
         mv "$job_definition" "${replication_dir}/suspended/"
-        exit 1
+        die 1
     fi
 else 
     # Cannot connect to remote host.  Fail this job
-    failures=$(( failures + 1 ))
     mv "${job_definition}" "${replication_dir}/failed/"
     notice "Cannot connect to host for ${target_pool}.  Marking job failed. $job_definition"
-    update_job_status "$job_status" failures $failures
-    exit 1
+    update_job_status "$job_status" failures +1
+    die 1
 fi
 
 case $mode in
@@ -208,7 +232,7 @@ case $mode in
          # TODO: Number of BBCP connnections needs to be tuneable
     'b') mode_option='-b 30' ;;
     'L') error "Local replication not completely coded yet!"
-         exit 1 ;;
+         die 1 ;;
 esac
 
 mkdir -p ${TMP}/replication
@@ -231,10 +255,9 @@ else
     timeout 60s ssh ${target_pool} "zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}" 2>${TMP}/replication/zfs_rollback_$$  
     if [ $? -ne 0 ]; then
         error "Could not rollback target dataset to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${TMP}/replication/zfs_rollback_$$
-        failures=$(( failures + 1 ))
         mv "${job_definition}" "${replication_dir}/failed/"
-        update_job_status "$job_status" failures $failures
-        exit 1
+        update_job_status "$job_status" failures $fail
+        die 1
     fi
 
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
@@ -248,45 +271,49 @@ else
 fi
 
 if [ $send_result -ne 0 ]; then
-    failures=$(( failures + 1 ))
     mv "${job_definition}" "${replication_dir}/failed/"
-    update_job_status "$job_status" failures $failures
+    update_job_status "$job_status" failures +1
 else
     notice "Replication job ${pool}/${folder} to ${target_pool}/${target_folder} completed for ${folder}@${snapshot}"
     update_job_status "$job_status" "failures" "0"
     update_job_status "$job_status" "queued_jobs" "-1"
-    if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
-        # Delete the previous snapshot
-        debug "Only 2 replication endpoints.  Deleting source snapshot."
-        zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$.txt 
-        if [ $? -ne 0 ]; then
-            warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$.txt
-            zfs destroy -d -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy2_$$.txt
-            if [ $? -ne 0 ]; then
-                error "Could not defer destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy2_$$.txt
-            fi
-            mv "${job_definition}" "${replication_dir}/synced/"
-        else
-            # Move the job to completed status
-            debug "Moving job to completed status"
-            touch "${job_definition}"
-            mkdir -p "${replication_dir}/complete/"
-            mv "${job_definition}" "${replication_dir}/complete/" 
-        fi
-        rm /${TMP}/zfs_destroy_$$.txt 2>/dev/null
-        rm /${TMP}/zfs_destroy2_$$.txt 2>/dev/null
-    else
-        if [ "$delete_snaps" != "" ]; then
-            debug "Moving job to completed status"
-            touch "${job_definition}"
-            mkdir -p "${replication_dir}/complete/"
-            mv "${job_definition}" "${replication_dir}/complete/"
-        else
-            debug "Moving job to synced status"
-            mv "${job_definition}" "${replication_dir}/synced/"
-        fi
-    fi
+    debug "Moving job to synced status"
+    mv "${job_definition}" "${replication_dir}/synced/"
+
+
+    #if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
+    #    # Delete the previous snapshot
+    #    debug "Only 2 replication endpoints.  Deleting source snapshot."
+    #    zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$.txt 
+    #    if [ $? -ne 0 ]; then
+    #        warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$.txt
+    #        zfs destroy -d -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy2_$$.txt
+    #        if [ $? -ne 0 ]; then
+    #            error "Could not defer destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy2_$$.txt
+    #        fi
+    #        mv "${job_definition}" "${replication_dir}/synced/"
+    #    else
+    #        # Move the job to completed status
+    #        debug "Moving job to completed status"
+    #        touch "${job_definition}"
+    #        mkdir -p "${replication_dir}/complete/"
+    #        mv "${job_definition}" "${replication_dir}/complete/" 
+    #    fi
+    #    rm /${TMP}/zfs_destroy_$$.txt 2>/dev/null
+    #    rm /${TMP}/zfs_destroy2_$$.txt 2>/dev/null
+    #else
+    #    if [ "$delete_snaps" != "" ]; then
+    #        debug "Moving job to completed status"
+    #        touch "${job_definition}"
+    #        mkdir -p "${replication_dir}/complete/"
+    #        mv "${job_definition}" "${replication_dir}/complete/"
+    #    else
+    #        debug "Moving job to synced status"
+    #        mv "${job_definition}" "${replication_dir}/synced/"
+    #    fi
+    #fi
         
 fi
 
+release_lock "$job_lock"
 
