@@ -28,7 +28,7 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 rm -f /usr/sbin/ozmt-*
 
-ln -s ${TOOLS_ROOT}/pools_filesystem/setup-filesystem.sh /usr/sbin/ozmt-setup-filesystem.sh
+ln -s ${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh /usr/sbin/ozmt-setup-filesystems.sh
 
 ln -s ${TOOLS_ROOT}/rsync/sync_snap_folder.sh /usr/sbin/ozmt-sync-snap-folder.sh
 
