@@ -200,7 +200,7 @@ for job in $jobs; do
                     job_dead='true'
                 fi
                 # Check if it's running
-                $check_zfs_send
+                "$check_zfs_send"
                 if [ $? -ne 0 ]; then
                     job_dead='true'
                 fi
