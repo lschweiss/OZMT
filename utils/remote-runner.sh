@@ -49,7 +49,7 @@ ppid=$!
 ##
 # Find the PID of the actual job
 ##
-case os in
+case $os in
     'SunOS')
         pid=`/usr/bin/ptree $ppid | ${TAIL} -1 | ${AWK} -F ' ' '{print $1}'`
         ;;
@@ -59,10 +59,13 @@ case os in
         # Find the child of ppid because ppid is still bash not our process.
         pid=`ps -eo ppid,pid|${GREP} "^\s*${ppid} "|${AWK} -F " " '{print $2}'`
         ;;
+    *)
+        error "$os not support by remote-runner.sh"
+        ;;
 esac
 
 if [ "$pid" == "" ]; then
-    error "Could not get the PID for \"$@\".  Parrent PID: $ppid  Could cause additional errors." ${TMP}/remote_runner_$$.txt
+    error "Could not get the PID for \"$@\".  OS: $os Parent PID: $ppid  Could cause additional errors. " ${TMP}/remote_runner_$$.txt
 fi
 
 echo $pid > "$pidfile"
