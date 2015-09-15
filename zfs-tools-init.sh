@@ -75,7 +75,7 @@ SSH=$ssh
 TIMEOUT=$timeout
 
 
-case os in
+case $os in
     'SunOS')
         search_path="/opt/csw/gnu:/opt/csw/bin:/opt/csw/sbin:/usr/gnu/bin"
         ;;
