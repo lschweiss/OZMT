@@ -226,6 +226,10 @@ if [ -z $NMBD ]; then
     NMBD="/usr/local/samba/sbin/nmbd"
 fi
 
+if [ -z $WINBINDD ]; then
+    WINBINDD="/usr/local/samba/sbin/winbindd"
+fi
+
 # Set defaults
 
 if [ "$minimum_report_frequency" == "" ]; then
