@@ -53,6 +53,11 @@ for pool in $pools; do
     debug "Updating cache on pool $pool"
 
     cache_dir="/$pool/zfs_tools/var/cache/zfs_cache"
+
+    if [ ! -d $cache_dir ]; then
+        continue
+    fi
+
     init_lock "$cache_dir"
 
     wait_for_lock "$cache_dir"
