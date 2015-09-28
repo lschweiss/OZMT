@@ -219,6 +219,42 @@ islocal () {
 
 }
 
+# Given a pid file and bin path determine if a process is running
+# Usage:
+#     is_running {pid_file} {bin_path}
+#
+# Returns 0 if running, 1 if not running, 2 if there is an error checking
+isrunning () {
+
+    local pidfile="$1"
+    local binpath="$2"
+    local pid=
+
+    if [ -f $pidfile ]; then
+        pid=`cat $pidfile`
+        case $os in
+            SunOS)
+                if [[ -f /proc/${pid}/path/a.out && "$binpath" == `${LS} -l /proc/${pid}/path/a.out| ${AWK} '{print $11}'` ]]; then
+                    debug "isrunning: $binpath is running on pid $pid"
+                    return 0
+                else
+                    debug "isrunning: $binpath is NOT running on pid $pid"
+                    return 1
+                fi
+                ;;
+            *)
+                error "Unsupported operating system for is running: $os"
+                return 2
+                ;;
+        esac
+        return 2
+    else
+        debug "isrunning: no pid file: $pidfile"
+        return 1
+    fi
+
+}
+
 
 ####
 #
@@ -535,9 +571,9 @@ wait_for_lock() {
         debug "Renamed unlock file to new format: $unlockfile"
     fi
 
-    if [ ! -f "$1" ]; then
+    if [ ! -e "$1" ]; then
         error "Wait for lock called on non-existant file $1"
-        exit 1
+        return 1
     fi
 
     local starttime=$SECONDS

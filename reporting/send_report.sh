@@ -90,7 +90,6 @@ if [ -d "$report_spool" ]; then
         fi
 
     done
-    
 
 else
 
@@ -100,4 +99,11 @@ else
     fi
 
 fi
+
+# Clean email rate limiting directory.
+
+if [ -d /var/zfs_tools/reporting/limit ]; then
+
+    ${FIND} /var/zfs_tools/reporting/limit -mtime +1 --delete 1>/dev/null 2>/dev/null
     
+fi

@@ -20,24 +20,20 @@
 
 debug() {
 
-    local message="DEBUG: $(now): $1"
-
     if [ "$#" -eq "2" ]; then
-        process_message "$message" 0 $email_debug none $2
+        process_message "$1" 0 $email_debug none $2
     else
-        process_message "$message" 0 $email_debug none
+        process_message "$1" 0 $email_debug none
     fi
 
 }
 
 notice() {
 
-    local message="NOTICE: $(now): $1"
-
     if [ "$#" -eq "2" ]; then
-        process_message "$message" 1 $email_notice none $2
+        process_message "$1" 1 $email_notice none $2
     else
-        process_message "$message" 1 $email_notice none
+        process_message "$1" 1 $email_notice none
     fi
 
 }
@@ -45,12 +41,10 @@ notice() {
 
 warning() {
 
-    local message="WARNING: $(now): $1"
-
     if [ "$#" -eq "2" ]; then
-        process_message "$message" 2 $email_warnings high $2
+        process_message "$1" 2 $email_warnings high $2
     else
-        process_message "$message" 2 $email_warnings high
+        process_message "$1" 2 $email_warnings high
     fi
 
 }
@@ -58,12 +52,10 @@ warning() {
 
 error() {
 
-    local message="ERROR: $(now): $1"
-
     if [ "$#" -eq "2" ]; then
-        process_message "$message" 3 $email_errors high $2
+        process_message "$1" 3 $email_errors high $2
     else
-        process_message "$message" 3 $email_errors high
+        process_message "$1" 3 $email_errors high
     fi
 
 }
@@ -76,6 +68,7 @@ process_message() {
     local messagefile=
     local send_options=
     local basename=
+    local noreport=
 
     # Inputs:
     # $1 - The message.  Should be quoted.
@@ -84,11 +77,43 @@ process_message() {
     # $4 - Importance level (set to 'none' if not used)
     # $5 - Include contents of file $5.  (optional)
 
-    local this_message="$1"
+    local message="$1"
+    local this_message=
     local this_message_level="$2"
     local this_report_level="$3"
     local this_import_level="$4"
     local this_include_file="$5"
+    local message_file=
+    local this_subject=
+    local email_limit="0"
+    local this_hash=
+    local limit_dir="/var/zfs_tools/reporting/limit"
+    local hash_dir=
+    local limit_file=
+    local limit=
+    local limits=
+    local limit_type=
+    local limit_num=
+    local count=
+    local skip=
+
+    case $this_message_level in
+        '0')
+            this_message="DEBUG: $(now): $message"
+            ;;
+        '1')
+            this_message="NOTICE: $(now): $message"
+            ;;
+        '2')
+            this_message="WARNING: $(now): $message"
+            ;;
+        '3')
+            this_message="ERROR: $(now): $message"
+            ;;
+        
+    esac
+
+    
 
     if [ "$0" == '-bash' ]; then
         basename="/bin/bash"
@@ -153,10 +178,22 @@ process_message() {
         # Send the email report now
         message_file=${TMP}/reporting/process_message_$$
         case "${this_message_level}" in
-            '0') this_subject="DEBUG: ${basename} ${report_name} $HOSTNAME" ;;
-            '1') this_subject="NOTICE: ${basename} ${report_name} $HOSTNAME" ;;
-            '2') this_subject="WARNING: ${basename} ${report_name} $HOSTNAME" ;;
-            '3') this_subject="ERROR: ${basename} ${report_name} $HOSTNAME" ;;
+            '0') 
+                this_subject="DEBUG: ${basename} ${report_name} $HOSTNAME"
+                email_limit="$DEBUG_EMAIL_LIMIT"
+                ;;            
+            '1') 
+                this_subject="NOTICE: ${basename} ${report_name} $HOSTNAME" 
+                email_limit="$NOTICE_EMAIL_LIMIT"
+                ;;
+            '2') 
+                this_subject="WARNING: ${basename} ${report_name} $HOSTNAME"
+                email_limit="$WARNING_EMAIL_LIMIT"
+                ;;
+            '3') 
+                this_subject="ERROR: ${basename} ${report_name} $HOSTNAME"
+                email_limit="$ERROR_EMAIL_LIMIT"
+                ;;
         esac
 
         echo >> $message_file
@@ -169,7 +206,41 @@ process_message() {
             echo ${this_include_file} > ${message_file}_attachments
         fi
 
-        if [ "$DEBUG" != "true" ]; then
+        # Rate limit emails
+        skip='false'
+        if [ "$email_limit" != '0' ]; then
+            this_hash=`echo "${this_subject}_${message}" | ${MD5SUM} | ${CUT} -f1 -d" "`
+            hash_dir="${limit_dir}/${this_hash}"
+            mkdir -p "$hash_dir"
+            for limit in $email_limit; do    
+                limit_type="${limit:0:1}"
+                limit_num="${limit:1}"
+                count=0
+                case $limit_type in
+                    m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l` ;;
+                    h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l` ;;
+                    d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l` ;;
+
+                esac
+                if [ $count -ge $limit_num ]; then
+                    skip='true'
+                    if [ -t 1 ]; then
+                        echo "Skipping email, limit ${limit}: $this_subject"
+                    fi
+                fi
+            done
+
+            if [ "$skip" == 'false' ]; then
+                limit_file="${hash_dir}/$(${DATE} +%F_%H:%M:%S:%N)"
+                if [ -t 1 ]; then
+                    echo "limit file: $limit_file"
+                fi
+                echo "$this_subject" > "$limit_file"
+                echo "$this_message" >> "$limit_file"
+            fi
+        fi
+
+        if [[ "$DEBUG" != 'true' && "$skip" != 'true' ]]; then
             $TOOLS_ROOT/reporting/send_email.sh $send_options -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
             if [ $? -eq 0 ]; then
                 rm $message_file

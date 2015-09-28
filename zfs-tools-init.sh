@@ -104,6 +104,7 @@ gnu_source () {
             return 0
         fi
     done
+    unset IFS
     # Last resort
     which $binary 2> /dev/null
     if [ $? -ne 0 ]; then
@@ -114,6 +115,10 @@ gnu_source () {
 
 
 # Load paths if not defined in configs
+if [ -z $LS ]; then
+    LS=`gnu_source ls`
+fi
+
 if [ -z $GREP ]; then
     GREP=`gnu_source grep`
 fi
@@ -124,6 +129,10 @@ fi
 
 if [ -z $TAIL ]; then
     TAIL=`gnu_source tail`
+fi
+
+if [ -z $FIND ]; then
+    FIND=`gnu_source find`
 fi
 
 if [ -z $SED ]; then
@@ -168,6 +177,10 @@ fi
 
 if [ -z $TIMEOUT ]; then
     TIMEOUT=`gnu_source timeout`
+fi
+
+if [ -z $MD5SUM ]; then
+    MD5SUM=`gnu_source md5sum`
 fi
 
 if [ -z $BC ]; then
@@ -232,12 +245,45 @@ fi
 
 # Set defaults
 
+if [ "$log_dir" == "" ]; then
+    log_dir="/var/zfs_tools/log"
+fi
+mkdir -p $log_dir
+
 if [ "$minimum_report_frequency" == "" ]; then
     minmum_report_frequency=1800
 fi
 
 if [ "$QUOTA_REPORT_TEMPLATE" == "" ]; then
     QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
+fi
+
+if [ "$DEBUG_EMAIL_LIMIT" == "" ]; then
+    DEBUG_EMAIL_LIMIT="0" # Unlimited
+fi
+
+if [ "$NOTICE_EMAIL_LIMIT" == "" ]; then
+    NOTICE_EMAIL_LIMIT="h3" # 3 identical per hour
+fi
+
+if [ "$WARNING_EMAIL_LIMIT" == "" ]; then
+    WARNING_EMAIL_LIMIT="m5 h6" # 3 identical per hour
+fi
+
+if [ "$_ERROR_EMAIL_LIMIT" == "" ]; then
+    ERROR_EMAIL_LIMIT="m3 h6 d9" # 3 identical per hour, 9 per day
+fi
+
+if [ "$samba_report" == "" ]; then
+    samba_report="Samba"
+fi
+
+if [ "$samba_logfile" == "" ]; then
+    samba_logfile="${log_dir}/samba.log"
+fi
+
+if [ "$zfs_dataset_property" == "" ]; then
+    zfs_dataset_property="edu.wustl.nrg:dataset"
 fi
 
 if [ "$zfs_replication_property" == "" ]; then
@@ -250,6 +296,30 @@ fi
 
 if [ "$zfs_replication_endpoints_property" == "" ]; then
     zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
+fi
+
+if [ "$zfs_quota_reports_property" == "" ]; then
+    zfs_quota_reports_property="edu.wustl.nrg:quotareports"
+fi
+
+if [ "$zfs_quota_report_property" == "" ]; then
+    zfs_quota_report_property="edu.wustl.nrg:quotareport"
+fi
+
+if [ "$zfs_trend_reports_property" == "" ]; then
+    zfs_trend_reports_property="edu.wustl.nrg:trendreports"
+fi
+
+if [ "$zfs_trend_report_property" == "" ]; then
+    zfs_trend_report_property="edu.wustl.nrg:trendreport"
+fi
+
+if [ "$zfs_snapshots_property" == "" ]; then
+    zfs_snapshots_property="edu.wustl.nrg:snapshots"
+fi
+
+if [ "$zfs_snapshot_property" == "" ]; then
+    zfs_snapshot_property="edu.wustl.nrg:snapshot"
 fi
 
 if [ "$zfs_cifs_property" == "" ]; then
