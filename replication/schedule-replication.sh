@@ -152,6 +152,7 @@ for pool in $pools; do
                     echo "last_run_secs=$last_run_secs"
                     echo "now=$now"
                     echo "now_secs=$now_secs"
+                    echo "frequency=$frequency"
                     echo "freq_unit=${freq_unit}"
                     echo "freq_num=${freq_num}"
                     echo "duration"
