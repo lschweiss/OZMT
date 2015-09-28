@@ -137,6 +137,9 @@ build_smb_conf () {
     local share_config=
     local share_config_file=
     local smb_valid_users=
+    local smb_admin_users=
+    local smb_log_level=
+    local smb_inherit_owner=
     local smbd_path=
     local nmbd_path=
     local winbindd_path=
@@ -178,11 +181,28 @@ build_smb_conf () {
         continue
     fi
 
+    smb_inherit_owner=`zfs get -H -o value -s local ${zfs_cifs_property}:inheritowner ${zfs_folder}`
+    if [ "$smb_inherit_owner" == '-' ]; then
+        smb_inherit_owner='yes'
+    fi
+    smb_log_level=`zfs get -H -o value -s local ${zfs_cifs_property}:loglevel ${zfs_folder}`
+    if [ "$smb_log_level" == '-' ]; then
+        smb_log_level='1'
+    fi
+    smb_admin_users=`zfs get -H -o value -s local ${zfs_cifs_property}:adminusers ${zfs_folder}`
+    if [ "$smb_admin_users" == '-' ]; then
+        smb_admin_users="$samba_admin_users"
+    fi
+
+
     if [[ "${template_config_file}" == *".template" ]]; then
         debug "template: ${template_config_file}"
 
         ${SED} s,#ZFS_FOLDER#,${zfs_folder},g "${template_config_file}" | \
-            ${SED} s,#SERVER_NAME#,${server_name},g > \
+            ${SED} s,#SERVER_NAME#,${server_name},g | \
+            ${SED} s,#ADMIN_USERS#,${smb_admin_users},g | \
+            ${SED} s,#INHERIT_OWNER#,${smb_inherit_owner},g | \
+            ${SED} s,#LOG_LEVEL#,${smb_log_level},g > \
             "${smb_conf_dir}/smb_${dataset_name}.conf"
 
     else
