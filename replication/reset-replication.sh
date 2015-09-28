@@ -54,10 +54,16 @@ show_usage () {
     echo "  This is automatically run after every cut over of a dataset source or can be run"
     echo "  manually to cleanup broken replication jobs."
     echo ""
-    echo "  The following data sets are known:"
+    echo "  The following data sets are active on this host:"
     for pool in $pools; do
         if [ -d /${pool}/zfs_tools/var/replication/source ]; then
-            ls -1 /${pool}/zfs_tools/var/replication/source | ${SED} 's/^/    /'
+            datasets=`ls -1 /${pool}/zfs_tools/var/replication/source `
+            for dataset in $datasets; do
+                cat "/${pool}/zfs_tools/var/replication/source/$dataset" | ${GREP} -q "$pool"
+                if [ $? -eq 0 ]; then
+                    echo "        $dataset"
+                fi
+            done
         fi
     done
     exit 1
@@ -126,7 +132,7 @@ ds_targets=`cat /$pool/zfs_tools/var/replication/targets/${dataset}`
 
 for check_pool in $pools; do
     if [ -d "/$check_pool/zfs_tools/var/replication/jobs/definitions" ]; then
-        definitions=`find "/$check_pool/zfs_tools/var/replication/jobs/definitions/" -type f`
+        definitions=`${FIND} "/$check_pool/zfs_tools/var/replication/jobs/definitions/" -type f`
         for definition in $definitions; do
             source $definition
             if [ "$dataset_name" == "$dataset" ]; then
@@ -148,7 +154,7 @@ source_folder=`echo "$ds_source" | ${CUT} -d ":" -f 2`
 if islocal $source_pool; then
     debug "Confirmed running on the source host."
 else
-    error "Must be run on the dataset's source host with the pool $source_pool"
+    warning "Must be run on the dataset's source host with the pool $source_pool"
     exit 1
 fi
 
@@ -204,6 +210,8 @@ for job in $jobs; do
                 if [ $? -ne 0 ]; then
                     job_dead='true'
                 fi
+            else
+                job_dead='true'
             fi
 
             set +x
