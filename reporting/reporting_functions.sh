@@ -94,6 +94,7 @@ process_message() {
     local limits=
     local limit_type=
     local limit_num=
+    local limit_unit=
     local count=
     local skip=
 
@@ -217,9 +218,9 @@ process_message() {
                 limit_num="${limit:1}"
                 count=0
                 case $limit_type in
-                    m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l` ;;
-                    h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l` ;;
-                    d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l` ;;
+                    m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l`; limit_unit='minute' ;;
+                    h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l`; limit_unit='hour' ;;
+                    d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l`; limint_unit='day' ;;
 
                 esac
                 if [ $count -ge $limit_num ]; then
@@ -227,6 +228,8 @@ process_message() {
                     if [ -t 1 ]; then
                         echo "Skipping email, limit ${limit}: $this_subject"
                     fi
+                else
+                    echo "Message #$(( count + 1 )) in the last ${limit_unit}, will limit at $limit_num per ${limit_unit}." >> $message_file
                 fi
             done
 
@@ -245,6 +248,10 @@ process_message() {
             if [ $? -eq 0 ]; then
                 rm $message_file
             fi 
+        fi
+        
+        if [ "$skip" != 'true' ]; then
+            rm -f $message_file
         fi
 
 
