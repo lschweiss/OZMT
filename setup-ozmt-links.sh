@@ -38,7 +38,8 @@ ln -s ${TOOLS_ROOT}/utils/zpool-cache-detach.sh /usr/sbin/ozmt-zpool-cache-detac
 ln -s ${TOOLS_ROOT}/utils/zpool-cache-attach.sh /usr/sbin/ozmt-zpool-cache-attach.sh
 ln -s ${TOOLS_ROOT}/utils/zfs-cache-refresh.sh /usr/sbin/ozmt-zfs-cache-refresh.sh
 
-ln -s ${TOOLS_ROOT}/samba/samba-trigger.sh /usr/sbin/ozmt-samba-trigger.sh
+#ln -s ${TOOLS_ROOT}/samba/samba-trigger.sh /usr/sbin/ozmt-samba-trigger.sh
+ln -s ${TOOLS_ROOT}/samba/samba-service.sh /usr/sbin/ozmt-samba-service.sh
 
 ln -s ${TOOLS_ROOT}/vip/vip-trigger.sh /usr/sbin/ozmt-vip-trigger.sh
 
