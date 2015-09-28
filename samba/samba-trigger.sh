@@ -311,6 +311,7 @@ activate_smb () {
                 if [ "$smbd_path" != '' ]; then
                     debug "Overriding default smbd for: $smbd_path"
                 else
+                    debug "smbd path: $SMBD"
                     smbd_path="$SMBD"
                 fi
                 # nmbd
