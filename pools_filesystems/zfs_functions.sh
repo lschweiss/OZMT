@@ -173,6 +173,8 @@ setupzfs () {
     local options=
     local properties=
     local snapshots=
+    local snapshot_jobs=0
+    local count=
     local dataset_name=
     local replication=
     local replication_source=
@@ -226,10 +228,12 @@ setupzfs () {
                 ;;
             s)  # Add a snapshot policy
                 snapshots="$snapshots $OPTARG"
+                snapshot_jobs=$(( snapshot_jobs + 1))
                 debug "Adding snapshot policy: $OPTARG"
                 ;;
             S)  # Add a recursive snapshot policy
                 r_snapshots="$r_snapshots $OPTARG"
+                snapshot_jobs=$(( snapshot_jobs + 1))
                 debug "Adding recursive snapshot policy: $OPTARG"
                 ;;
             n)  # Dataset name
@@ -339,8 +343,8 @@ setupzfs () {
         else
             error "Dataset name $dataset_name contains invalid characters."
         fi
-
-        zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
+        zfs set ${zfs_dataset_property}=${dataset_name} ${pool}/${zfspath}
+        #zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
         mkdir -p /${pool}/zfs_tools/var/replication/datasets
         echo "${pool}/${zfspath}" > /${pool}/zfs_tools/var/replication/datasets/${dataset_name}
     fi
@@ -356,15 +360,18 @@ setupzfs () {
     # Examine each folder level above this one
     echo "Checking for parent replication"
     parent_replication='off'
-    i=1
+    i=1 
     check_folder=`echo "$zfspath"|cut -d "/" -f ${i}`
     until [ "$check_folder" == "$zfspath" ]; do
         echo "Checking folder: ${pool}/$check_folder  i=$i"
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${check_folder} 2>/dev/null`
         if [ "$replication" == 'on' ]; then
-            debug "Parent replication is ON, parent: $check_folder"
+            echo "Parent replication is ON, parent: $check_folder"
             parent_replication='on'
             replication_parent="$check_folder"
+            replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${pool}/${check_folder}`
+            replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
+            debug "Replication source: $replication_source"
             break
         fi
         i=$(( i + 1 ))
@@ -372,18 +379,11 @@ setupzfs () {
         echo "check_folder: $check_folder  zfspath: $zfspath"
     done
 
-    if [ "$parent_replication" == 'on' ]; then
-        replication_dataset=`zfs get -H -o value $zfs_replication_dataset_property ${pool}/${check_folder} `
-        # Determine if this is the source or target of replication
-        replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
-        debug "Replication source: $replication_source"
-    fi
-
     
     # If this folder is a sub-folder of a replicated folder on a target system, the creation and configuration
     # of this folder will be done with zfs receive.
 
-    if [[ "$parent_replication" == 'off' ]] || [[ "$parent_replication" == 'on' && "${pool}:${zfspath}" == "$replication_source"* ]]; then
+    if [[ "$parent_replication" == 'off' || ( "$parent_replication" == 'on' && "${pool}:${zfspath}" == "$replication_source"* ) ]]; then
         zfs get creation ${pool}/${zfspath} 1> /dev/null 2> /dev/null
         if [ $? -eq 0 ]; then
             echo "${pool}/${zfspath} already exists, resetting options"
@@ -507,13 +507,21 @@ setupzfs () {
 
     if [[ "$QUOTA_REPORT" != "" || $quota_reports -ne 0 ]]; then
         echo "Creating quota reports:"
-        mkdir -p "${reportjobdir}/quota"
-        echo "local quota_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/quota/${jobname}"
+        # Depricated:
+            mkdir -p "${reportjobdir}/quota"
+            echo "local quota_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/quota/${jobname}"
+        # New:
+            zfs set ${zfs_quota_reports_property}=${quota_reports} ${pool}/${zfspath}
+    else
+            zfs inherit ${zfs_quota_reports_property} ${pool}/${zfspath}
     fi
 
     if [ "$QUOTA_REPORT" != "" ]; then
         echo "  Setting default report: $QUOTA_REPORT"
-        echo "local quota_report[0]=\"$QUOTA_REPORT\"" >> "${reportjobdir}/quota/${jobname}"
+        # Depricated:
+            echo "local quota_report[0]=\"$QUOTA_REPORT\"" >> "${reportjobdir}/quota/${jobname}"
+        # New:
+            zfs set ${zfs_quota_report_property}:0="${QUOTA_REPORT}" ${pool}/${zfspath}
     fi
 
     if [ $quota_reports -ne 0 ]; then
@@ -521,7 +529,11 @@ setupzfs () {
         report=1
         while [ $report -le $quota_reports ]; do
             echo "  Setting report $report to: ${quota_report[$report]}"
-            echo "local quota_report[$report]=\"${quota_report[$report]}\"" >> "${reportjobdir}/quota/${jobname}"
+            # Depricated:
+                echo "local quota_report[$report]=\"${quota_report[$report]}\"" >> "${reportjobdir}/quota/${jobname}"
+            # New:
+                zfs set ${zfs_quota_report_property}:${report}="${quota_report[$report]}" ${pool}/${zfspath}
+    
             report=$(( report + 1 ))
         done
     fi
@@ -532,19 +544,31 @@ setupzfs () {
 
     if [[ "$TREND_REPORT" != "" || $trend_reports -ne 0 ]]; then
         echo "Creating trend reports:"
-        mkdir -p "${reportjobdir}/trend"
-        echo "local trend_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/trend/${jobname}"
+        # Depricated
+            mkdir -p "${reportjobdir}/trend"
+            echo "local trend_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/trend/${jobname}"
+        # New:
+            zfs set ${zfs_trend_reports_property}=${trend_reports} ${pool}/${zfspath}
+    else
+            zfs inherit ${zfs_trend_reports_property} ${pool}/${zfspath}
     fi
 
-    if [ "$QUOTA_REPORT" != "" ]; then
-        echo "local trend_report[0]=\"$TREND_REPORT\"" >> "${reportjobdir}/trend/${jobname}"
+    if [ "$TREND_REPORT" != "" ]; then
+        # Depricated
+            echo "local trend_report[0]=\"$TREND_REPORT\"" >> "${reportjobdir}/trend/${jobname}"
+        # New:
+            zfs set ${zfs_trend_report_property}:0="${TREND_REPORT}" ${pool}/${zfspath}
     fi
 
     if [ $trend_reports -ne 0 ]; then
         echo "local trend_reports=$trend_reports" >> "${reportjobdir}/trend/${jobname}"
         report=1
         while [ $report -le $trend_reports ]; do
-            echo "local trend_report[$report]=\"${trend_report[$report]}\"" >> "${reportjobdir}/trend/${jobname}"
+            # Depricated:
+                echo "local trend_report[$report]=\"${trend_report[$report]}\"" >> "${reportjobdir}/trend/${jobname}"
+            # New:
+                zfs set ${zfs_trend_report_property}:${report}="${trend_report[$report]}" ${pool}/${zfspath}
+
             report=$(( report + 1 ))
         done
     fi
@@ -561,16 +585,27 @@ setupzfs () {
         fi
     done
 
+    if [ $snapshot_jobs -gt 0 ]; then
+        zfs set ${zfs_snapshots_property}=${snapshot_jobs} ${pool}/${zfspath}
+    else
+        zfs inherit ${zfs_snapshots_property} ${pool}/${zfspath}
+    fi
+
+    count=0
+
     # Create the snapshot jobs
     echo "Creating snapshot jobs for ${pool}/${zfspath}:"
     echo "snapshots: $snapshots"
     echo -e "Job\t\tType\t\tQuantity"
     if [ "$snapshots" != "" ]; then
         for snap in $snapshots; do
-            snaptype=`echo $snap|${CUT} -d "|" -f 1`
-            snapqty=`echo $snap|${CUT} -d "|" -f 2`
-            echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
-            echo "${snapqty}" > $snapjobdir/$snaptype/$jobname
+            count=$(( count + 1))
+            zfs set ${zfs_snapshot_property}:${count}="$snap" ${pool}/${zfspath}
+            # Depricated:
+                snaptype=`echo $snap|${CUT} -d "|" -f 1`
+                snapqty=`echo $snap|${CUT} -d "|" -f 2`
+                echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
+                echo "${snapqty}" > $snapjobdir/$snaptype/$jobname
             if [ "$staging" != "" ]; then
                 echo "x${snapqty}" > $snapjobdir/$snaptype/${stagingjobname}
             fi
@@ -584,10 +619,12 @@ setupzfs () {
     echo -e "Job\t\tType\t\tQuantity"
     if [ "$r_snapshots" != "" ]; then
         for snap in $r_snapshots; do
-            snaptype=`echo $snap|${CUT} -d "|" -f 1`
-            snapqty=`echo $snap|${CUT} -d "|" -f 2`
-            echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
-            echo "r${snapqty}" > $snapjobdir/$snaptype/$jobname
+            zfs set ${zfs_snapshot_property}:${count}="recursive:${snap}" ${pool}/${zfspath}
+            # Depricated:
+                snaptype=`echo $snap|${CUT} -d "|" -f 1`
+                snapqty=`echo $snap|${CUT} -d "|" -f 2`
+                echo -e "${jobname}\t${snaptype}\t\t${snapqty}"
+                echo "r${snapqty}" > $snapjobdir/$snaptype/$jobname
         done
     fi
     echo
