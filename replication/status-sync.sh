@@ -54,47 +54,49 @@ rm ${TMP}/sync_datafiles_$$ 2> /dev/null
 
 for pool in $pools; do
     debug "Syncing dataset sources for pool $pool"
-    datasets=`ls -1 /${pool}/zfs_tools/var/replication/source/`
-    for dataset in $datasets; do
-        debug "Syncing dataset $dataset"
-        targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`
-        for target in $targets; do
-            debug "Syncing dataset $dataset with target $target"
-            # Separate pool and folder
-            IFS=':'
-            read -r t_pool t_folder <<< "${target}"
-            unset IFS
-            # Inventory the pool for other operations
-            echo $t_pool >> ${TMP}/sync_datafiles_$$
-            if [ "$pool" != "$t_pool" ]; then
-                zpool list $t_pool &> /dev/null 
-                if [ $? -ne 0 ]; then
-                    # t_pool is not local, push and pull from the target pool
-                    # newest version gets copied, fail silently in the background
-                    debug "remote sync"
-                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
-                        /${pool}/zfs_tools/var/replication/source/${dataset} \
-                        ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
-                        debug "Could not sync from /${pool}/zfs_tools/var/replication/source/${dataset} to ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset}"
-                    launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
-                        ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} \
-                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
-                        debug "Could not sync from ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} to /${pool}/zfs_tools/var/replication/source/${dataset}"
-                else
-                    debug "local sync"
-                    # t_pool is local, no ssh necessary
-                    ${RSYNC} -cptgo --update \
-                        /${pool}/zfs_tools/var/replication/source/${dataset} \
-                        /${t_pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
-                        debug "Could not sync from /${pool}/zfs_tools/var/replication/source/${dataset} to /${t_pool}/zfs_tools/var/replication/source/${dataset}"
-                    ${RSYNC} -cptgo --update \
-                        /${t_pool}/zfs_tools/var/replication/source/${dataset} \
-                        /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
-                        debug "Could not sync from /${t_pool}/zfs_tools/var/replication/source/${dataset} to /${pool}/zfs_tools/var/replication/source/${dataset}"
+    if [ -d /${pool}/zfs_tools/var/replication/source ]; then
+        datasets=`ls -1 /${pool}/zfs_tools/var/replication/source/`
+        for dataset in $datasets; do
+            debug "Syncing dataset $dataset"
+            targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`
+            for target in $targets; do
+                debug "Syncing dataset $dataset with target $target"
+                # Separate pool and folder
+                IFS=':'
+                read -r t_pool t_folder <<< "${target}"
+                unset IFS
+                # Inventory the pool for other operations
+                echo $t_pool >> ${TMP}/sync_datafiles_$$
+                if [ "$pool" != "$t_pool" ]; then
+                    zpool list $t_pool &> /dev/null 
+                    if [ $? -ne 0 ]; then
+                        # t_pool is not local, push and pull from the target pool
+                        # newest version gets copied, fail silently in the background
+                        debug "remote sync"
+                        launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
+                            /${pool}/zfs_tools/var/replication/source/${dataset} \
+                            ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
+                            debug "Could not sync from /${pool}/zfs_tools/var/replication/source/${dataset} to ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset}"
+                        launch ${RSYNC} --rsync-path=${RSYNC} -cptgo --update -e ssh \
+                            ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} \
+                            /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
+                            debug "Could not sync from ${t_pool}:/${t_pool}/zfs_tools/var/replication/source/${dataset} to /${pool}/zfs_tools/var/replication/source/${dataset}"
+                    else
+                        debug "local sync"
+                        # t_pool is local, no ssh necessary
+                        ${RSYNC} -cptgo --update \
+                            /${pool}/zfs_tools/var/replication/source/${dataset} \
+                            /${t_pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
+                            debug "Could not sync from /${pool}/zfs_tools/var/replication/source/${dataset} to /${t_pool}/zfs_tools/var/replication/source/${dataset}"
+                        ${RSYNC} -cptgo --update \
+                            /${t_pool}/zfs_tools/var/replication/source/${dataset} \
+                            /${pool}/zfs_tools/var/replication/source/${dataset} &> /dev/null || \
+                            debug "Could not sync from /${t_pool}/zfs_tools/var/replication/source/${dataset} to /${pool}/zfs_tools/var/replication/source/${dataset}"
+                    fi
                 fi
-            fi
-        done # for target
-    done # for dataset
+            done # for target
+        done # for dataset
+    fi # if -d /${pool}/zfs_tools/var/replication/source
 done # for pool
 
 # Sync other files in ${zfs_replication_sync_filelist}
@@ -169,5 +171,61 @@ done # for file
 
                 
         
+# Sync Samba configurations
+
+debug "Syncing Samba configurations"
+
+for pool in $pools; do
+    # Collect samba datasets
+    folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool`
+    for folder in $folders; do  
+        debug "Getting dataset for folder $folder"
+        dataset=`zfs_cache get -H -o value -s local $zfs_dataset_property $folder`
+        if [ "$dataset" != "" ]; then
+            source_folder="/${pool}/zfs_tools/etc/samba/${dataset}"
+            targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`
+            for target in $targets; do
+                if [ "$target" != "${folder}" ]; then
+                    debug "Syncing Samba config for dataset $dataset with target $target, folder $folder"
+                    # Separate pool and folder
+                    IFS=':'
+                    read -r t_pool t_folder <<< "${target}"
+                    unset IFS
+
+                    target_folder="/${t_pool}/zfs_tools/etc/samba/${dataset}"
+                
+                    zpool list $t_pool &> /dev/null
+                    if [ $? -ne 0 ]; then
+                        debug "remote sync "
+                        # t_pool is not local, push and pull from the target pool, fail silently in the background
+                        debug "   to target"
+                        launch ${RSYNC} --rsync-path=${RSYNC} -rcptgo -v --update -e ssh \
+                            --exclude=running \
+                            ${source_folder}/ \
+                            ${t_pool}:${target_folder} #&> /dev/null
+                        debug "   to source"
+                        launch ${RSYNC} --rsync-path=${RSYNC} -rcptgo -v --update -e ssh \
+                            --exclude=running \
+                            ${t_pool}:${target_folder}/ \
+                            ${source_folder} #&> /dev/null
+                    else
+                        debug "local sync"
+                        # t_pool is local, no ssh necessary
+                        debug "   to target"
+                        ${RSYNC} -rcptgo -v --update \
+                            --exclude=running \
+                            ${source_folder}/ \
+                            ${target_folder} #&> /dev/null
+                        debug "   to source"
+                        ${RSYNC} -rcptgo -v --update \
+                            --exclude=running \
+                            ${target_folder}/ \
+                            ${source_folder} #&> /dev/null
+                    fi
+                fi # if $target
+            done # for target
+        fi # if $dataset
+    done # for folders
+done # for pool
                     
             
