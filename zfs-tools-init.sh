@@ -131,6 +131,10 @@ if [ -z $TAIL ]; then
     TAIL=`gnu_source tail`
 fi
 
+if [ -z $TAC ]; then
+    TAC=`gnu_source tac`
+fi
+
 if [ -z $FIND ]; then
     FIND=`gnu_source find`
 fi
@@ -372,6 +376,10 @@ fi
 
 if [ "$zfs_replication_sync_filelist" == "" ]; then
     zfs_replication_sync_filelist="/etc/hosts:/etc/ozmt/config.common:{pool}/etc/config.common"
+fi
+
+if [ "$zfs_replication_job_cleaner_cycle" == "" ]; then
+    zfs_replication_job_cleaner_cycle="60"
 fi
 
 if [ -z $suspend_all_jobs_timeout ]; then
