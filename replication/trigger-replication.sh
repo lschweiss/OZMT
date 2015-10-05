@@ -61,7 +61,7 @@ previous_snapshot=
 
 job_definition="${1}"
 
-mkdir ${TMP}/replication
+mkdir -p ${TMP}/replication
 
 source "$job_definition"
 
@@ -216,7 +216,7 @@ echo "execution_number=\"1\"" >> $jobfile
 # Update last run time in the status file 
 
 update_job_status "${job_status}" "last_run" "${last_run}" 
-mv "$pendingfile" "$jobfile"
+mv "$jobfile" "$pendingfile"
 
 
 
