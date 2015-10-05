@@ -68,11 +68,11 @@ populate_datasets () {
     for pool in $pools; do
         debug "Collecting datasets for pool: $pool"
         # Collect zfs_folders with cifs property set
-        zfs_folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool`
+        zfs_folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool 3>/dev/null`
         for folder in $zfs_folders; do
             debug "Checking folder: $folder"
             # Dataset is in this pool
-            dataset=`zfs_cache get -H -o value -s local ${zfs_dataset_property} $folder`
+            dataset=`zfs_cache get -H -o value -s local ${zfs_dataset_property} $folder 3>/dev/null`
             if [ "$dataset" != "" ]; then
                 echo "$folder" > ${smb_datasets_dir}/${dataset}
             fi
@@ -125,7 +125,7 @@ build_smb_conf () {
     local dataset_name="$1"
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
-    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
+    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local smb_conf_dir="/${pool}/zfs_tools/etc/samba/$dataset_name/running"
     local server_conf="$smb_conf_dir/smb_server.conf"
     local cifs_template=
@@ -290,12 +290,12 @@ build_smb_conf () {
     echo "lock directory = /${pool}/zfs_tools/var/samba/${dataset_name}" >> $server_conf
 
     # Collect vIPs
-    vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder}`
+    vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder} 3>/dev/null`
     interfaces=
     x=1
     while [ $x -le $vip_count ]; do
         ip=
-        vip_host=`zfs_cache get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1`
+        vip_host=`zfs_cache get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} 3>/dev/null | ${CUT} -d '/' -f 1 `
         debug "vIP host: $vip_host"
         # Get this in IP form
         if valid_ip $vip_host; then
@@ -347,7 +347,7 @@ start_smb_dataset () {
     local dataset_name="$1"
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
-    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder}`
+    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local active_smb="${active_smb_dir}/${dataset_name}"
     local smbd_bin=
     local smbd_pid=
@@ -481,7 +481,7 @@ start_smb_dataset () {
     touch $active_smb
 
     # smbd
-    smbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:smbd ${zfs_folder}`
+    smbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:smbd ${zfs_folder} 3>/dev/null`
     if [ "$smbd_path" != '' ]; then
         debug "Overriding default smbd for: $smbd_path"
     else
@@ -489,7 +489,7 @@ start_smb_dataset () {
         smbd_path="$SMBD"
     fi
     # nmbd
-    nmbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:nmbd ${zfs_folder}`
+    nmbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:nmbd ${zfs_folder} 3>/dev/null`
     if [ "$nmbd_path" != '' ]; then
         debug "Overriding default nmbd for: $smbd_path"
     else
@@ -497,7 +497,7 @@ start_smb_dataset () {
         nmbd_path="$NMBD"
     fi
     # winbindd
-    winbindd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:winbindd ${zfs_folder}`
+    winbindd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:winbindd ${zfs_folder} 3>/dev/null`
     if [ "$winbindd_path" != '' ]; then
         debug "Overriding default winbindd for: $winbindd_path"
     else
@@ -668,11 +668,11 @@ check_smb_dataset () {
 
     # Check the vip(s)
 
-    vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder}`
+    vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder} 3>/dev/null`
     x=1
     while [ $x -le $vip_count ]; do
         ip=
-        vip_host=`zfs_cache get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1`
+        vip_host=`zfs_cache get -H -o value ${zfs_vip_property}:${x} ${zfs_folder} | ${CUT} -d '/' -f 1 3>/dev/null`
         debug "vIP host: $vip_host"
         # Get this in IP form
         if valid_ip $vip_host; then
