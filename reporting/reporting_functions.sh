@@ -220,7 +220,7 @@ process_message() {
                 case $limit_type in
                     m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l`; limit_unit='minute' ;;
                     h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l`; limit_unit='hour' ;;
-                    d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l`; limint_unit='day' ;;
+                    d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l`; limit_unit='day' ;;
 
                 esac
                 if [ $count -ge $limit_num ]; then
