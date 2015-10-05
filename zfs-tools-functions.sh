@@ -518,17 +518,14 @@ update_job_status () {
             if [ "$increment" == "" ]; then
                 debug "Setting ${declaration}=\"${value}\""
                 echo "${declaration}=\"${value}\"" >> "$temp_file"
-                eval ${declaration}=\"${value}\"
             else
                 if [ "$previous_value" == "" ]; then
                     if [ "$increment" == "+" ]; then
                         debug "Setting ${declaration}=\"${value}\""
                         echo "${declaration}=\"${value}\"" >> "$temp_file"
-                        eval ${declaration}=\"${value}\"
                     else
                         debug "Setting ${declaration}=\"0\""
                         echo "${declaration}=\"0\"" >> "$temp_file"
-                        eval ${declaration}=\"${value}\"
                     fi
                 else
                     case $increment in
@@ -544,12 +541,8 @@ update_job_status () {
                     fi
                     debug "Setting ${declaration}=\"${value}\""
                     echo "${declaration}=\"${value}\"" >> "$temp_file"
-                    eval ${declaration}=\"${value}\"
                 fi 
             fi
-        else
-            # Export the variable declaration for reuse by our calling function
-            eval ${declaration}=
         fi
 
         # Replace the status file with the updated file
