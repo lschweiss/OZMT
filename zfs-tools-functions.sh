@@ -423,7 +423,25 @@ get_pid () {
 
 update_job_status () {
 
-    # Takes 3 or 4 input parameters.
+    local line=
+    local temp_file="${TMP}/update_job_status_$$"
+    local MIN_ARGS=
+    local status_file="$1"
+    local variable=
+    local value=
+    local declaration=
+    local increment=
+    local previous_value=
+    local have_lock='false'
+
+    if [ ! -f "$status_file" ]; then
+        error "update_job_status called on none-existant status file: $status_file"
+        exit 1
+    fi
+
+    shift 1
+
+    # Takes 3 or 4 input parameters.  Can repeat 2 through 4 for operation on multiple variables at once.
     # 1: Job status file
     # 2: Variable to update or add
     # 3: Content of the variable
@@ -431,98 +449,117 @@ update_job_status () {
     #    Use + or - to add or subtract to the current value.  
     #      (Will not allow negative values)
     # 4: specify 'local' if varable is prefixed with 'local' declarative (optional)
+    #
+    # Can repeat 2 through 4 for operation on multiple variables at once.
 
-    local line=
-    local temp_file="${TMP}/update_job_status_$$"
+    while [ "$1" != "" ]; do
 
-    # Minimum number of arguments needed by this function
-    local MIN_ARGS=3
+        line=
 
-    if [ "$#" -lt "$MIN_ARGS" ]; then
-        error "update_job_status called with too few arguments.  $*"
-        exit 1
-    fi
+        # Minimum number of arguments needed by this function
+        MIN_ARGS=2
 
-    local status_file="$1"
-    local variable="$2"
-    local value="$3"
-    local declaration=
-    local increment=
-    local previous_value=
-
-    rm -f "$temp_file" 2> /dev/null
-
-    if [ "$4" == "local" ]; then
-        declaration="local ${variable}"
-    else
-        declaration="${variable}"
-    fi
-
-    debug "Updating $variable in $status_file"
-
-    if [[ "${value:0:1}" == "+" || "${value:0:1}" == "-" ]]; then
-        increment="${value:0:1}"
-        value="${value:1}"
-        debug "Incrementing $variable by $increment $value"
-    fi
-
-    wait_for_lock "$status_file" 5
-
-    # Copy all status lines execept the variable we are dealing with
-    if [ -f "$status_file" ]; then
-        while read line; do
-            echo "$line" | ${GREP} -q "^${declaration}="
-            if [ $? -ne 0 ]; then
-                echo "$line" >> "$temp_file"
-            else
-                if [ "$increment" != "" ]; then
-                    previous_value=`echo "$line" | cut -d '=' -f 2 | $SED 's/"//g'`
-                fi
+        if [ "$#" -lt "$MIN_ARGS" ]; then
+            error "update_job_status called with too few arguments.  $*"
+            if [ "$have_lock" == 'true' ]; then
+                release_lock "$status_file" 
             fi
-        done < "$status_file"
-    else
-        # File will be created
-        touch "$status_file"
-    fi
+            exit 1
+        fi
 
-    # Add our variable
-    if [ "$value" != "#REMOVE#" ]; then
-        if [ "$increment" == "" ]; then
-            debug "Setting ${declaration}=\"${value}\""
-            echo "${declaration}=\"${value}\"" >> "$temp_file"
+        variable="$1"
+        value="$2"
+        declaration=
+        increment=
+        previous_value=
+
+        rm -f "$temp_file" 2> /dev/null
+
+        if [ "$3" == "local" ]; then
+            declaration="local ${variable}"
+            shift 3
         else
-            if [ "$previous_value" == "" ]; then
-                if [ "$increment" == "+" ]; then
-                    debug "Setting ${declaration}=\"${value}\""
-                    echo "${declaration}=\"${value}\"" >> "$temp_file"
+            declaration="${variable}"
+            shift 2
+        fi
+
+        if [ "$have_lock" == 'false' ]; then
+            wait_for_lock "$status_file" 5
+            have_lock='true'
+        fi
+
+        debug "Updating $variable in $status_file"
+
+        if [[ "${value:0:1}" == "+" || "${value:0:1}" == "-" ]]; then
+            increment="${value:0:1}"
+            value="${value:1}"
+            debug "Incrementing $variable by $increment $value"
+        fi
+
+        # Copy all status lines execept the variable we are dealing with
+        if [ -f "$status_file" ]; then
+            while read line; do
+                echo "$line" | ${GREP} -q "^${declaration}="
+                if [ $? -ne 0 ]; then
+                    echo "$line" >> "$temp_file"
                 else
-                    debug "Setting ${declaration}=\"0\""
-                    echo "${declaration}=\"0\"" >> "$temp_file"
+                    if [ "$increment" != "" ]; then
+                        previous_value=`echo "$line" | cut -d '=' -f 2 | $SED 's/"//g'`
+                    fi
                 fi
-            else
-                case $increment in
-                    '+')
-                        value=$((previous_value + value))
-                        ;;
-                    '-')
-                        value=$((previous_value - value))
-                        ;;
-                esac
-                if [ $value -lt 0 ]; then
-                    value=0
-                fi
+            done < "$status_file"
+        else
+            # File will be created
+            touch "$status_file"
+        fi
+
+        # Add our variable
+        if [ "$value" != "#REMOVE#" ]; then
+            if [ "$increment" == "" ]; then
                 debug "Setting ${declaration}=\"${value}\""
                 echo "${declaration}=\"${value}\"" >> "$temp_file"
-            fi 
+                eval ${declaration}="${value}"
+            else
+                if [ "$previous_value" == "" ]; then
+                    if [ "$increment" == "+" ]; then
+                        debug "Setting ${declaration}=\"${value}\""
+                        echo "${declaration}=\"${value}\"" >> "$temp_file"
+                        eval ${declaration}="${value}"
+                    else
+                        debug "Setting ${declaration}=\"0\""
+                        echo "${declaration}=\"0\"" >> "$temp_file"
+                        eval ${declaration}="${value}"
+                    fi
+                else
+                    case $increment in
+                        '+')
+                            value=$((previous_value + value))
+                            ;;
+                        '-')
+                            value=$((previous_value - value))
+                            ;;
+                    esac
+                    if [ $value -lt 0 ]; then
+                        value=0
+                    fi
+                    debug "Setting ${declaration}=\"${value}\""
+                    echo "${declaration}=\"${value}\"" >> "$temp_file"
+                    eval ${declaration}="${value}"
+                fi 
+            fi
+        else
+            # Export the variable declaration for reuse by our calling function
+            eval ${declaration}=
         fi
-    fi
 
-    # Replace the status file with the updated file
-    mv "$temp_file" "$status_file"
+        # Replace the status file with the updated file
+        mv "$temp_file" "$status_file"
+
+        rm $temp_file 2>/dev/null
+
+    done
 
     release_lock "$status_file"
-
-    rm $temp_file 2>/dev/null
 
     return 0
 
@@ -749,6 +786,79 @@ zfs_cache () {
         result=$?
     fi
 
+    # Allow capture of the cache file associated with this request
+    echo "$cache_file" >&3 2>/dev/null
+
     return $result
 }
+
+
+# Remote version of zfs_cache, that stores cache locally.
+
+# Requires first argument to be 'get' or 'list'
+# Requires last argument to be pool/folder format
+
+# Similar to replication requirement the command will be completed through ssh to the pool name
+# Calling function must take care of cache cleaning
+
+remote_zfs_cache () {
+    local first="$1"
+    local last="${!#}"
+    local pool=`echo $last | ${CUT} -d '/' -f 1`
+    local fixed_args=`echo "$*" | ${SED} -e 's/ /_/g' -e 's,/,%,g'`
+    local cache_path=
+    local cache_file=
+    local use_cache='false'
+    local zfs_command=
+    local result=0
+
+    cache_path="/var/zfs_tools/cache/zfs_cache/${pool}"
+    mkdir -p "${cache_path}"
+
+    cache_file="${cache_path}/zfs_${fixed_args}"
+
+    if [ -f "${cache_file}" ]; then
+        if [ -f "${cache_path}/.cache_stale" ]; then
+            if [ "${cache_path}/.cache_stale" -ot "${cache_file}" ]; then
+                # Cache has been updated since being declared stale.
+                use_cache='true'
+            else
+                # Cache is stale, re-run the command
+                debug "Cache is stale. Updating."
+                use_cache='false'
+            fi
+        else
+            use_cache='true'
+        fi
+    fi
+
+    if [ "$use_cache" == 'true' ]; then
+        zfs_command=`head -1 $cache_file`
+        if [ "$zfs_command" != "zfs $*" ]; then
+            # Return the cache and update cache file to include the command
+            cat $cache_file
+            debug "Updating cache to new format.  File: $cache_file "
+            sed -i '1s,^,zfs $*\n,' $cache_file
+        else
+            debug "Using cache file"
+            tail -n+2 $cache_file
+        fi
+    else
+        echo "zfs $*" > $cache_file
+        ssh $pool "zfs $*" | tee -a $cache_file
+        result=$?
+    fi
+
+    # Allow capture of the cache file associated with this request
+    echo "$cache_file" >&3 2>/dev/null
+
+    return $result
+}
+
+
+    
+
+
+
+
 
