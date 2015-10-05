@@ -77,69 +77,68 @@ if [ "$#" -lt "$MIN_ARGS" ]; then
     exit 1
 fi
 
-xflag=
-dflag=
-Dflag=
-tflag=
-cflag=
-kflag=
-yflag=
-sflag=
-iflag=
-rflag=
-pflag=
-aflag=
-eflag=
-lflag=
-zflag=
-nflag=
-zval=1
+exclude_file_flag=
+date_flag=
+dont_delete_flag=
+trial_mode_flag=
+cns_exclude_flag=
+use_chksum_flag=
+split_rsync_flag=
+incoming_via_ssh_flag=
+dry_run_flag=
+progress_verbose_flag=
+attach_verbose_output_flag=
+remote_shell_flag=
+dereference_symlinks_flag=
+scan_depth_flag=
+job_name_flag=
+scan_depth=1
 
 progress=""
 
 while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
     case $opt in
         x)  # Exclude File Specified
-            xflag=1
-            xval="$OPTARG";;
+            exclude_file_flag=1
+            exclude_file="$OPTARG";;
         d)  # Date Specified
-            dflag=1
-            dval="$OPTARG";;
+            date_flag=1
+            sync_date="$OPTARG";;
         c)  # CNS Exclude File Specified
-            cflag=1
-            cval="$OPTARG";;
+            cns_exclude_flag=1
+            cns_exclude_file="$OPTARG";;
         k)  # Use checksum comparison
-            kflag=1;;
+            use_chksum_flag=1;;
         a)  # Turn on verbose and attachements
             DEBUG=true
-            aflag=1;;
+            attach_verbose_output_flag=1;;
         p)  # Turn on progress and verbose
-            pflag=1;;
-	D)  # Don't delete on the target
-	    Dflag=1;;
+            progress_verbose_flag=1;;
+    	D)  # Don't delete on the target
+	        dont_delete_flag=1;;
         t)  # Trial mode
             debug "Using trial mode"
-            tflag=1;;
+            trial_mode_flag=1;;
         r)  # Dry Run
             debug "Doing a dry run of rsync"
-            rflag=1;;
+            dry_run_flag=1;;
         s)  # Split rsync jobs
-            sflag=1
-            sval="$OPTARG"
-            debug "Splitting into $sval jobs";;
+            split_rsync_flag=1
+            split_rsync_job_count="$OPTARG"
+            debug "Splitting into $split_rsync_job_count jobs";;
         z)  # Scan depth for split jobs
-            zflag=1
-            zval="$OPTARG";;
+            scan_depth_flag=1
+            scan_depth="$OPTARG";;
         n)  # Job name
-            nflag=1
-            nval="$OPTARG";;
+            job_name_flag=1
+            job_name_value="$OPTARG";;
         e)  # Use remote shell
-            eflag=1
-            eval="$OPTARG";;
+            remote_shell_flag=1
+            remote_shell_value="$OPTARG";;
         i)  # Incoming via SSH (Source folder is via ssh)
-            iflag=1;;
+            incoming_via_ssh_flag=1;;
         l)  # Dereference symlinks
-            lflag=1;;
+            dereference_symlinks_flag=1;;
         ?)  # Show program usage and exit
             show_usage
             exit 1;;
@@ -150,24 +149,24 @@ while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
 done
 
 # Exclude file parameter
-if [ ! -z "$xflag" ]; then
-    #echo "Option -x $xval specified"
+if [ ! -z "$exclude_file_flag" ]; then
+    #echo "Option -x $exclude_file specified"
     debug "Attempting to use given Exclude File"
-    if [ -f $xval ]; then
-        exclude_file="--exclude-from=${xval}"
-        debug "Using Exclude File: $xval"
+    if [ -f $exclude_file ]; then
+        exclude_file_option="--exclude-from=${exclude_file}"
+        debug "Using Exclude File: $exclude_file"
     else
-        debug "Exclude file $xval not found!"
+        debug "Exclude file $exclude_file not found!"
         exit 1
     fi
 fi
 # Date parameter
-if [ ! -z "$dflag" ]; then
-    #echo "Option -d $dval specified"
+if [ ! -z "$date_flag" ]; then
+    #echo "Option -d $sync_date specified"
     debug "Attempting to use given snapshot date"
-    this_date=$dval
+    this_date=$sync_date
     # Assume we are running interactively if a date is specified
-    #pflag=1
+    #progress_verbose_flag=1
 else
     # Default to today's date
     debug "Defaulting to today's date"
@@ -175,12 +174,12 @@ else
 fi
 debug "Using Date: $this_date"
 
-if [ ! -z "$pflag" ]; then
+if [ ! -z "$progress_verbose_flag" ]; then
     progress="--verbose --progress"
 fi
 
 # Don't delete on target
-if [ ! -z $Dflag ]; then
+if [ ! -z $dont_delete_flag ]; then
     debug "NOT deleting on the target"
     delete_on_target=''
 else
@@ -197,7 +196,7 @@ if [ -d $1 ]; then
     source_folder=$1
 else
     # Check for source via SSH
-    if [ "$iflag" == "1" ]; then
+    if [ "$incoming_via_ssh_flag" == "1" ]; then
         # Find hostname and remote source folder
         IFS=":" 
         read -r source_host remote_source_folder <<< "$1"
@@ -219,7 +218,7 @@ fi
 if [ -d $2 ]; then
     target_folder=$2
 else
-    if [ ! -z "$eflag" ]; then
+    if [ ! -z "$remote_shell_flag" ]; then
         debug "Assuming remote target folder $2 exists.  Cannot check from here."
         target_folder=$2
     else
@@ -228,38 +227,38 @@ else
     fi
 fi
 
-if [ "$rflag" == "1" ]; then
+if [ "$dry_run_flag" == "1" ]; then
     extra_options="--dry-run"
 else
     extra_options="$progress"
 fi
 
-if [ "$aflag" == "1" ]; then
+if [ "$attach_verbose_output_flag" == "1" ]; then
     debug "Using verbose and attaching logs"
     extra_options="${extra_options} -v"
 fi
 
-if [ ! -z "$eflag" ]; then
-    debug "Using remote shell: $eval"
-    extra_options="${extra_options} -e ${eval}"
+if [ ! -z "$remote_shell_flag" ]; then
+    debug "Using remote shell: $remote_shell_value"
+    extra_options="${extra_options} -e ${remote_shell_value}"
 fi
 
-if [ ! -z "$lflag" ]; then
+if [ ! -z "$dereference_symlinks_flag" ]; then
     debug "Dereferencing symlinks"
     extra_options="${extra_options} --copy-links"
 fi
 
-if [ ! -z "$kflag" ]; then
+if [ ! -z "$use_chksum_flag" ]; then
     debug "Using checksum file comparison"
     extra_options="${extra_options} --checksum"
 fi
 
-if [ ! -x "$nflag" ]; then
-    debug "Setting job name to $nval"
-    jobname="$nval"
+if [ ! -x "$job_name_flag" ]; then
+    debug "Setting job name to $job_name_value"
+    jobname="$job_name_value"
 else
     debug "Setting job name to $source_folder"
-    jobnaem="$source_folder"
+    jobname="$source_folder"
 fi
 
 
@@ -275,18 +274,19 @@ split_rsync () {
 
     local rsync_result=-1
     local try=0
+    local basedir=
 
-    if [ "$iflag" == "1" ]; then
-        local basedir="${source_host}:${snapdir}/${snap}"
+    if [ "$incoming_via_ssh_flag" == "1" ]; then
+        basedir="${source_host}:${snapdir}/${snap}"
     else
-        local basedir="${snapdir}/${snap}"
+        basedir="${snapdir}/${snap}"
     fi
 
     # Function used to run a parallel rsync job
     debug "${RSYNC} -arS ${delete_on_target} --relative \
             --stats $extra_options --exclude=.history --exclude=.snapshot \
             --files-from=${1} $basedir/ $target_folder"
-    if [ "$tflag" != 1 ]; then
+    if [ "$trial_mode_flag" != 1 ]; then
         while [ $rsync_result -ne 0 ]; do
             ${RSYNC} -arS ${delete_on_target} --relative  \
                 --stats $extra_options --exclude=.history --exclude=.snapshot \
@@ -310,7 +310,7 @@ split_rsync () {
                 fi
             fi
 
-            if [ "$aflag" == "1" ]; then
+            if [ "$attach_verbose_output_flag" == "1" ]; then
                 cat ${1}.log
                 notice "${jobname} split job ${1} logs attached" ${1}.log
             fi
@@ -323,6 +323,128 @@ split_rsync () {
     fi
 
     touch ${1}.complete
+}
+
+####
+#
+# Remove files/directories on destination that fall below the scan depth 
+# that have been deleted on the source side.
+#
+####
+
+# When using split rsync jobs --delete only works on files and folder
+# that are are deeper than the scan depth.
+#
+# This routine collects all files and folders on the destination side 
+# checkes each of them if they exist on the source side.  If they don't
+# exist on the source side they are deleted from the destination.
+
+
+remove_missed_deletes () {
+
+    local destination_ssh=
+    local destination_basedir=
+    local source_ssh=
+    local source_basedir=
+    local delete_count=0
+
+    # Test sed
+    # Requires sed version 4.2.2 or newer that supports -z/--null-data
+    echo "Hello world" | ${SED} --null-data 's,Hello,Goodbye,g' > /dev/null
+    if [ $? -ne 0 ]; then
+        error "Removing missed deletes requires sed 4.2.2 or newer. Current version $(${SED} --version)"
+        return 1
+    fi
+
+    if [ ! -z $dont_delete_flag ]; then
+        debug "Skipping remove_missed_deletes, because we are not deleting on the target."
+        return 0
+    fi
+
+    set -x
+
+    # Setup source and destination details
+    # TODO: Don't assume SSH this can be all local
+
+    if [ "$incoming_via_ssh_flag" == "1" ]; then
+        source_basedir="$remote_source_folder"
+        source_ssh="ssh $source_host"
+        destination_basedir="$target_folder"
+        desination_ssh=''
+    else
+        source_basedir="$basedir"
+        source_ssh=''
+        IFS=":"
+        read -r destination_host destination_basedir <<< "$target_folder"
+        unset IFS 
+        destination_ssh="ssh $destination_host"
+    fi
+
+    # TODO: Filter out exclusions
+
+    find_command="find -maxdepth $scan_depth -regextype posix-egrep ! -regex '\.' ! -regex '\./\.snapshot/.*' ! -regex '\./\.zfs/.*' ! -regex '\./\.history.*' -print0"
+    set +x
+
+    # Collect lists
+    debug "${jobname}: Collecting files/directories on the SOURCE below the scan depth of $scan_depth:"
+    set -x
+
+    exec_command="( pushd . >/dev/null ; cd $source_basedir ; $find_command ; popd > /dev/null )"
+
+    if [ "$source_ssh" != "" ]; then
+        $source_ssh "( cd $source_basedir ; $find_command )" | \
+            ${SED} --null-data 's/^..//' | \
+            ${SORT} --reverse --zero-terminated > ${TMP}/sync_folder_list_$$_post_delete_source
+    else
+        ( cd $source_basedir ; $find_command ) | \
+            ${SED} --null-data 's/^..//' | \
+            ${SORT} --reverse --zero-terminated > ${TMP}/sync_folder_list_$$_post_delete_source
+    fi
+    set +x
+    if [ "$DEBUG" == 'true' ]; then
+        cat ${TMP}/sync_folder_list_$$_post_delete_source | xargs -0 -I '{}' echo '{}'
+    fi
+
+    debug "${jobname}: Collecting files/directories on the DESTINATION below the scan depth of $scan_depth:"
+    set -x
+    if [ "$destination_ssh" != "" ]; then
+        $destination_ssh "( cd $destination_basedir ; $find_command )" | \
+            ${SED} --null-data 's/^..//' | \
+            ${SORT} --reverse --zero-terminated > ${TMP}/sync_folder_list_$$_post_delete_destination
+    else
+        ( cd $destination_basedir ; $find_command ) | \
+            ${SED} --null-data 's/^..//' | \
+            ${SORT} --reverse --zero-terminated > ${TMP}/sync_folder_list_$$_post_delete_destination
+    fi
+
+
+    set +x
+    if [ "$DEBUG" == 'true' ]; then
+        cat ${TMP}/sync_folder_list_$$_post_delete_destination | xargs -0 -I '{}' echo '{}'
+    fi
+
+    # Compare lists
+    cat ${TMP}/sync_folder_list_$$_post_delete_destination | \
+    while read -r -d $'\0' x; do
+        cat ${TMP}/sync_folder_list_$$_post_delete_source | ${GREP} --null -q -x "${x}"
+        if [ $? -ne 0 ]; then
+            delete_count=$(( delete_count + 1 ))
+            if [ "$dry_run_flag" == '1' ]; then
+                debug "File/folder $x is on destination, but not source.  Dry run. Not deleting"
+            else
+                debug "File/folder $x is on destination, but not source, deleting. $delete_count"
+                echo $x >> ${TMP}/sync_folder_${jobname}_delete_list
+                # TODO: Put delete delete code here
+            fi
+        fi 
+    done
+
+    notice "${jobname}: Deleted $delete_count files/directories below scan depth of $scan_depth"
+
+    # TODO: Get count of destination and source lists --> sed -nz '$='
+    # Compare difference with delete_count
+
+
 }
 
 ####
@@ -342,7 +464,7 @@ remove_empty_dirs () {
     local target="$2"
 
     # Can't do this when using a remote connection
-    if [ -z "$eflag" ]; then
+    if [ -z "$remote_shell_flag" ]; then
         cat $logfile | ${GREP} -q "cannot delete non-empty directory: "
         has_empties=$?
 
@@ -370,59 +492,61 @@ remove_empty_dirs () {
 
 output_stats () {
 
-        # Collect stats
+    # Collect stats
 
-        local x=0
-        local num_files=0
-        local num_files_trans=0
-        local total_file_size=0
-        local total_transfered_size=0
+    local x=0
+    local num_files=0
+    local num_files_trans=0
+    local total_file_size=0
+    local total_transfered_size=0
 
-        local log_name="$1"
+    local log_name="$1"
 
-        local indent=`head -c ${#jobname} < /dev/zero | tr '\0' '\040'`
+    local indent=`head -c ${#jobname} < /dev/zero | tr '\0' '\040'`
 
-        logs=`ls -1 ${TMP}|${GREP} ${log_name}|${GREP} ".log"`
+    logs=`ls -1 ${TMP}|${GREP} ${log_name}|${GREP} ".log"`
 
-        for log in ${logs} ; do
-            if [ -f ${TMP}/$log ]; then
-                debug "Adding totals for ${TMP}/$log"
-		if [ "$DEBUG" == 'true' ]; then
-		    cat ${TMP}/$log
-		fi
-                this_num_files=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
-                if echo "$this_num_files"|grep -q "reg"; then
-                    this_num_files=`echo "$this_num_files"|awk -F " " '{print $1}'`
-                fi
-                this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "files transferred:" | ${AWK} -F ": " '{print $2}'`
-                this_total_file_size=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
-                this_total_transfered_size=`cat ${TMP}/$log | ${SED} 's/,//g' |${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
-                # Add to totals
-                let "num_files = $num_files + $this_num_files"
-                let "num_files_trans = $num_files_trans + $this_num_files_trans"
-                let "total_file_size = $total_file_size + $this_total_file_size"
-                let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
-                x=$(( $x + 1 ))
+    for log in ${logs} ; do
+        if [ -f ${TMP}/$log ]; then
+            debug "Adding totals for ${TMP}/$log"
+            if [ "$DEBUG" == 'true' ]; then
+                cat ${TMP}/$log
             fi
-        done
+            this_num_files=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Number of files:" | ${AWK} -F ": " '{print $2}'`
+            if echo "$this_num_files"|grep -q "reg"; then
+                this_num_files=`echo "$this_num_files"|awk -F " " '{print $1}'`
+            fi
+            this_num_files_trans=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "files transferred:" | ${AWK} -F ": " '{print $2}'`
+            this_total_file_size=`cat ${TMP}/$log | ${SED} 's/,//g' | ${GREP} "Total file size:" | ${AWK} -F " " '{print $4}'` 
+            this_total_transfered_size=`cat ${TMP}/$log | ${SED} 's/,//g' |${GREP} "Total transferred file size:" | ${AWK} -F " " '{print $5}'`
+            # Add to totals
+            let "num_files = $num_files + $this_num_files"
+            let "num_files_trans = $num_files_trans + $this_num_files_trans"
+            let "total_file_size = $total_file_size + $this_total_file_size"
+            let "total_transfered_size = $total_transfered_size + $this_total_transfered_size"  
+            x=$(( $x + 1 ))
+        fi
+    done
 
-        # Output totals
+    # Output totals
 
-        notice "${jobname} ******* Rsync Totals *******"
-        notice "    Number of jobs: $x"
-        notice "    Number of files: $num_files"
-        notice "    Number of files transfered: $num_files_trans"
-        notice "    Total_file_size: $(bytestohuman $total_file_size)"
-        notice "    Total Transfered size: $(bytestohuman $total_transfered_size)"
-        
-        # DEBUG set +x
+    notice "${jobname} ******* Rsync Totals *******"
+    notice "    Number of jobs: $x"
+    notice "    Number of files: $num_files"
+    notice "    Number of files transfered: $num_files_trans"
+    notice "    Total_file_size: $(bytestohuman $total_file_size)"
+    notice "    Total Transfered size: $(bytestohuman $total_transfered_size)"
+    
+    # DEBUG set +x
         
 } # output_stats
 
 
 
-if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}/.zfs/snapshot" ]]; then
-    if [ "$iflag" == "1" ]; then
+
+
+if [[ "$incoming_via_ssh_flag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}/.zfs/snapshot" ]]; then
+    if [ "$incoming_via_ssh_flag" == "1" ]; then
         ssh $source_host ls -1 "${remote_source_folder}/.snapshot" > /dev/null
         if [ $? -eq 0 ]; then
             debug "${jobname}: ${remote_source_folder}/.snapshot found."
@@ -470,18 +594,18 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
 
     joblog="${TMP}/sync_folder_$$.log"
     
-    if [ "$sflag" != "1" ]; then
-        if [ "$iflag" == "1" ]; then
+    if [ "$split_rsync_flag" != "1" ]; then
+        if [ "$incoming_via_ssh_flag" == "1" ]; then
             basedir="${source_host}:${snapdir}/${snap}"
         else
             basedir="${snapdir}/${snap}"
         fi
         # Run rsync
-        debug "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file $basedir/ $target_folder"
-        if [ "$tflag" != "1" ]; then
-            echo "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file \
+        debug "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file_option $basedir/ $target_folder"
+        if [ "$trial_mode_flag" != "1" ]; then
+            echo "rsync -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file_option \
                 $basedir/ $target_folder" > ${TMP}/sync_snap_folder_$$.log
-            ${RSYNC} -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file \
+            ${RSYNC} -aS ${delete_on_target} --stats $extra_options --exclude=.snapshot $exclude_file_option \
                 $basedir/ $target_folder &>> ${TMP}/sync_snap_folder_$$.log
             rsync_result=$?
 
@@ -493,7 +617,7 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
             if [ $rsync_result -ne 0 ]; then
                 error "${basedir} Job failed with error code $rsync_result" ${TMP}/sync_snap_folder_$$.log
             fi
-            if [ "$aflag" == "1" ]; then
+            if [ "$attach_verbose_output_flag" == "1" ]; then
                 cat ${TMP}/sync_snap_folder_$$.log
                 notice "$basedir complete logs attached." ${TMP}/sync_snap_folder_$$.log
             fi
@@ -506,75 +630,79 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
         #
         ##
     
-        notice "${jobname}: Splitting into $sval rsync job(s), scan depth $zval"
+        notice "${jobname}: Splitting into $split_rsync_job_count rsync job(s), scan depth $scan_depth"
 
         basedir="${snapdir}/${snap}"
 
         # Collect lists
-        if [ "$iflag" == "1" ]; then
-	    debug "${jobname}: Collecting lists - Remote Directories:"
-            ssh $source_host find $basedir -mindepth $zval -maxdepth $zval -type d | \
-		${SED} "s,${basedir}/,," | \
+        if [ "$incoming_via_ssh_flag" == "1" ]; then
+            debug "${jobname}: Collecting lists - Remote Directories:"
+            ssh $source_host find $basedir -mindepth $scan_depth -maxdepth $scan_depth -type d | \
+                ${SED} "s,${basedir}/,," | \
                 ${GREP} -v "$.snapshot" | \
-		${GREP} -v "$.zfs" | \
-		${GREP} -v ".history" > \
-		${TMP}/sync_folder_list_$$
-	    if [ "$DEBUG" == 'true' ]; then
+                ${GREP} -v "$.zfs" | \
+                ${GREP} -v ".history" > \
+                ${TMP}/sync_folder_list_$$
+            if [ "$DEBUG" == 'true' ]; then
                cat ${TMP}/sync_folder_list_$$
             fi
         else
-	    debug "${jobname}: Collecting lists - Local Directories:"
-            find $basedir -mindepth $zval -maxdepth $zval -type d | \
-		${SED} "s,${basedir}/,," | \
+            debug "${jobname}: Collecting lists - Local Directories:"
+            find $basedir -mindepth $scan_depth -maxdepth $scan_depth -type d | \
+            ${SED} "s,${basedir}/,," | \
                 ${GREP} -v "$.snapshot" | \
-		${GREP} -v "$.zfs" | \
-		${GREP} -v ".history" > \
-		${TMP}/sync_folder_list_$$
-	    if [ "$DEBUG" == 'true' ]; then
-		echo "find $basedir -mindepth $zval -maxdepth $zval -type d | ${SED} "s,${basedir}/,," |  ${GREP} -v "$.snapshot" | ${GREP} -v "$.zfs" |  ${GREP} -v ".history" > ${TMP}/sync_folder_list_$$ "
-               cat ${TMP}/sync_folder_list_$$
+                ${GREP} -v "$.zfs" | \
+                ${GREP} -v ".history" > \
+                ${TMP}/sync_folder_list_$$ 2>${TMP}/sync_folder_list_$$_find_error
+            if [ $(cat ${TMP}/sync_folder_list_$$_find_error|wc -l) -gt 0 ]; then
+                error "${jobname}: Find error detected" ${TMP}/sync_folder_list_$$_find_error
+            fi
+            if [ "$DEBUG" == 'true' ]; then
+                echo "find $basedir -mindepth $scan_depth -maxdepth $scan_depth -type d | ${SED} "s,${basedir}/,," |  ${GREP} -v "$.snapshot" | ${GREP} -v "$.zfs" |  ${GREP} -v ".history" > ${TMP}/sync_folder_list_$$ "
+                cat ${TMP}/sync_folder_list_$$
             fi
         fi
 
         # Add files that may be at a depth less than or equal to the test above
 
-        if [ "$iflag" == "1" ]; then
+        if [ "$incoming_via_ssh_flag" == "1" ]; then
             debug "${jobname}: Collecting lists - Remote Files:"
-            ssh $source_host find $basedir -maxdepth $zval \! -type d | \
+            ssh $source_host find $basedir -maxdepth $scan_depth \! -type d | \
                 ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
-	    if [ "$DEBUG" == 'true' ]; then
+            if [ "$DEBUG" == 'true' ]; then
                cat ${TMP}/sync_folder_list_$$
             fi
         else
             debug "${jobname}: Collecting lists - Local Files:"
-            find $basedir -maxdepth $zval \! -type d | \
-                ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$
-	    if [ "$DEBUG" == 'true' ]; then
+            rm -f ${TMP}/sync_folder_list_$$_find_error
+            find $basedir -maxdepth $scan_depth \! -type d | \
+                ${SED} "s,${basedir}/,,"  >> ${TMP}/sync_folder_list_$$ 2>${TMP}/sync_folder_list_$$_find_error
+            if [ $(cat ${TMP}/sync_folder_list_$$_find_error|wc -l) -gt 0 ]; then
+                error "${jobname}: Find error detected" ${TMP}/sync_folder_list_$$_find_error
+            fi
+            if [ "$DEBUG" == 'true' ]; then
                cat ${TMP}/sync_folder_list_$$
             fi
         fi
 
 
-        # Strip the basedir from each line  sed "s,${basedir}/,," sed 's,$,/,' sed 's,^,+ ,'
-#	debug "${jobname}: Collecting lists - Trimming base directory:"
-#        cat ${TMP}/sync_folder_list_$$ | ${SED} "s,${basedir}/,," | ${SED} 's,$,/,' > ${TMP}/sync_folder_list_$$_trim
 
         # Remove exclusions
 
-        if [ "$xflag" == "1" ]; then
-            if [ -f "$xval" ]; then
+        if [ "$exclude_file_flag" == "1" ]; then
+            if [ -f "$exclude_file" ]; then
                 # Fix up excludes
                 while read line; do
                     echo "${basedir}/$line" >> ${TMP}/sync_folder_list_$$_exclude_list
                     debug "${jobname}: Excluding $line"
                     cat ${TMP}/sync_folder_list_$$ | \
-			${GREP} -v "^${line}" > \
+                        ${GREP} -v "^${line}" > \
                         ${TMP}/sync_folder_list_$$_exclude
                     mv ${TMP}/sync_folder_list_$$_exclude ${TMP}/sync_folder_list_$$
-                done < $xval
+                done < $exclude_file
                 extra_options="$extra_options --exclude-from=${TMP}/sync_folder_list_$$_exclude_list"
             else
-                warning "${jobname}: Exclusion file $xval not found"
+                warning "${jobname}: Exclusion file $exclude_file not found"
             fi
         fi        
  
@@ -589,21 +717,21 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
 
         x=0
         lines=`cat ${TMP}/sync_folder_list_$$_rand|wc -l`
-        remainder=$(( $lines % $sval ))
+        remainder=$(( $lines % $split_rsync_job_count ))
         if [ $remainder -eq 0 ]; then
-            linesperjob=$(( $lines / $sval ))
+            linesperjob=$(( $lines / $split_rsync_job_count ))
         else
-            linesperjob=$(( $lines / $sval + 1 ))
+            linesperjob=$(( $lines / $split_rsync_job_count + 1 ))
         fi
 
-        while [ $x -lt $sval ]; do
+        while [ $x -lt $split_rsync_job_count ]; do
             skip=$(( $x * $linesperjob ))
             cat ${TMP}/sync_folder_list_$$_rand | \
-		tail -n +${skip} | \
-		head -n ${linesperjob} > ${TMP}/sync_folder_list_$$_${x}
+                tail -n +${skip} | \
+                head -n ${linesperjob} > ${TMP}/sync_folder_list_$$_${x}
                 # sed "s,^,/," > ${TMP}/sync_folder_list_$$_${x}
             split_rsync "${TMP}/sync_folder_list_$$_${x}" &
-            if [ $sval -gt 5 ]; then
+            if [ $split_rsync_job_count -gt 5 ]; then
                 # Stagger startup
                 sleep 1
             fi
@@ -612,18 +740,22 @@ if [[ "$iflag" == "1" || -d "${source_folder}/.snapshot" || -d "${source_folder}
 
         # Wait for all jobs to complete
         complete=0
-        while [ $complete -lt $sval ]; do
+        while [ $complete -lt $split_rsync_job_count ]; do
             complete=`ls -1 ${TMP}/sync_folder_list_$$_*.complete 2>/dev/null|wc -l`
             sleep 2
         done
+
+        # Clean missed deletes
+     
+        remove_missed_deletes
 
         # output stats
 
         output_stats "sync_folder_list_$$_" "$source_folder"
 
-    fi # [ "$sflag" != 1 ]
+    fi # [ "$split_rsync_flag" != 1 ]
 
-else
+else # No snaphot folder found on the source path assuming this a BlueArc CNS tree (depricated)
     # We will assume there is a .snapshot folder in each subdir of the CNS tree
     debug "${jobname}: ${source_folder}/.snapshot not found, assuming CNS root"
     subfolders=`ls -1 ${source_folder}`
@@ -631,8 +763,8 @@ else
     joblog="${TMP}/sync_folder_$$_"
     
     for folder in $subfolders; do
-        if [ "$cflag" == "1" ]; then
-            cat $cval | ${GREP} -q -x "$folder" 
+        if [ "$cns_exclude_flag" == "1" ]; then
+            cat $cns_exclude_file | ${GREP} -q -x "$folder" 
             if [ "$?" -eq "0" ]; then
                 notice "${source_folder} Skiping CNS folder $folder"
                 exclude_folder=0
@@ -655,9 +787,9 @@ else
                 snap_label="snap-daily_${snap}"
                 basedir="${snapdir}/${snap}"
                 # Run rsync
-                debug "rsync -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file $basedir/ ${target_folder}/${folder}"
-                if [ "$tflag" != "1" ]; then
-                    ${RSYNC} -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file \
+                debug "rsync -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file_option $basedir/ ${target_folder}/${folder}"
+                if [ "$trial_mode_flag" != "1" ]; then
+                    ${RSYNC} -aS ${delete_on_target} --stats $progress --exclude=.snapshot $exclude_file_option \
                         $basedir/ $target_folder/${folder} &> ${TMP}/sync_folder_$$_${folder}.log
 
                     rsync_result=$?
@@ -689,23 +821,24 @@ else
         
     done 
 
- 
-
     # output stats
 
     output_stats "sync_folder_$$_"
 
     # clean up
 
-    rm -f ${TMP}/sync_folder_list_$$ \
-          ${TMP}/sync_folder_list_$$_rand \
-          ${TMP}/sync_folder_$$_*.log \
-          ${TMP}/sync_folder_$$_*.complete &>/dev/null
+    if [ "$DEBUG" != 'true' ]; then
+        rm -f ${TMP}/sync_folder_list_$$ \
+              ${TMP}/sync_folder_list_$$_rand \
+              ${TMP}/sync_folder_list_$$_post_delete* \
+              ${TMP}/sync_folder_$$_*.log \
+              ${TMP}/sync_folder_$$_*.complete &>/dev/null
+    fi
 
 fi
 
 # Capture snapshot
-if [ -z "$eval" ]; then
+if [ -z "$remote_shell_value" ]; then
     # We are not pushing to remote host assume zfs snapshot to be taken here
     # Find the zfs folder in case we are not mounted to the same path
         zfsfolder=`mount|${GREP} "$target_folder on"|${AWK} -F " " '{print $3}'`
@@ -713,7 +846,7 @@ if [ -z "$eval" ]; then
     if [ -f /usr/sbin/zfs ]; then
         zfs list $zfsfolder &>/dev/null
         if [ $? -eq 0 ]; then
-            if [ "$tflag" != "1" ] && [ "$rflag" != "1" ]; then
+            if [ "$trial_mode_flag" != "1" ] && [ "$dry_run_flag" != "1" ]; then
                 zfs snapshot ${zfsfolder}@${snap_label}
                 return=$?
             fi

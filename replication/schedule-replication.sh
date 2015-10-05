@@ -46,6 +46,8 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 pools="$(pools)"
 pids=
 
+sync_now="$1"
+
 
 # look for jobs to run
 for pool in $pools; do
@@ -106,98 +108,106 @@ for pool in $pools; do
                     continue
                 fi
 
-                # Test if $frequency has passed since last run
-                if [ "$last_run" == "" ]; then
-                    # Never run before trigger first run 
-                    debug "triggering first run."
-                    init_lock "${job_status}"
-                    launch ./trigger-replication.sh "$job_definition"
-                    pids="$pids $launch_pid"
-                    continue
-                fi     
-                last_run_secs=`${DATE} -d "$last_run" +%s`
-                now_secs=`${DATE} -d "$now" +%s`
-                duration_sec="$(( now_secs - last_run_secs ))"
-                # Round up to nearest minute
-                duration_min="$(( (duration_sec + 30) / 60 ))"
-                # no more rounding
-                duration_hour="$(( duration_min / 60 ))"
-                duration_day="$(( duration_hour / 24 ))"
-                duration_week="$(( duration_day / 7 ))"
+                if [ "$sync_now" == "" ]; then
+                    # Test if $frequency has passed since last run
+                    if [ "$last_run" == "" ]; then
+                        # Never run before trigger first run 
+                        debug "triggering first run."
+                        init_lock "${job_status}"
+                        launch ./trigger-replication.sh "$job_definition"
+                        pids="$pids $launch_pid"
+                        continue
+                    fi     
+                    last_run_secs=`${DATE} -d "$last_run" +%s`
+                    now_secs=`${DATE} -d "$now" +%s`
+                    duration_sec="$(( now_secs - last_run_secs ))"
+                    # Round up to nearest minute
+                    duration_min="$(( (duration_sec + 30) / 60 ))"
+                    # no more rounding
+                    duration_hour="$(( duration_min / 60 ))"
+                    duration_day="$(( duration_hour / 24 ))"
+                    duration_week="$(( duration_day / 7 ))"
 
-                freq_num=`echo $frequency|${SED} 's/[^0-9]//g'`
-                freq_unit=`echo $frequency|${SED} 's/[^a-z]//g'`
+                    freq_num=`echo $frequency|${SED} 's/[^0-9]//g'`
+                    freq_unit=`echo $frequency|${SED} 's/[^a-z]//g'`
 
-                if [ "$queued_jobs" == "" ]; then
-                    queued_jobs=0
-                fi
-
-                # Based on number queued jobs, increase the duration between job creation.
-                if [ $queued_jobs -gt $zfs_replication_queue_delay_count ]; then
-                    # Jobs are stacking up start increasing the scheduling duration for minute and hour increment jobs
-                    if [[ "$freq_unit" == 'm' || "$freq_unit" == 'h' ]]; then
-                        freq_num=$(( freq_num * queued_jobs ))
+                    if [ "$queued_jobs" == "" ]; then
+                        queued_jobs=0
                     fi
-                fi
 
-                if [ $queued_jobs -gt $zfs_replication_queue_max_count ]; then
-                    # Don't queue any more jobs until we complete one.
-                    continue
-                fi
-                  
-                # TODO: add support for replication start days, times
+                    # Based on number queued jobs, increase the duration between job creation.
+                    if [ $queued_jobs -gt $zfs_replication_queue_delay_count ]; then
+                        # Jobs are stacking up start increasing the scheduling duration for minute and hour increment jobs
+                        if [[ "$freq_unit" == 'm' || "$freq_unit" == 'h' ]]; then
+                            freq_num=$(( freq_num * queued_jobs ))
+                        fi
+                    fi
+
+                    if [ $queued_jobs -gt $zfs_replication_queue_max_count ]; then
+                        # Don't queue any more jobs until we complete one.
+                        continue
+                    fi
+                      
+                    # TODO: add support for replication start days, times
     
-                if [ -t 1 ]; then
-                    echo "queued_jobs=$queued_jobs"
-                    echo "last_run=$last_run"
-                    echo "last_run_secs=$last_run_secs"
-                    echo "now=$now"
-                    echo "now_secs=$now_secs"
-                    echo "frequency=$frequency"
-                    echo "freq_unit=${freq_unit}"
-                    echo "freq_num=${freq_num}"
-                    echo "duration"
-                    echo "s: $duration_sec"
-                    echo "m: $duration_min"
-                    echo "h: $duration_hour"
-                    echo "d: $duration_day"
-                    echo "w: $duration_week"
-                fi
+                    if [ -t 1 ]; then
+                        echo "queued_jobs=$queued_jobs"
+                        echo "last_run=$last_run"
+                        echo "last_run_secs=$last_run_secs"
+                        echo "now=$now"
+                        echo "now_secs=$now_secs"
+                        echo "frequency=$frequency"
+                        echo "freq_unit=${freq_unit}"
+                        echo "freq_num=${freq_num}"
+                        echo "duration"
+                        echo "s: $duration_sec"
+                        echo "m: $duration_min"
+                        echo "h: $duration_hour"
+                        echo "d: $duration_day"
+                        echo "w: $duration_week"
+                    fi
 
-                case $freq_unit in 
-                    'm')
-                        if [ $duration_min -ge $freq_num ]; then
-                            debug "hasn't run in $freq_num minutes.  Triggering"
-                            launch ./trigger-replication.sh "${job_definition}" 
-                            pids="$pids $launch_pid"
-                        fi
-                        ;;
-                    'h')
-                        if [ $duration_hour -ge $freq_num ]; then
-                            debug "hasn't run in $freq_num hours.  Triggering"
-                            launch ./trigger-replication.sh "${job_definition}" 
-                            pids="$pids $launch_pid"
-                        fi
-                        ;;
-                    'd')
-                        if [ $duration_day -ge $freq_num ]; then
-                            debug "hasn't run in $freq_num days.  Triggering"
-                            launch ./trigger-replication.sh "${job_definition}" 
-                            pids="$pids $launch_pid"
-                        fi
-                        ;;
-                    'w')
-                        if [ $duration_week -ge $freq_num ]; then
-                            debug "hasn't run in $freq_num weeks.  Triggering"
-                            launch ./trigger-replication.sh "${job_definition}"
-                            pids="$pids $launch_pid"
-                        fi
-                        ;;
-                    *)
-                        error "Invalid replication frequency ($frequency) specified for $folder to $target"
-                        ;;
-                esac 
+                    case $freq_unit in 
+                        'm')
+                            if [ $duration_min -ge $freq_num ]; then
+                                debug "hasn't run in $freq_num minutes.  Triggering"
+                                launch ./trigger-replication.sh "${job_definition}" 
+                                pids="$pids $launch_pid"
+                            fi
+                            ;;
+                        'h')
+                            if [ $duration_hour -ge $freq_num ]; then
+                                debug "hasn't run in $freq_num hours.  Triggering"
+                                launch ./trigger-replication.sh "${job_definition}" 
+                                pids="$pids $launch_pid"
+                            fi
+                            ;;
+                        'd')
+                            if [ $duration_day -ge $freq_num ]; then
+                                debug "hasn't run in $freq_num days.  Triggering"
+                                launch ./trigger-replication.sh "${job_definition}" 
+                                pids="$pids $launch_pid"
+                            fi
+                            ;;
+                        'w')
+                            if [ $duration_week -ge $freq_num ]; then
+                                debug "hasn't run in $freq_num weeks.  Triggering"
+                                launch ./trigger-replication.sh "${job_definition}"
+                                pids="$pids $launch_pid"
+                            fi
+                            ;;
+                        *)
+                            error "Invalid replication frequency ($frequency) specified for $folder to $target"
+                            ;;
+                    esac
                     
+                else
+                    if [ "$dataset_name" == "$sync_now" ]; then
+                        notice "Triggering replication for $dataset_name"
+                        launch ./trigger-replication.sh "${job_definition}"
+                    fi
+                fi # if $sync_now
+
             done # for target_def
         done # for folder_def
 
