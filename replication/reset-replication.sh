@@ -455,7 +455,7 @@ done
 ##
 # Remove all completed, suspended, failed, pending and synced jobs
 ##
-stat_types="complete suspended failed pending synced"
+stat_types="complete suspended failed pending synced cleaning"
 
 debug "Cleaning job status for $dataset"
 

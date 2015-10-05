@@ -148,6 +148,7 @@ for pool in $pools; do
                 # TODO: add support for replication start days, times
     
                 if [ -t 1 ]; then
+                    echo "queued_jobs=$queued_jobs"
                     echo "last_run=$last_run"
                     echo "last_run_secs=$last_run_secs"
                     echo "now=$now"
