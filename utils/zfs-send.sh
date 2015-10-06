@@ -769,9 +769,11 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         # Attach the port reservation to the mbuffer process
         timeout 30s $remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid" > ${TMP}/$$_remote_mbuffer_pid
         if [ $? -ne 0 ]; then
+            rm -f ${TMP}/$$_remote_mbuffer_pid
             die "${job_name}: Could not connect to remote host to collect mbuffer_transport.pid"
         fi
-        mbuffer_pid=`$remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid"`
+        mbuffer_pid=`cat ${TMP}/$$_remote_mbuffer_pid`
+        rm ${TMP}/$$_remote_mbuffer_pid
         debug "Attaching remote port $remote_port to mbuffer PID $mbuffer_pid command $mbuffer"
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh attach_port $remote_port $mbuffer_pid $mbuffer"
     fi
