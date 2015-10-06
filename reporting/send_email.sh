@@ -137,12 +137,12 @@ fi
 if [ "${message_file: -4}" == "html" ]; then
     $MUTT -F /etc/ozmt/reporting.muttrc -s "$message_subject" \
         -e "set content_type=text/html" $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
+    result=$?
 else
     $MUTT -F /etc/ozmt/reporting.muttrc -s "$message_subject" \
         $mutt_options $attach_cmd $message_recipient < ${TMP}/mutt_message_$$ &> ${TMP}/mutt_output_$$
+    result=$?
 fi 
-
-result=$?
 
 if [ $result -ne 0 ]; then 
     echo "Failed to send message ${TMP}/mutt_message_$$" 
