@@ -84,13 +84,15 @@ fi
 
 timeout 1m ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name} \
     > ${TMP}/target_check_$$ \
-    2> ${TMP}/target_check_errror_$$
+    2> ${TMP}/target_check_error_$$
 errorcode=$?
 
 case "$errorcode" in 
     '124')
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host timed out after 1m.  Setting job to failed."
         update_job_status "${job_status}" "failures" "+1"
+        rm -f ${TMP}/target_check_$$
+        rm -f ${TMP}/target_check_error_$$
         exit 1
         ;;
     '0')  
@@ -100,10 +102,14 @@ case "$errorcode" in
             update_job_status "${job_status}" "suspended" "true"
             suspended="true"
         fi
+        rm -f ${TMP}/target_check_$$
+        rm -f ${TMP}/target_check_error_$$
         ;;
     *)  
-        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_errror_$$
+        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_error_$$
         update_job_status "${job_status}" "failures" "+1"
+        rm -f ${TMP}/target_check_$$
+        rm -f ${TMP}/target_check_error_$$
         exit 1
         ;;
 esac
