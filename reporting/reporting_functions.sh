@@ -86,6 +86,7 @@ process_message() {
     local message_file=
     local this_subject=
     local email_limit="0"
+    local report_limit="0"
     local this_hash=
     local limit_dir="/var/zfs_tools/reporting/limit"
     local hash_dir=
@@ -111,10 +112,7 @@ process_message() {
         '3')
             this_message="ERROR: $(now): $message"
             ;;
-        
     esac
-
-    
 
     if [ "$0" == '-bash' ]; then
         basename="/bin/bash"
@@ -182,18 +180,22 @@ process_message() {
             '0') 
                 this_subject="DEBUG: ${basename} ${report_name} $HOSTNAME"
                 email_limit="$DEBUG_EMAIL_LIMIT"
+                report_limit="$DEBUG_REPORT_LIMIT"
                 ;;            
             '1') 
                 this_subject="NOTICE: ${basename} ${report_name} $HOSTNAME" 
                 email_limit="$NOTICE_EMAIL_LIMIT"
+                report_limit="$NOTICE_REPORT_LIMIT"
                 ;;
             '2') 
                 this_subject="WARNING: ${basename} ${report_name} $HOSTNAME"
                 email_limit="$WARNING_EMAIL_LIMIT"
+                report_limit="$WARNING_REPORT_LIMIT"
                 ;;
             '3') 
                 this_subject="ERROR: ${basename} ${report_name} $HOSTNAME"
                 email_limit="$ERROR_EMAIL_LIMIT"
+                report_limit="$ERROR_REPORT_LIMIT"
                 ;;
         esac
 
@@ -211,7 +213,7 @@ process_message() {
         skip='false'
         if [ "$email_limit" != '0' ]; then
             this_hash=`echo "${this_subject}_${message}" | ${MD5SUM} | ${CUT} -f1 -d" "`
-            hash_dir="${limit_dir}/${this_hash}"
+            hash_dir="${limit_dir}/email_${this_hash}"
             mkdir -p "$hash_dir"
             for limit in $email_limit; do    
                 limit_type="${limit:0:1}"
@@ -221,8 +223,8 @@ process_message() {
                     m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l`; limit_unit='minute' ;;
                     h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l`; limit_unit='hour' ;;
                     d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l`; limit_unit='day' ;;
-
                 esac
+
                 if [ $count -ge $limit_num ]; then
                     skip='true'
                     if [ -t 1 ]; then
@@ -231,13 +233,11 @@ process_message() {
                 else
                     echo "Message #$(( count + 1 )) in the last ${limit_unit}, will limit at $limit_num per ${limit_unit}." >> $message_file
                 fi
+
             done
 
             if [ "$skip" == 'false' ]; then
                 limit_file="${hash_dir}/$(${DATE} +%F_%H:%M:%S:%N)"
-                if [ -t 1 ]; then
-                    echo "limit file: $limit_file"
-                fi
                 echo "$this_subject" > "$limit_file"
                 echo "$this_message" >> "$limit_file"
             fi
@@ -279,23 +279,66 @@ process_message() {
         fi
 
         if [ "$DEBUG" != "true" ]; then
-            echo "${this_message}" >> "${report_spool}/${report_name}/report_pending"
-            if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
-                this_file="$(basename "${this_include_file}")"
-                cp ${this_include_file} "${report_spool}/${report_name}/attach/report_file_$$.txt"
-                echo "${report_spool}/${report_name}/attach/report_file_$$.txt" >> "${report_spool}/${report_name}/report_attachments"
+            # Rate limit reporting
+            skip='false' 
+            if [ "$report_limit" != '0' ]; then
+                this_hash=`echo "${this_subject}_${message}" | ${MD5SUM} | ${CUT} -f1 -d" "`
+                hash_dir="${limit_dir}/report_${this_hash}"
+                mkdir -p "$hash_dir"
+                for limit in $report_limit; do
+                    limit_type="${limit:0:1}"
+                    limit_num="${limit:1}"
+                    count=0
+                    case $limit_type in
+                        m) count=`${FIND} ${hash_dir} -type f -mmin -1 | ${WC} -l`; limit_unit='minute' ;;
+                        h) count=`${FIND} ${hash_dir} -type f -mmin -60 | ${WC} -l`; limit_unit='hour' ;;
+                        d) count=`${FIND} ${hash_dir} -type f -mtime -1 | ${WC} -l`; limit_unit='day' ;;
+                    esac
+
+                    if [ $count -ge $limit_num ]; then
+                        skip='true'
+                        if [ -t 1 ]; then
+                            echo "Skipping report, limit ${limit}: $this_subject"
+                        fi
+                    fi
+
+                    if [ $(( count + 1 )) -ge $limit_num ]; then
+                        this_message="$this_message  Limit triggered: ${limit_num}/${limit_unit}"
+                    fi
+                done
+
+                if [ "$skip" == 'false' ]; then
+                    limit_file="${hash_dir}/$(${DATE} +%F_%H:%M:%S:%N)"
+                    echo "$this_subject" > "$limit_file"
+                    echo "$this_message" >> "$limit_file"
+                fi
+            fi
+
+            if [ "$skip" == 'false' ]; then
+                echo "${this_message}" >> "${report_spool}/${report_name}/report_pending"
+                if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
+                    this_file="$(basename "${this_include_file}")"
+                    cp ${this_include_file} "${report_spool}/${report_name}/attach/report_file_$$.txt"
+                    echo "${report_spool}/${report_name}/attach/report_file_$$.txt" >> "${report_spool}/${report_name}/report_attachments"
+                fi
             fi
         fi
     fi
 
     # If enable append to log file
     if [[ "x$logfile" != "x" && "${this_message_level}" -ge "$logging_level" ]]; then
+
         echo ${this_message} >> $logfile
 
         if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
             cat ${this_include_file} >> $logfile
         fi
     fi        
+
+    # Clean up
+    if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
+       rm ${this_include_file}
+    fi
 
 }
 

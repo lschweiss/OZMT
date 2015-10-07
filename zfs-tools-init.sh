@@ -249,6 +249,10 @@ fi
 
 # Set defaults
 
+if [ "$debug_level" == "" ]; then
+    debug_level=1
+fi
+
 if [ "$log_dir" == "" ]; then
     log_dir="/var/zfs_tools/log"
 fi
