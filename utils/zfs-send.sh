@@ -67,10 +67,9 @@ clean_up () {
         done
         if [ "$remote_host" != "" ]; then
             #DEBUG set -x
-            pids=`$remote_ssh "ls -1 $remote_tmp/*.pid 2>/dev/null"`
-            for pidfile in $pids; do
-                pid=`$remote_ssh "cat $pidfile"`
-                debug "Killing remote process $pidfile, PID $pid"
+            pids=`$remote_ssh "cat $remote_tmp/*.pid 2>/dev/null"`
+            for pid in $pids; do
+                debug "Killing remote process PID $pid"
                 $remote_ssh "kill $pid &> /dev/null"
             done
             #DEBUG set +x
