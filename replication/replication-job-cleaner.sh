@@ -185,14 +185,14 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
                 if [ $clean_missing_snapshot -ge 4 ]; then
                     error "Suspending replication on ${dataset_name}.  Repeated attempts to clean previous snapshots has failed."
-                    update_job_status 'suspended' 'true'
-                    contine
+                    update_job_status "${job_status}" 'suspended' 'true'
+                    continue
                 fi
 
                 if [ $clean_failures -ge 2 ]; then
                     error "Suspending replication on ${dataset_name}.  Repeated attempts to clean previous snapshots has failed."
-                    update_job_status 'suspended' 'true'
-                    contine
+                    update_job_status "${job_status}" 'suspended' 'true'
+                    continue
                 fi
                 
 
