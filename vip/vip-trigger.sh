@@ -416,7 +416,7 @@ process_vip () {
                 debug "No source reference for dataset ${dataset_name}"
                 # Get the zfs folder for the dataset
                 zfs_folder=`cat ${pool}/zfs_tools/var/replication/datasets/${dataset_name}`
-                replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder}`
+                replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
                 if [ "$replication" == 'on' ]; then
                     error "Replication is on, no source set.  Deactivating vip."
                     deactivate_vip "$vIP"
