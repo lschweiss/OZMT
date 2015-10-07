@@ -278,8 +278,24 @@ if [ "$WARNING_EMAIL_LIMIT" == "" ]; then
     WARNING_EMAIL_LIMIT="m5 h6" # 3 identical per hour
 fi
 
-if [ "$_ERROR_EMAIL_LIMIT" == "" ]; then
+if [ "$ERROR_EMAIL_LIMIT" == "" ]; then
     ERROR_EMAIL_LIMIT="m3 h6 d9" # 3 identical per hour, 9 per day
+fi
+
+if [ "$DEBUG_REPORT_LIMIT" == "" ]; then
+    DEBUG_REPORT_LIMIT="0" # Unlimited
+fi
+
+if [ "$NOTICE_REPORT_LIMIT" == "" ]; then
+    NOTICE_REPORT_LIMIT="h20" # 20 identical per hour
+fi
+
+if [ "$WARNING_REPORT_LIMIT" == "" ]; then
+    WARNING_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
+fi
+
+if [ "$ERROR_REPORT_LIMIT" == "" ]; then
+    ERROR_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
 fi
 
 if [ "$samba_report" == "" ]; then
