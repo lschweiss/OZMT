@@ -177,10 +177,10 @@ debug "Syncing Samba configurations"
 
 for pool in $pools; do
     # Collect samba datasets
-    folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool`
+    folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool 3>/dev/null`
     for folder in $folders; do  
         debug "Getting dataset for folder $folder"
-        dataset=`zfs_cache get -H -o value -s local $zfs_dataset_property $folder`
+        dataset=`zfs_cache get -H -o value -s local $zfs_dataset_property $folder 3>/dev/null`
         if [ "$dataset" != "" ]; then
             source_folder="/${pool}/zfs_tools/etc/samba/${dataset}"
             targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`

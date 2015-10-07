@@ -127,7 +127,8 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 data_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`    
                 if [ "$data_source" != "${pool}:${folder}" ]; then
                     # Primary data source moved
-                    debug "Primary dataset has move for $dataset_name skipping job cleaning for $job"
+                    debug "Primary dataset has moved for $dataset_name removing job $job"
+                    rm "${replication_dir}/synced/${job}"
                     continue
                 fi
 
@@ -199,7 +200,8 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 data_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
                 if [ "$data_source" != "${pool}:${folder}" ]; then
                     # Primary data source moved
-                    debug "Primary dataset has move for $dataset_name skipping job cleaning for $job"
+                    debug "Primary dataset has moved for $dataset_name removing job $job"
+                    rm "${replication_dir}/cleaning/${job}"
                     continue
                 fi
 
