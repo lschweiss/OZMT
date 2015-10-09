@@ -418,6 +418,31 @@ get_pid () {
         fi
     done
 }    
+
+
+vip_folders () {
+
+    # Returns all ZFS folders within a pool with a VIP attached to them
+
+    local pool="$1"
+    local folders=
+    local folder=
+
+    zpool list $pool 1>/dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    folders=`zfs_cache list -o name,${zfs_dataset_property},${zfs_vip_property} -r -H $pool 3>/dev/null | ${GREP} -v -P '\t-' | ${CUT} -f 1`
+
+    for folder in $folders; do
+        if [ "$(zfs get -s local,received -o name -H ${zfs_vip_property} ${folder})" == "$folder" ]; then
+            echo $folder
+        fi
+    done
+
+}
+
         
 
 
