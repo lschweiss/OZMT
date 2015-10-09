@@ -38,7 +38,7 @@ fi
 if [ "x$replication_report" != "x" ]; then
     report_name="$replication_report"
 else
-    report_name="$default_report_name"
+    report_name="replication"
 fi
 
 now=`${DATE} +"%F %H:%M:%S%z"`
@@ -57,8 +57,8 @@ for pool in $pools; do
     if [ -d "$replication_def_dir" ]; then
         if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
             debug "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present"
-            if test `find "$replication_job_dir/suspend_all_jobs" -mtime +1`; then
-                error "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present for more than 24 hours"
+            if test `find "$replication_job_dir/suspend_all_jobs" -mmin +${zfs_replication_suspended_error_time}`; then
+                error "Skipping relication because $replication_job_dir/suspend_all_jobs is present for more than ${zfs_replication_suspended_error_time} minutes"
             fi
             continue
         fi
@@ -70,6 +70,7 @@ for pool in $pools; do
             debug "Replication job for $folder_def found"
             target_defs=`ls -1 "${replication_def_dir}/${folder_def}"|sort`
             for target_def in $target_defs; do
+                suspended=
                 debug "to target $target_def"
                 last_run=
                 job_definition="${replication_def_dir}/${folder_def}/${target_def}"
@@ -137,8 +138,11 @@ for pool in $pools; do
 
                     # Based on number queued jobs, increase the duration between job creation.
                     if [ $queued_jobs -gt $zfs_replication_queue_delay_count ]; then
-                        # Jobs are stacking up start increasing the scheduling duration for minute and hour increment jobs
-                        if [[ "$freq_unit" == 'm' || "$freq_unit" == 'h' ]]; then
+                        # Jobs are stacking up start increasing the scheduling duration for second, minute and hour increment jobs
+                        if [[ "$freq_unit" == 's' || "$freq_unit" == 'm' ]]; then
+                            freq_num=$(( freq_num * queued_jobs * queued_jobs ))
+                        fi
+                        if [ "$freq_unit" == 'h' ]; then
                             freq_num=$(( freq_num * queued_jobs ))
                         fi
                     fi
@@ -165,6 +169,13 @@ for pool in $pools; do
                         echo "h: $duration_hour"
                         echo "d: $duration_day"
                         echo "w: $duration_week"
+                    fi
+
+                    if [ "$suspended" == 'true' ]; then
+                        if [ $duration_min -ge $zfs_replication_suspended_error_time ]; then
+                            error "Replication for dataset $dataset_name has been suspended for more than $zfs_replication_suspended_error_time minutes"
+                        fi
+                        continue
                     fi
 
                     case $freq_unit in 

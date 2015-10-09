@@ -38,7 +38,7 @@ fi
 if [ "x$replication_report" != "x" ]; then
     report_name="$replication_report"
 else
-    report_name="$default_report_name"
+    report_name="replication"
 fi
 
 pools="$(pools)"

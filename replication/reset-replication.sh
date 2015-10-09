@@ -29,6 +29,18 @@ cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 
 . ../zfs-tools-init.sh
 
+if [ "x$replication_logfile" != "x" ]; then
+    logfile="$replication_logfile"
+else
+    logfile="$default_logfile"
+fi
+
+if [ "x$replication_report" != "x" ]; then
+    report_name="$replication_report"
+else
+    report_name="replication"
+fi
+
 pools="$(pools)"
 
 if [ -z $reset_replication_timeout ]; then

@@ -38,7 +38,7 @@ fi
 if [ "x$replication_report" != "x" ]; then
     report_name="$replication_report"
 else
-    report_name="$default_report_name"
+    report_name="replication"
 fi
 
 show_usage () {
@@ -74,6 +74,11 @@ fi
 wait_for_lock "${job_status}"
 source "${job_status}"
 release_lock "${job_status}"
+
+if [ "$suspended" == 'true' ]; then
+    debug "Replication is suspended for data set $dataset_name"
+    exit 0
+fi
 
 # previous_snapshot may have been defined in job_status file for a first run.
 if [ "$previous_snapshot" == "" ]; then
@@ -117,11 +122,6 @@ esac
 
 now_stamp="$(now_stamp)"
 last_run=`${DATE} +"%F %H:%M:%S%z"`
-
-if [ "$suspended" == 'true' ]; then
-    debug "Replication is suspended for data set $dataset_name"
-    exit 0
-fi
 
 # ##
 # # Get new children folder in sync and move info into specific job definition

@@ -38,7 +38,7 @@ fi
 if [ "x$replication_report" != "x" ]; then
     report_name="$replication_report"
 else
-    report_name="$default_report_name"
+    report_name="replication"
 fi
 
 # Keep certain files in sync across all replication hosts
@@ -177,10 +177,10 @@ debug "Syncing Samba configurations"
 
 for pool in $pools; do
     # Collect samba datasets
-    folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool 3>/dev/null`
+    folders=`zfs_cache get -r -H -o name -s local,received $zfs_cifs_property $pool 3>/dev/null`
     for folder in $folders; do  
         debug "Getting dataset for folder $folder"
-        dataset=`zfs_cache get -H -o value -s local $zfs_dataset_property $folder 3>/dev/null`
+        dataset=`zfs_cache get -H -o value -s local,received $zfs_dataset_property $folder 3>/dev/null`
         if [ "$dataset" != "" ]; then
             source_folder="/${pool}/zfs_tools/etc/samba/${dataset}"
             targets=`cat /${pool}/zfs_tools/var/replication/targets/${dataset}`
