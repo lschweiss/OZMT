@@ -91,9 +91,11 @@ activate_vip () {
     local ipifs="$3"
     local ipifs_list=
     local ipif=
+    local ip_if=
     local vIP_dataset="$4"
     local ip_host=
     local ip=
+    local nm_dev=
     local alias=
     local available=
     local route=
@@ -357,12 +359,14 @@ deactivate_vip () {
 
 process_vip () {
 
-    local vip_file="$1"
+    local vip_object="$1"
     local pool=
     local dataset_name=
     local folder=
     local vip=
     local vIP=
+    local vip_count=
+    local x=
     local routes=
     local ipifs=
     local t_vIP=
@@ -371,11 +375,45 @@ process_vip () {
     local active_folder=
     local zfs_folder=
     local replication=
-    local mode="$2"
 
-    debug "Processing: $vip_file"
+    vip_operation () {
+        # pool and dataset_name must already be set
+        if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
+            active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+            IFS=':'
+            read -r active_pool active_folder <<< "$active_source"
+            unset IFS
+            debug "active_pool: $active_pool active_folder: $active_folder"
+            zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
+            if [ $? -eq 0 ]; then
+                debug "Local pool $pool is the active pool, activating vIP: $vIP"
+                activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+            else
+                debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
+                deactivate_vip "$vIP"
+            fi
+        else
+            debug "No source reference for dataset ${dataset_name}"
+            # Get the zfs folder for the dataset
+            zfs_folder=`zfs get -o value,name -s local,received -r -H ${zfs_dataset_property} | \
+                ${GREP} "^${dataset_name}"`
+            replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
+            if [ "$replication" == 'on' ]; then
+                error "Replication is on, no source set.  Deactivating vip."
+                deactivate_vip "$vIP"
+            else
+                debug "Replication not defined for dataset.  Activating vip."
+                activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+            fi
+        fi
+    }   
 
-    while read vip; do
+
+    debug "Processing: $vip_object"
+
+    if [ -f "$vip_object" ]; then 
+        # This is an active vIP file, check if its dataset is still on this host.
+        vip=`cat $vip_object`
         # Break down the vIP definition
         IFS='|'
         read -r pool dataset_name vIP routes ipifs <<< "${vip}"
@@ -398,40 +436,32 @@ process_vip () {
         else
             # vIP is attached to the active dataset
             debug "vIP is attached to the dataset: $dataset_name"
-            if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
-                active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
-                IFS=':'
-                read -r active_pool active_folder <<< "$active_source"
-                unset IFS
-                debug "active_pool: $active_pool active_folder: $active_folder"
-                zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
-                if [ $? -eq 0 ]; then
-                    debug "pool $pool is the active pool, activating vIP: $vIP"
-                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                else
-                    debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
-                    deactivate_vip "$vIP"
-                fi
-            else
-                debug "No source reference for dataset ${dataset_name}"
-                # Get the zfs folder for the dataset
-                zfs_folder=`cat ${pool}/zfs_tools/var/replication/datasets/${dataset_name}`
-                replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
-                if [ "$replication" == 'on' ]; then
-                    error "Replication is on, no source set.  Deactivating vip."
-                    deactivate_vip "$vIP"
-                else
-                    debug "Replication not defined for dataset.  Activating vip."
-                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                fi
-            fi
+            vip_operation
         fi
-    done < "$vip_file"  # while read vip
-    
+        return 0
+    fi
 
-
+    zfs get name $vip_object 1>/dev/null 2>/dev/null
+    if [ $? -eq 0 ]; then
+        # This is a zfs folder on this host, collect its vIPs and active if necessary.
+        dataset_name=`zfs get -H -o value $zfs_dataset_property $vip_object`
+        pool=`echo $vip_object | ${CUT} -d '/' -f 1`
+        vip_count=`zfs get -H -o value ${zfs_vip_property} $vip_object`
+        x=1
+        while [ $x -le $vip_count ]; do
+            vip=`zfs get -H -o value ${zfs_vip_property}:${x} $vip_object`
+            IFS='|'
+            read -r vIP routes ipifs <<< "${vip}"
+            unset IFS
+            vip_operation
+            x=$(( x + 1 ))
+        done
+        return 0
+    fi
 
 }
+
+
 
 ###
 ###
@@ -460,33 +490,35 @@ case $1 in
         pool="$2"
         zpool list $pool 1>/dev/null 2>/dev/null
         if [ $? -eq 0 ]; then 
-            vip_dir="/${pool}/zfs_tools/var/vip"
-            if [ -d "$vip_dir" ]; then
-                folders=`ls -1 "${vip_dir}" | sort`
-                for folder in $folders; do
-                    process_vip "${vip_dir}/${folder}"
-                done # for folder in $folders
-            fi # if $vip_dir
+            debug "Activating vips on pool $pool"
+            folders=`vip_folders $pool`
+            for folder in $folders; do
+                debug "  activating $folder"
+                process_vip "${folder}"
+            done # for folder in $folders
         else
             # Possible dataset name given
+            debug "Checking for matching dataset: $2"
             for pool in $pools; do
-                vip_dir="/${pool}/zfs_tools/var/vip"
-                if [ -f "${vip_dir}/${2}" ]; then
-                    process_vip "${vip_dir}/${2}"
-                fi
+                folders=`vip_folders $pool`
+                debug "  $pool vip folders: $vip_folders"
+                for folder in $folders; do
+                    dataset=`zfs get -H -o value $zfs_dataset_property $folder`
+                    debug "    $folder: $dataset"
+                    if [ "$dataset" == "$2"  ]; then
+                        process_vip "${folder}"
+                    fi
+                done # for folder
             done # for pool in $pools
         fi
     ;;
 
     *)
         for pool in $pools; do
-            vip_dir="/${pool}/zfs_tools/var/vip"
-            if [ -d "$vip_dir" ]; then
-                folders=`ls -1 "${vip_dir}" | sort`
-                for folder in $folders; do
-                    launch process_vip "${vip_dir}/${folder}" 
-                done # for folder in $folders
-            fi # if $vip_dir
+            folders=`vip_folders $pool`
+            for folder in $folders; do
+                launch process_vip "${folder}" 
+            done # for folder in $folders
         done # for pool in $pools
         
         debug "Processing active vIPs"
