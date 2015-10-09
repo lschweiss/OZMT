@@ -250,7 +250,7 @@ fi
 # Set defaults
 
 if [ "$debug_level" == "" ]; then
-    debug_level=1
+    debug_level=0
 fi
 
 if [ "$log_dir" == "" ]; then
@@ -279,7 +279,7 @@ if [ "$WARNING_EMAIL_LIMIT" == "" ]; then
 fi
 
 if [ "$ERROR_EMAIL_LIMIT" == "" ]; then
-    ERROR_EMAIL_LIMIT="m3 h6 d9" # 3 identical per hour, 9 per day
+    ERROR_EMAIL_LIMIT="m2 h3 d6" # 2 identical per minuted, 3 per hour, 6 per day
 fi
 
 if [ "$DEBUG_REPORT_LIMIT" == "" ]; then
@@ -383,7 +383,11 @@ if [ "$zfs_replication_queue_delay_count" == "" ]; then
 fi
 
 if [ "$zfs_replication_queue_max_count" == "" ]; then
-    zfs_replication_queue_max_count=5
+    zfs_replication_queue_max_count=20
+fi
+
+if [ "$zfs_replication_suspended_error_time" == "" ]; then
+    zfs_replication_suspended_error_time='360' # 6 hours
 fi
 
 if [ "$zfs_replication_completed_job_retention" == "" ]; then
