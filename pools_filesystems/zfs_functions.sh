@@ -1045,7 +1045,7 @@ setupzfs () {
     # TODO: Only remove the ones that change
 
     zfs_vips=
-    zfs_vip=`zfs get -H -o value -s local $zfs_vip_property ${pool}/${zfspath}`
+    zfs_vip=`zfs get -H -o value -s local,received $zfs_vip_property ${pool}/${zfspath}`
     if [ "$zfs_vip" != "" ]; then
         zfs inherit ${zfs_vip_property} ${pool}/${zfspath}
         x=1

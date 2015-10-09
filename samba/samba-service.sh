@@ -68,11 +68,11 @@ populate_datasets () {
     for pool in $pools; do
         debug "Collecting datasets for pool: $pool"
         # Collect zfs_folders with cifs property set
-        zfs_folders=`zfs_cache get -r -H -o name -s local $zfs_cifs_property $pool 3>/dev/null`
+        zfs_folders=`zfs_cache get -r -H -o name -s local,received $zfs_cifs_property $pool 3>/dev/null`
         for folder in $zfs_folders; do
             debug "Checking folder: $folder"
             # Dataset is in this pool
-            dataset=`zfs_cache get -H -o value -s local ${zfs_dataset_property} $folder 3>/dev/null`
+            dataset=`zfs_cache get -H -o value -s local,received ${zfs_dataset_property} $folder 3>/dev/null`
             if [ "$dataset" != "" ]; then
                 echo "$folder" > ${smb_datasets_dir}/${dataset}
             fi
@@ -125,7 +125,7 @@ build_smb_conf () {
     local dataset_name="$1"
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
-    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
+    local server_name=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local smb_conf_dir="/${pool}/zfs_tools/etc/samba/$dataset_name/running"
     local server_conf="$smb_conf_dir/smb_server.conf"
     local cifs_template=
@@ -154,7 +154,7 @@ build_smb_conf () {
     mkdir -p $smb_conf_dir
 
     # Build the smb_{dataset_name}.conf
-    cifs_template=`zfs get -H -o value -s local ${zfs_cifs_property}:template ${zfs_folder}`
+    cifs_template=`zfs get -H -o value -s local,received ${zfs_cifs_property}:template ${zfs_folder}`
     if [ "$cifs_template" == "" ]; then
         error "Missing cifs template definition for dataset $dataset_name"
         continue
@@ -181,15 +181,15 @@ build_smb_conf () {
         continue
     fi
 
-    smb_inherit_owner=`zfs get -H -o value -s local ${zfs_cifs_property}:inheritowner ${zfs_folder}`
+    smb_inherit_owner=`zfs get -H -o value -s local,received ${zfs_cifs_property}:inheritowner ${zfs_folder}`
     if [ "$smb_inherit_owner" == '-' ]; then
         smb_inherit_owner='yes'
     fi
-    smb_log_level=`zfs get -H -o value -s local ${zfs_cifs_property}:loglevel ${zfs_folder}`
+    smb_log_level=`zfs get -H -o value -s local,received ${zfs_cifs_property}:loglevel ${zfs_folder}`
     if [ "$smb_log_level" == '-' ]; then
         smb_log_level='1'
     fi
-    smb_admin_users=`zfs get -H -o value -s local ${zfs_cifs_property}:adminusers ${zfs_folder}`
+    smb_admin_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:adminusers ${zfs_folder}`
     if [ "$smb_admin_users" == '-' ]; then
         smb_admin_users="$samba_admin_users"
     fi
@@ -236,13 +236,13 @@ build_smb_conf () {
     rm -f /${smb_conf_dir}/smb_share*.conf
 
     # Construct shares config
-    shared_folders=`zfs get -H -o name -s local -r ${zfs_cifs_property}:share ${zfs_folder}`
+    shared_folders=`zfs get -H -o name -s local,received -r ${zfs_cifs_property}:share ${zfs_folder}`
     debug "Shared folders: $shared_folders"
     for shared_folder in $shared_folders; do
         cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
         mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
-        share_config=`zfs get -H -o value -s local ${zfs_cifs_property}:share ${shared_folder}`
-        smb_valid_users=`zfs get -H -o value -s local ${zfs_cifs_property}:users ${shared_folder}`
+        share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share ${shared_folder}`
+        smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:users ${shared_folder}`
         if [ "$smb_valid_users" == '-' ]; then
             smb_valid_users=''
         fi
@@ -347,7 +347,7 @@ start_smb_dataset () {
     local dataset_name="$1"
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
-    local server_name=`zfs_cache get -H -o value -s local ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
+    local server_name=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local active_smb="${active_smb_dir}/${dataset_name}"
     local smbd_bin=
     local smbd_pid=
@@ -481,7 +481,7 @@ start_smb_dataset () {
     touch $active_smb
 
     # smbd
-    smbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:smbd ${zfs_folder} 3>/dev/null`
+    smbd_path=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property}:smbd ${zfs_folder} 3>/dev/null`
     if [ "$smbd_path" != '' ]; then
         debug "Overriding default smbd for: $smbd_path"
     else
@@ -489,7 +489,7 @@ start_smb_dataset () {
         smbd_path="$SMBD"
     fi
     # nmbd
-    nmbd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:nmbd ${zfs_folder} 3>/dev/null`
+    nmbd_path=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property}:nmbd ${zfs_folder} 3>/dev/null`
     if [ "$nmbd_path" != '' ]; then
         debug "Overriding default nmbd for: $smbd_path"
     else
@@ -497,7 +497,7 @@ start_smb_dataset () {
         nmbd_path="$NMBD"
     fi
     # winbindd
-    winbindd_path=`zfs_cache get -H -o value -s local ${zfs_cifs_property}:winbindd ${zfs_folder} 3>/dev/null`
+    winbindd_path=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property}:winbindd ${zfs_folder} 3>/dev/null`
     if [ "$winbindd_path" != '' ]; then
         debug "Overriding default winbindd for: $winbindd_path"
     else
