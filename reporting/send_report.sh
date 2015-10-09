@@ -71,7 +71,7 @@ if [ -d "$report_spool" ]; then
                 ./send_email.sh $send_options -f "$report_pending" -s "$email_subject" -r "$email_to"
             fi
     
-            if [ "$debug_level" -eq "0" ]; then
+            if [ "$DEBUG" == 'true' ]; then
                 debug "send_report: report file left at $report_pending"
             else
                 rm -f "$report_pending"
