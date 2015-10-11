@@ -78,6 +78,7 @@ fi
 
 
 # Run repeatedly for up 1 minute or $zfs_replication_job_runner_cycle
+pending_cycles=0
 
 
 while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
@@ -95,6 +96,10 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
         if [ -d "${replication_dir}/failed" ]; then
             jobs=`ls -1 "${replication_dir}/failed"|sort`
             for job in $jobs; do
+                suspended=
+                failures=
+                previous_jobname=
+                failure_limit=
                 debug "found job: $job"
                 # Collect job info
                 source "${replication_dir}/failed/${job}"
@@ -183,6 +188,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     done
     
     # Parse pending jobs
+
+    pending_cycles=$(( pending_cycles + 1 ))
     
     for pool in $pools; do
         debug "Finding PENDING replication jobs on pool $pool"
@@ -203,6 +210,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
             for job in $jobs; do
                 debug "found job: $job"
                 if [ -f "${replication_dir}/pending/${job}" ]; then
+                    suspended=
+                    previous_jobname=
                     source "${replication_dir}/pending/${job}"
                     wait_for_lock "${job_status}"
                     source "${job_status}"
@@ -246,5 +255,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     sleep 5
     
 done # Less than $zfs_replication_job_runner_cycle
+
+notice "Pending job processing cycles: $pending_cycles"
 
 release_lock ${job_runner_lock}
