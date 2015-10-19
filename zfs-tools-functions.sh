@@ -39,6 +39,10 @@ now_stamp () {
     ${DATE} +"%F_%H:%M:%S%z"
 }
 
+job_stamp () {
+    ${DATE} +"%F %H:%M:%S%z"
+}
+
 pause () {
     if [ -t 1 ]; then
         local trash=
