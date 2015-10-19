@@ -73,6 +73,7 @@ for pool in $pools; do
                 suspended=
                 debug "to target $target_def"
                 last_run=
+                job_status=
                 job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                 source "${job_definition}"
                 if [ -f "${job_status}" ]; then
