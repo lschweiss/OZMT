@@ -139,7 +139,9 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                         mv "${replication_dir}/synced/${job}" "${replication_dir}/cleaning/"
                     else
                         debug "No previous snapshot for job ${job}.  Moving to complete"
+                        echo "completion_time=\"$(job_stamp)\"" >> "${replication_dir}/synced/${job}"
                         mv "${replication_dir}/synced/${job}" "${replication_dir}/complete/"
+                        update_job_status "$job_status" "last_complete" "$(job_stamp)"
                     fi
                 else
                     # Confirm previous job is in complete status
@@ -340,8 +342,11 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 if [ "$clean" == 'true' ]; then
                     if [ "$DEBUG" != 'true' ]; then
                         notice "Removed previous snapshot ${pool}/${folder}@${previous_snapshot} from dataset ${dataset_name}. Job is complete."
+                        echo "completion_time=\"$(job_stamp)\"" >> "${replication_dir}/cleaning/${job}"
                         mv "${replication_dir}/cleaning/${job}" "${replication_dir}/complete/${job}"
-                        update_job_status "$job_status" 'clean_failures' '#REMOVE#' 'clean_missing_snapshot' '#REMOVE#'
+                        update_job_status "$job_status" 'clean_failures' '#REMOVE#' \
+                            'clean_missing_snapshot' '#REMOVE#' \
+                            'last_complete' "$(job_stamp)"
                         #update_job_status "$job_status" 'clean_missing_snapshot' '#REMOVE#'
                     else
                         notice "Would have removed previous snapshot ${pool}/${folder}@${previous_snapshot} from dataset ${dataset_name}. Job is complete."
