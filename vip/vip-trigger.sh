@@ -99,7 +99,6 @@ activate_vip () {
     local alias=
     local available=
     local route=
-    local routes=
     local host=
     local net=
     local mask=
