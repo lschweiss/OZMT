@@ -235,6 +235,10 @@ if [ -z $GZIP ]; then
     GZIP=`gnu_source gzip`
 fi
 
+if [ -z $TAR ]; then
+    TAR=`gnu_source tar`
+fi
+
 if [ -z $SMBD ]; then
     SMBD="/usr/local/samba/sbin/smbd"
 fi
@@ -246,6 +250,8 @@ fi
 if [ -z $WINBINDD ]; then
     WINBINDD="/usr/local/samba/sbin/winbindd"
 fi
+
+
 
 # Set defaults
 
@@ -306,48 +312,60 @@ if [ "$samba_logfile" == "" ]; then
     samba_logfile="${log_dir}/samba.log"
 fi
 
+if [ "$zfs_property_tag" == '' ]; then
+    zfs_property_tag='edu.wustl.nrg'
+fi
+
 if [ "$zfs_dataset_property" == "" ]; then
-    zfs_dataset_property="edu.wustl.nrg:dataset"
+    zfs_dataset_property="${zfs_property_tag}:dataset"
 fi
 
 if [ "$zfs_replication_property" == "" ]; then
-    zfs_replication_property="edu.wustl.nrg:replication"
+    zfs_replication_property="${zfs_property_tag}:replication"
 fi
 
 if [ "$zfs_replication_dataset_property" == "" ]; then
-    zfs_replication_dataset_property="edu.wustl.nrg:replicationdataset"
+    zfs_replication_dataset_property="${zfs_property_tag}:replicationdataset"
 fi
 
 if [ "$zfs_replication_endpoints_property" == "" ]; then
-    zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
+    zfs_replication_endpoints_property="${zfs_property_tag}:replicationendpoints"
+fi
+
+if [ "$zfs_quota_property" == "" ]; then
+    zfs_quota_property="${zfs_property_tag}:quota"
+fi
+
+if [ "$zfs_refquota_property" == "" ]; then
+    zfs_refquota_property="${zfs_property_tag}:refquota"
 fi
 
 if [ "$zfs_quota_reports_property" == "" ]; then
-    zfs_quota_reports_property="edu.wustl.nrg:quotareports"
+    zfs_quota_reports_property="${zfs_property_tag}:quotareports"
 fi
 
 if [ "$zfs_quota_report_property" == "" ]; then
-    zfs_quota_report_property="edu.wustl.nrg:quotareport"
+    zfs_quota_report_property="${zfs_property_tag}:quotareport"
 fi
 
 if [ "$zfs_trend_reports_property" == "" ]; then
-    zfs_trend_reports_property="edu.wustl.nrg:trendreports"
+    zfs_trend_reports_property="${zfs_property_tag}:trendreports"
 fi
 
 if [ "$zfs_trend_report_property" == "" ]; then
-    zfs_trend_report_property="edu.wustl.nrg:trendreport"
+    zfs_trend_report_property="${zfs_property_tag}:trendreport"
 fi
 
 if [ "$zfs_snapshots_property" == "" ]; then
-    zfs_snapshots_property="edu.wustl.nrg:snapshots"
+    zfs_snapshots_property="${zfs_property_tag}:snapshots"
 fi
 
 if [ "$zfs_snapshot_property" == "" ]; then
-    zfs_snapshot_property="edu.wustl.nrg:snapshot"
+    zfs_snapshot_property="${zfs_property_tag}:snapshot"
 fi
 
 if [ "$zfs_cifs_property" == "" ]; then
-    zfs_cifs_property="edu.wustl.nrg:cifs"
+    zfs_cifs_property="${zfs_property_tag}:cifs"
 fi
 
 if [ "$zfs_samba_server_prefix" == "" ]; then
@@ -362,12 +380,16 @@ if [ "$zfs_samba_server_startup_timeout" == "" ]; then
     zfs_samba_server_startup_timeout="10"
 fi
 
-if [ "$zfs_vip_property" == "" ]; then
-    zfs_vip_property="edu.wustl.nrg:vip"
-fi
-
 if [ "$zfs_cifs_default_share_template" == "" ]; then
     zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
+fi
+
+if [ "$zfs_samba_default_version" == "" ]; then
+    zfs_samba_default_version='4.1.17'
+fi
+
+if [ "$zfs_vip_property" == "" ]; then
+    zfs_vip_property="${zfs_property_tag}:vip"
 fi
 
 if [ "$zfs_replication_job_runner_cycle" == "" ]; then
