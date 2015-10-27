@@ -257,8 +257,10 @@ else
     if [ $? -ne 0 ]; then
         error "Could not rollback target dataset to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${TMP}/replication/zfs_rollback_$$
         mv "${job_definition}" "${replication_dir}/failed/"
-        update_job_status "$job_status" failures $fail
+        update_job_status "$job_status" failures +1
         die 1
+    else
+        rm ${TMP}/replication/zfs_rollback_$$
     fi
 
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
