@@ -149,6 +149,7 @@ if [ $result -ne 0 ]; then
     cat ${TMP}/mutt_output_$$
 else
     rm ${TMP}/mutt_message_$$
+    rm ${TMP}/mutt_output_$$
     if [ -f $attachments_file ]; then
         for attach in $attachments; do
             rm -f $attach
