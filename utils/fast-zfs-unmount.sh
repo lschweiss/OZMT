@@ -47,6 +47,7 @@ export DEBUG="true"
 debug "fast-zfs-unmount $1 $2"
 
 # Collect children from full list of folders
+
 cat $zfs_folders | \
     ${GREP} "^${unmount_zfs_folder}/" | \
     ${GREP} -v "^${unmount_zfs_folder}$" | \
@@ -62,10 +63,30 @@ if [ $(cat ${TMP}/fast_unmount_zfs.$$ | wc -l) -gt 0 ]; then
     debug "Children finished unmounting on ${unmount_zfs_folder}.  ${TMP}/fast_unmount_zfs.$$"
 fi
 
-zfs unmount -f $unmount_zfs_folder
-if [ $? -ne 0 ] ; then 
+# Check if any processes have open files, if so kill them
+
+mountpoint=`zfs get -H -o mountpoint $unmount_zfs_folder`
+pids=`${LSOF} -t $mountpoint`
+for pid in $pids; do
+    kill -9 $pid
+done
+
+# Unmount the zfs folder
+
+${TIMEOUT} 45s zfs unmount -f $unmount_zfs_folder
+result=$?
+
+if [ $result -eq 124 ]; then
+    warning "zfs unmount -f $unmount_zfs_folder timed out after 45 seconds.  Collecting truss."
+    truss zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
+    result=$?
+    warning "Truss output of zfs unmount -f $unmount_zfs_folder" ${TMP}/zfs_unmount_$$.txt
+fi
+ 
+if [ $result -ne 0 ] ; then 
     warning "Could not unmount $unmount_zfs_folder"
 else
     debug "Unmounted $unmount_zfs_folder"
-    rm -f ${TMP}/fast_unmount_zfs.$$
 fi
+
+rm -f ${TMP}/fast_unmount_zfs.$$

@@ -16,3 +16,4 @@ tmp/*
 3rdparty/sg3_utils-1.37
 3rdparty/parallel-*
 3rdparty/arping/*
+3rdparty/lsof_*

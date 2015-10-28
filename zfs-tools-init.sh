@@ -219,6 +219,10 @@ if [ -z $MBUFFER ]; then
     MBUFFER=`gnu_source mbuffer`
 fi
 
+if [ -z $LSOF ]; then
+    LSOF=`gnu_source lsof`
+fi
+
 if [ -z $lz4 ]; then
     lz4=`gnu_source lz4`
 fi
