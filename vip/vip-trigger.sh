@@ -370,6 +370,7 @@ process_vip () {
     local ipifs=
     local t_vIP=
     local t_pool=
+    local active_source=
     local active_pool=
     local active_folder=
     local zfs_folder=
