@@ -253,7 +253,7 @@ if [ "$previous_snapshot" == "" ]; then
 else
     debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
     debug "  zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}"
-    timeout 60s ssh ${target_pool} "zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}" 2>${TMP}/replication/zfs_rollback_$$  
+    timeout 10m ssh ${target_pool} "zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}" 2>${TMP}/replication/zfs_rollback_$$  
     if [ $? -ne 0 ]; then
         error "Could not rollback target dataset to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${TMP}/replication/zfs_rollback_$$
         mv "${job_definition}" "${replication_dir}/failed/"
