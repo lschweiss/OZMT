@@ -79,7 +79,10 @@ update_last_report () {
 
 quota_report () {
 
-    local job="$1"
+    local folder="$1"
+
+    local job=`foldertojob $folder`
+    local pool=`echo $folder | ${AWK} -F "/" '{print $1}'`
     
     local quota_reports=0
     local referenced=
@@ -120,8 +123,21 @@ quota_report () {
     local to=
     local cc=
     local cc_list=
+    local x=
     
-    source $jobfolder/$job
+    #source $jobfolder/$job
+    
+    # Collect report info
+
+    quota_reports=`zfs get -H -o value $zfs_quota_reports_property $folder`
+
+    x=1
+    while [ $x -le ${quota_reports} ]; do
+        quota_report[$x]=`zfs get -H -o value ${zfs_quota_report_property}:${x} $folder`
+        x=$(( x + 1 ))
+    done
+
+    quota_path="$folder"
 
     local jobstat="/${pool}/zfs_tools/var/spool/reports"
 
@@ -321,7 +337,13 @@ quota_report () {
 }
 
 
+# Test if we have bc
 
+$BC -v &> /dev/null
+if [ $? -ne 0 ]; then
+    error "GNU bc required for quota reports"
+    exit 1
+fi
 
 # collect jobs
 
@@ -329,23 +351,25 @@ pools="$(pools)"
 
 for pool in $pools; do
 
-    jobfolder="/${pool}/zfs_tools/etc/reports/jobs/quota"
+    #jobfolder="/${pool}/zfs_tools/etc/reports/jobs/quota"
 
-    $BC -v &> /dev/null
-    if [ $? -ne 0 ]; then
-        error "GNU bc required for quota reports"
-        exit 1
-    fi
+    #if [ -d "$jobfolder" ]; then
 
-    if [ -d "$jobfolder" ]; then
+    #    jobs=`ls -1 $jobfolder`
 
-        jobs=`ls -1 $jobfolder`
+    #    for job in $jobs; do
+    #        quota_reports=0
+    #        quota_report "$job"
+    #    done
 
-        for job in $jobs; do
-            quota_reports=0
-            quota_report "$job"
-        done
+    #fi
 
-    fi
+    report_folders=`zfs get -H -o name -s local,received -r $zfs_quota_reports_property $pool`
+
+    for report_folder in $report_folders; do
+        quota_report "$report_folder"
+    done
+
+    
 
 done
