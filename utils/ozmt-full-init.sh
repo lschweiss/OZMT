@@ -165,6 +165,10 @@ if [ -z $TAC ]; then
     TAC=`gnu_source tac`
 fi
 
+if [ -z $NL ]; then
+    NL=`gnu_source nl`
+fi
+
 if [ -z $MUTT ]; then
     MUTT=`gnu_source mutt`
 fi
@@ -203,6 +207,10 @@ fi
 
 if [ -z $ARPING ]; then
     ARPING=`gnu_source arping`
+fi
+
+if [ -z $DIALOG ]; then
+    DIALOG=`gnu_source dialog`
 fi
 
 if [ -z $bbcp ]; then

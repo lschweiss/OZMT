@@ -787,10 +787,19 @@ setupzfs () {
             # TODO: validate the default_source_folder
             if [ "$default_source_folder" != "" ]; then
                 echo "$default_source_folder" > "$source_tracker"
+                current_source="$default_source_folder"
+                zfs set ${zfs_replication_property}:source="$default_source_folder" ${pool}/${zfspath}
             else
                 error "New replication configuration for $simple_jobname, but no default source folder set."
                 return 1
             fi
+        else
+            current_source=`cat ${source_tracker}`
+        fi
+
+        zfs_source=`zfs get -H -o ${zfs_replication_property}:source ${pool}/${zfspath}`
+        if [ "$zfs_source" == '' ]; then
+            zfs set ${zfs_replication_property}:source="$current_source" ${pool}/${zfspath}
         fi
 
         if [ "$replication_failure_limit" == "" ]; then
@@ -923,6 +932,19 @@ setupzfs () {
         zfs set ${zfs_replication_endpoints_property}=${endpoint_count} ${pool}/${zfspath}
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
         replication_parent="${zfspath}"
+
+        # TODO: Remove the creation of the file ${dataset_targets} 
+        #       Best approach is likely to separate the job definition from the endpoint definitons
+
+        count=0
+        while IFS='' read -r line || [[ -n "$line" ]]; do
+            count=$(( count + 1 ))
+            zfs set ${zfs_replication_property}:endpoint:${count}="$line" ${pool}/${zfspath}
+        done < "$dataset_targets"
+        unset IFS
+
+
+
     fi
    
 

@@ -68,6 +68,7 @@ fi
 mountpoint=`zfs get -H -o mountpoint $unmount_zfs_folder`
 pids=`${LSOF} -t $mountpoint`
 for pid in $pids; do
+    echo "Killing pid: $pid"
     kill -9 $pid
 done
 

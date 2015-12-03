@@ -31,6 +31,10 @@ source $TOOLS_ROOT/ansi-color-0.6/color_functions.sh
 
 source $TOOLS_ROOT/reporting/reporting_functions.sh
 
+if [ -t 1 ]; then 
+    source $TOOLS_ROOT/utils/dialog/setup-vars
+fi
+
 now() {
     ${DATE} +"%F %r %Z"
 }
