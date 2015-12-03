@@ -58,7 +58,7 @@ for pool in $pools; do
         if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
             debug "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present"
             if test `find "$replication_job_dir/suspend_all_jobs" -mmin +${zfs_replication_suspended_error_time}`; then
-                error "Skipping relication because $replication_job_dir/suspend_all_jobs is present for more than ${zfs_replication_suspended_error_time} minutes"
+                error "Skipping relication because $replication_job_dir/suspend_all_jobs is present for more than ${zfs_replication_suspended_error_time} minutes.  Reason: $(cat $replication_job_dir/suspend_all_jobs)"
             fi
             continue
         fi
