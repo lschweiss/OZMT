@@ -56,6 +56,7 @@ show_usage() {
     echo "  [-c cns_folder_exclude_file] Exclude file listing CNS folders to exclude from this job"
     echo "  [-k compare based on checKsum not metadata]"
     echo "  [-D] Don't delete on target"
+    echo "  [-u] Update on targert"
     echo "  [-t] trial mode.  Only output what would happen"
     echo "  [-p] Turn on --progress and --verbose for rsync."
     echo "  [-a] Turn on verbose and attach output to logs."
@@ -80,6 +81,7 @@ fi
 exclude_file_flag=
 date_flag=
 dont_delete_flag=
+update_flag=
 trial_mode_flag=
 cns_exclude_flag=
 use_chksum_flag=
@@ -96,7 +98,7 @@ scan_depth=1
 
 progress=""
 
-while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
+while getopts apkirtDuc:x:d:s:e:z:l:n: opt; do
     case $opt in
         x)  # Exclude File Specified
             exclude_file_flag=1
@@ -116,6 +118,8 @@ while getopts apkirtDc:x:d:s:e:z:l:n: opt; do
             progress_verbose_flag=1;;
     	D)  # Don't delete on the target
 	        dont_delete_flag=1;;
+        u)  # Update sync
+            update_flag=1;;
         t)  # Trial mode
             debug "Using trial mode"
             trial_mode_flag=1;;
@@ -260,6 +264,12 @@ else
     debug "Setting job name to $source_folder"
     jobname="$source_folder"
 fi
+
+if [ ! -z "$update_flag" ]; then
+    debug "Updating on destination"
+    extra_options="${extra_options} --update"
+fi
+
 
 
 
