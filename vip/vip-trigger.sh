@@ -19,6 +19,27 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 
+# TODO:
+# TODO: Multiple VIPs can have the same route defintion
+# TODO:
+
+# Deactivating one VIP can break the routes for others on the same host
+# A usage count needs to be established.  This count should not persit reboots.
+# Possibly in /tmp but that seems to volitile and risks deletion because of age and uptime.
+# Since OZMT doesn't have a service assocated with it boot time flushing needs to be OS
+# specfic.
+# Setting OS specific static routes does not work because at boot time neither
+# the virtual interface nor the the vIP will be active causing the route creation
+# to fail.  
+
+
+# The routes need to be defined outside the VIP and global to the system
+# Possible locations:
+# /etc/ozmt/routes    <- Add to sync script
+ 
+
+
+
 # Find our source and change to the directory
 if [ -f "${BASH_SOURCE[0]}" ]; then
     my_source=`readlink -f "${BASH_SOURCE[0]}"`
