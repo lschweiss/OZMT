@@ -41,12 +41,6 @@ else
     report_name="replication"
 fi
 
-if [ -t 1 ]; then
-    background=''
-else
-    background='&'
-fi
-
 pools="$(pools)"
 now=`${DATE} +"%F %H:%M:%S%z"`
 

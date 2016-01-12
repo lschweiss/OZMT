@@ -747,9 +747,11 @@ local_source () {
 # Launch a command in the background if NOT running on the console
 launch () {
     if [[ -t 1 && "$BACKGROUND" != "true" ]]; then
+        debug "Launching as a forground process: $@"
         "$@"
         launch_pid=
     else
+        debug "Launching as a background process: $@"
         "$@" &
         launch_pid=$!
     fi

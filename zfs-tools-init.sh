@@ -27,6 +27,13 @@
 # Only run init once
 if [[ "$ozmt_init" != 'true' || "$FORCE_INIT" == 'true' ]]; then
 
+    if [ -f /etc/ozmt/config ]; then
+        source /etc/ozmt/config
+    else
+        echo "OZMT config file must be in /etc/ozmt/config.   All other locations are no longer supported."
+        exit 1
+    fi
+
     source $TOOLS_ROOT/utils/ozmt-full-init.sh
 
 fi 
