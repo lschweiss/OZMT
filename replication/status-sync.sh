@@ -169,7 +169,8 @@ for file in $files; do
 done # for file
 
 
-                
+# Samba configs no longer sync'd.  Handled in datasets.
+exit 0                
         
 # Sync Samba configurations
 

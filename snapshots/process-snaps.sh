@@ -82,10 +82,10 @@ snap_job () {
         replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${zfsfolder} 2>/dev/null 3>/dev/null`
         replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${zfsfolder} 3>/dev/null`
         if [ "$replication_folder_point" == "local" ]; then
-            replication_folder="$folder"
+            replication_folder="${zfsfolder#*/}"
         else
             replication_pool_folder=`echo "$replication_folder_point" | ${AWK} -F " " '{print $3}'`
-            replication_folder=`echo "$replication_pool_folder" | ${CUT} -d '/' -f 2`
+            replication_folder="${replication_pool_folder#*/}"
         fi
         replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
         if [ "$replication_source" == "${pool}:${replication_folder}" ]; then

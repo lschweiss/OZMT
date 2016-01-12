@@ -274,6 +274,10 @@ else
 fi
 
 if [ $send_result -ne 0 ]; then
+    if [ $logging_level -ne 0 ]; then
+        # Log debugging messages next run
+        echo "logging_level=\"0\"" >> "${job_definition}"
+    fi
     mv "${job_definition}" "${replication_dir}/failed/"
     update_job_status "$job_status" failures +1
 else

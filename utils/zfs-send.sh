@@ -21,23 +21,20 @@
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
 
-_DEBUG="on"
-
-function DEBUG()
-{
- [ "$_DEBUG" == "on" ] &&  $@
-}
-
-if [ "x$zfs_logfile" != "x" ]; then
-    logfile="$zfs_logfile"
-else
-    logfile="$default_logfile"
+if [ "$logfile" == "" ]; then
+    if [ "x$zfs_logfile" != "x" ]; then
+        logfile="$zfs_logfile"
+    else
+        logfile="$default_logfile"
+    fi
 fi
 
-if [ "x$zfs_report" != "x" ]; then
-    report_name="$zfs_report"
-else
-    report_name="$default_report_name"
+if [ "$report_name" == "" ]; then
+    if [ "x$zfs_report" != "x" ]; then
+        report_name="$zfs_report"
+    else
+        report_name="$default_report_name"
+    fi
 fi
 
 # TODO: Several remote commands need to have tunable full paths.
@@ -807,7 +804,7 @@ case $transport_selected in
         # Source FIFO
         local_fifo bbcp
         target_bbcp_fifo="$result"
-        debug "${job_name}: Starting bbcp pipe from local $target_bbcp_fifo to remote $target_fifo"
+        debug "${job_name}: Starting bbcp pipe transport from local $target_bbcp_fifo to remote $target_fifo"
         ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
             1> $tmpdir/bbcp.log \
             2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
@@ -833,7 +830,7 @@ case $transport_selected in
         
         local_fifo ssh
         target_ssh_fifo="$result"
-        debug "${job_name}: Starting ssh pipe from local $target_ssh_fifo to remote $target_fifo"
+        debug "${job_name}: Starting ssh pipe transport from local $target_ssh_fifo to remote $target_fifo"
         ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
         echo $! > $tmpdir/ssh.pid
         target_fifo="$target_ssh_fifo"
@@ -849,7 +846,7 @@ case $transport_selected in
         local_fifo source_mbuffer_transport
         source_mbuffer_transport_fifo="$result"
         # Source end
-        debug "${job_name}: Starting local mbuffer from $source_mbuffer_transport_fifo to ${remote_host}:${remote_port}"
+        debug "${job_name}: Starting local mbuffer transport from $source_mbuffer_transport_fifo to ${remote_host}:${remote_port}"
         ( cat $source_mbuffer_transport_fifo | \
             $mbuffer \
             -O ${remote_host}:${remote_port} -q -s 128k -m 128M \
@@ -976,7 +973,7 @@ else
 fi
 
 debug "${job_name}: Starting zfs send to $target_fifo"
-debug "${job_name}:   zfs send -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
+debug "${job_name}:   zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
 ( sleep 2 ; zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
 echo $! > $tmpdir/zfs_send.pid
 local_watch="zfs_send $local_watch"
@@ -1057,7 +1054,7 @@ while [ "$running" == 'true' ]; do
         fi
     fi
 
-    sleep 1
+    sleep 2
 
 done
 

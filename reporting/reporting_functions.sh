@@ -98,6 +98,7 @@ process_message() {
     local limit_unit=
     local count=
     local skip=
+    local this_month=`${DATE} +"%Y-%m"`
 
     case $this_message_level in
         '0')
@@ -328,10 +329,11 @@ process_message() {
     # If enable append to log file
     if [[ "x$logfile" != "x" && "${this_message_level}" -ge "$logging_level" ]]; then
 
-        echo ${this_message} >> $logfile
+        echo "${this_subject}" >> "${logfile}.${this_month}"
+        echo "${this_message}" >> "${logfile}.${this_month}"
 
         if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
-            cat ${this_include_file} >> $logfile
+            cat "${this_include_file}" >> "${logfile}.${this_month}"
         fi
     fi        
 
