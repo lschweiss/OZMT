@@ -154,13 +154,13 @@ build_smb_conf () {
     case $conf_type in
         'dataset')
             #template_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
-            template_config_file="${dataset_mountpoint}/samba/etc/${conf_name}"
+            template_config_file="${dataset_mountpoint}/${conf_name}"
             ;;
         'pool')
-            template_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
+            template_config_file="/${pool}/${conf_name}"
             ;;
         'system')
-            template_config_file="/etc/ozmt/samba/${conf_name}"
+            template_config_file="${conf_name}"
             ;;
     esac
     if [ ! -f ${template_config_file} ]; then
@@ -248,13 +248,13 @@ build_smb_conf () {
         unset IFS
         case $conf_type in
             'dataset')
-                share_config_file="/${pool}/zfs_tools/etc/samba/${dataset_name}/${conf_name}"
+                share_config_file="/${dataset_mountpoint}/${conf_name}"
                 ;;
             'pool')
-                share_config_file="/${pool}/zfs_tools/etc/samba/${conf_name}"
+                share_config_file="/${pool}/${conf_name}"
                 ;;
             'system')
-                share_config_file="/etc/ozmt/samba/${conf_name}"
+                share_config_file="${conf_name}"
                 ;;
         esac
         if [ ! -f ${share_config_file} ]; then
