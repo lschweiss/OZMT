@@ -74,7 +74,9 @@ clean_up () {
     else
         # Clean up temp space
         if [ ! -t 1 ]; then
-            rm -rf $tmpdir
+            if [ "$tmpdir" != "" ]; then
+                rm -rf $tmpdir
+            fi
             if [ "$remote_host" != "" ]; then
                 $remote_ssh "rm -r $remote_tmp"
             fi
@@ -105,9 +107,6 @@ trap clean_up SIGHUP SIGINT SIGTERM
 
 die () {
     error "$1"
-    if [ "$tmpdir" != "" ]; then
-        rm -rf $tmpdir
-    fi
     clean_up 1
 }
 
