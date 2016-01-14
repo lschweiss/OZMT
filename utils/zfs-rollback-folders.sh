@@ -50,9 +50,17 @@ zfs_folder="$1"
 snapshot="$2"
 fail='false'
 
+mkdir -p "${TMP}/replication"
+
+debug "Recursively rolling back ${zfs_folder}@${snapshot}"
 
 # Collect folder list
-target_folder_snaps=`zfs list -o name -H -t snapshot -r $zfs_folder | ${GREP} \"${snapshot}\"`
+target_folder_snaps=`zfs list -o name -H -t snapshot -r $zfs_folder | ${GREP} -F ${snapshot}`
+
+if [ -t 1 ]; then
+    echo "Snaps:"
+    echo $target_folder_snaps
+fi
 
 # Rollback folders
 for rollback_snap in $target_folder_snaps; do
@@ -67,7 +75,7 @@ for rollback_snap in $target_folder_snaps; do
     fi
 done
 
-if [ "$fail"='true' ]; then
+if [ "$fail" == 'true' ]; then
     exit 1
 fi
 
