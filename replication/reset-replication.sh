@@ -230,8 +230,9 @@ for job in $jobs; do
  
             if [ "$job_dead" == 'true' ]; then
                 # Remove running status
-                notice "Replication job $running_job is defunct.  Removing running status."
-                rm /$pool/zfs_tools/var/replication/jobs/running/${running_job}
+                notice "Replication job $running_job is defunct.  Moving back to pending."
+                mv /$pool/zfs_tools/var/replication/jobs/running/${running_job} \
+                    /$pool/zfs_tools/var/replication/jobs/pending/${running_job}
                 if [[ "$DEBUG" != 'true' &&  -d "$info_folder" ]]; then
                     rm -rf "$info_folder"
                     rm -f "${TMP}/replication/job_info.${running_job}"
@@ -426,7 +427,7 @@ for snap in $replication_snaps; do
     if [ $? -ne 0 ]; then
         debug "Destroying source snapshot $snap"
         if [ "$DEBUG" != 'true' ]; then
-            zfs destroy $snap
+            zfs destroy -d $snap
         fi
     fi
 done
@@ -449,7 +450,7 @@ for ds_target in $ds_targets; do
             if [ $? -ne 0 ]; then
                 debug "Destroying target snapshot $snap"
                 if [ "$DEBUG" != 'true' ]; then
-                    ssh $target_pool "zfs destroy $snap"
+                    ssh $target_pool "zfs destroy -d $snap"
                 fi
             fi
         done

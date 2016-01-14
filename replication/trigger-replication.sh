@@ -63,7 +63,12 @@ job_definition="${1}"
 
 mkdir -p ${TMP}/replication
 
-source "$job_definition"
+if [ -f "$job_definition" ]; then
+    source "$job_definition"
+else
+    error "Job defintion not found: $job_definition"
+    exit 1
+fi
 
 # Check if all jobs suspended
 if [ -f "$replication_dir/suspend_all_jobs" ]; then

@@ -140,7 +140,14 @@ fi
 
 job_definition="${1}"
 
-source "$job_definition"
+debug "Job definition: $job_definition"
+
+if [ -f "$job_definition" ]; then
+    source "$job_definition"
+else
+    error "Could not find job defintion file: $job_definition"
+    exit 1
+fi
 
 replication_dir="/${pool}/zfs_tools/var/replication/jobs"
 
@@ -250,12 +257,16 @@ if [ "$previous_snapshot" == "" ]; then
         -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
         -T "${TMP}/replication/job_target_info.$(${BASENAME} ${job_definition})"
     send_result=$?
+
 else
+
     debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
-    debug "  zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}"
-    timeout 10m ssh ${target_pool} "zfs rollback -Rf ${target_pool}/${target_folder}@${previous_snapshot}" 2>${TMP}/replication/zfs_rollback_$$  
-    if [ $? -ne 0 ]; then
-        error "Could not rollback target dataset to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${TMP}/replication/zfs_rollback_$$
+
+    ssh $target_pool "ozmt-zfs-rollback-folders.sh ${target_pool}/${target_folder} ${previous_snapshot}"
+    result=$?
+
+    if [ $result -ne 0 ]; then
+        error "Could not rollback to snapshot ${target_pool}/${target_folder}@${previous_snapshot}" 
         mv "${job_definition}" "${replication_dir}/failed/"
         update_job_status "$job_status" failures +1
         die 1
@@ -263,6 +274,8 @@ else
         rm ${TMP}/replication/zfs_rollback_$$
     fi
 
+   
+    # Start zfs send
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
     ../utils/zfs-send.sh -d -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
