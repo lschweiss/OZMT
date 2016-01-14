@@ -271,7 +271,7 @@ else
         update_job_status "$job_status" failures +1
         die 1
     else
-        rm ${TMP}/replication/zfs_rollback_$$
+        rm ${TMP}/replication/zfs_rollback_$$ 2> /dev/null
     fi
 
    
