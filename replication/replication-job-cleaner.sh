@@ -177,6 +177,11 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
                 source "${job_status}"
 
+                if [ "$suspended}" == 'true' ]; then
+                    notice "Replication suspended for ${dataset_name}. Skipping cleaning"
+                    continue
+                fi
+
                 ##
                 # Trap repeating failures
                 ##
@@ -186,7 +191,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 fi
 
                 if [ $clean_missing_snapshot -ge 4 ]; then
-                    error "Suspending replication on ${dataset_name}.  Repeated attempts to clean previous snapshots has failed."
+                    error "Suspending replication on ${dataset_name}.  Previous snapshot is missing."
                     update_job_status "${job_status}" 'suspended' 'true'
                     continue
                 fi
@@ -255,7 +260,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 
                 if [ "$match" == 'false' ]; then
                     clean_cache
-                    debug "Could not find coresponding previous snapshot to $nomatch on target $target_pool/$target_folder"
+                    warning "Could not find coresponding previous snapshot to $nomatch on target $target_pool/$target_folder"
                     update_job_status "$job_status" 'clean_missing_snapshot' '+1'
                     continue # Next job
                 fi
