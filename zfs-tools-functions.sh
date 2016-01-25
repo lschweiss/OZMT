@@ -634,9 +634,18 @@ wait_for_lock() {
         debug "Renamed unlock file to new format: $unlockfile"
     fi
 
+    # There is a race condition here.  When update_job_status is rewriting there is a moment
+    # when the file does not exist, followed by it being unlocked.  Hopefully,
+    # the this three check squence can mitigate the race.   
     if [ ! -e "$1" ]; then
-        error "Wait for lock called on non-existant file $1"
-        return 1
+        sleep 0.1
+        if [ ! -e "$lockfile" ]; then
+            sleep 0.1
+            if [ ! -e "$unlockfile" ]; then
+                error "Wait for lock called on non-existant file $1"
+                return 1
+            fi
+        fi
     fi
 
     local starttime=$SECONDS
