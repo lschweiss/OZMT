@@ -17,3 +17,5 @@ tmp/*
 3rdparty/parallel-*
 3rdparty/arping/*
 3rdparty/lsof_*
+3rdparty/zlib-*
+3rdparty/pkg-config-*

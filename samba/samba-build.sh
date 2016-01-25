@@ -59,6 +59,10 @@ if [ "$datasets" == "" ]; then
     exit 1
 fi
 
+if [ "$zlib_version" == "" ]; then
+    zlib_version="1.2.8"
+fi
+
 
 
 build_dataset_samba () {
@@ -71,7 +75,7 @@ build_dataset_samba () {
     local build_options=
     local prefix="${dataset_root}/samba"
 
-    local STMP="${TMP}/samba/build"
+    local STMP="${prefix}/build/tmp"
     local zfs_exec=
 
     mkdir -p $STMP
@@ -113,6 +117,46 @@ build_dataset_samba () {
     fi
 
     mkdir -p "$build_dir"
+    cd $build_dir
+
+    # Get and build zlib
+
+    echo "Building zlib.."
+
+    if [ -f "$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz" ]; then
+        zlib_tar="$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz"
+    else
+        wget http://zlib.net/zlib-${zlib_version}.tar.gz
+        zlib_tar="${build_dir}/zlib-${zlib_version}.tar.gz"
+    fi
+
+
+    tar zxf $zlib_tar
+
+    cd zlib-$zlib_verions
+
+    ./configure 2>${STMP}/zlib_configure_${zlib_version}_err_$$.txt 1>${STMP}/zlib_configure_${zlib_version}_out_$$.txt
+    if [ $? -ne 0 ]; then
+        echo "Failed to configure zlib build for $dataset.  Output in ${STMP}/zlib_configure_${zlib_version}_err_$$.txt and ${STMP}/zlib_configure_${zlib_version}_out_$$.txt"
+        return 1
+    else
+        echo "Success!"
+    fi
+
+    make 2>${STMP}/zlib_make_${zlib_version}_err_$$.txt 1>${STMP}/zlib_make_${zlib_version}_out_$$.txt
+    if [ $? -ne 0 ]; then
+        echo "Failed to build zlib for $dataset.  Output in ${STMP}/zlib_make_${zlib_version}_err_$$.txt and ${STMP}/zlib_make_${zlib_version}_out_$$.txt"
+        return 1
+    else
+        echo "Success!"
+    fi
+
+    cp /usr/local/lib/pkgconfig/zlib.pc /opt/csw/lib/pkgconfig/zlib.pc
+
+
+    # Download Samba
+    
+
     if [ ! -f "${build_dir}/samba-${version}.tar.gz" ]; then
         cd $build_dir
         wget https://download.samba.org/pub/samba/stable/samba-${version}.tar.gz
@@ -134,36 +178,38 @@ build_dataset_samba () {
         build_options="$samba_build_options"
     fi
 
+    # Configure and make Samba
+
     cd ${build_dir}/samba-${version}
     echo "Configuring Samba version $version for $dataset"
     echo "Using configure options: $build_options"
-    ./configure $build_options 2>${STMP}/configure_err_$$.txt 1>${STMP}/configure_out_$$.txt
+    ./configure $build_options 2>${STMP}/configure_${version}_err_$$.txt 1>${STMP}/configure_${version}_out_$$.txt
     if [ $? -ne 0 ]; then
-        echo "Failed to configure samba build for $dataset.  Output in ${STMP}/configure_err_$$.txt and ${STMP}/configure_out_$$.txt"
+        echo "Failed to configure samba build for $dataset.  Output in ${STMP}/configure_${version}_err_$$.txt and ${STMP}/configure_${version}_out_$$.txt"
         return 1
     else
         echo "Success!"
-        rm -f ${STMP}/configure_err_$$.txt ${STMP}/configure_out_$$.txt
+        #rm -f ${STMP}/configure_${version}_err_$$.txt ${STMP}/configure_${version}_out_$$.txt
     fi
 
     echo "Compiling Samba version $version for $dataset"
-    make 2>${STMP}/make_err_$$.txt 1>${STMP}/make_out_$$.txt
+    make 2>${STMP}/make_${version}_err_$$.txt 1>${STMP}/make_${version}_out_$$.txt
     if [ $? -ne 0 ]; then
-        echo "Failed to build samba for $dataset.  Output in ${STMP}/make_err_$$.txt and ${STMP}/make_out_$$.txt"
+        echo "Failed to build samba for $dataset.  Output in ${STMP}/make_${version}_err_$$.txt and ${STMP}/make_${version}_out_$$.txt"
         return 1
     else
         echo "Success!"
-        rm -f ${STMP}/make_err_$$.txt ${STMP}/make_out_$$.txt
+        #rm -f ${STMP}/make_${version}_err_$$.txt ${STMP}/make_${version}_out_$$.txt
     fi
 
     echo "Installing Samba version $version for $dataset"
-    make install 2>${STMP}/make_install_err_$$.txt 1>${STMP}/make_install_out_$$.txt
+    make install 2>${STMP}/make_install_${version}_err_$$.txt 1>${STMP}/make_install_${version}_out_$$.txt
     if [ $? -ne 0 ]; then
-        echo "Failed to install samba for $dataset.  Output in ${STMP}/make_install_err_$$.txt and ${STMP}/make_install_out_$$.txt"
+        echo "Failed to install samba for $dataset.  Output in ${STMP}/make_install_${version}_err_$$.txt and ${STMP}/make_install_${version}_out_$$.txt"
         return 1
     else
         echo "Success!"
-        rm -f ${STMP}/make_err_$$.txt ${STMP}/make_out_$$.txt
+        #rm -f ${STMP}/make_${version}_err_$$.txt ${STMP}/make_${version}_out_$$.txt
     fi
 
 

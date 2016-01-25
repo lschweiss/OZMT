@@ -285,6 +285,8 @@ build_smb_conf () {
     echo "pid directory = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
     echo "lock directory = ${dataset_mountpoint}/samba/var" >> $server_conf
 
+    mkdir -p "${dataset_mountpoint}/samba/var/run"
+
     # Collect vIPs
     vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder} 3>/dev/null`
     interfaces=
