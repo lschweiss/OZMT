@@ -467,10 +467,20 @@ update_job_status () {
     local previous_value=
     local have_lock='false'
 
-    if [ ! -f "$status_file" ]; then
-        error "update_job_status called on none-existant status file: $status_file"
-        exit 1
+    # There is a race condition here.  When update_job_status is rewriting there is a moment
+    # when the file does not exist, followed by it being unlocked.  Hopefully,
+    # the this three check sequence can mitigate the race.
+    if [ ! -e "$status_file" ]; then
+        sleep 0.1
+        if [ ! -e "${status_file}.lock" ]; then
+            sleep 0.1
+            if [ ! -e "${status_file}.unlock" ]; then
+                error "update_job_status called on none-existant status file: $status_file"
+                return 1
+            fi
+        fi
     fi
+
 
     shift 1
 
@@ -636,7 +646,7 @@ wait_for_lock() {
 
     # There is a race condition here.  When update_job_status is rewriting there is a moment
     # when the file does not exist, followed by it being unlocked.  Hopefully,
-    # the this three check squence can mitigate the race.   
+    # the this three check sequence can mitigate the race.   
     if [ ! -e "$1" ]; then
         sleep 0.1
         if [ ! -e "$lockfile" ]; then
