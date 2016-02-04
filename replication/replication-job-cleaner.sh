@@ -330,15 +330,17 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     ssh $target_pool "zfs destroy -d -r \"${target_pool}/${target_folder}@${previous_snapshot}\"" 2> ${CTMP}/destroy_target_snap_$$.txt
                     if [ $? -ne 0 ]; then
                         clean='false'
-                        error "Failed to destroy snapshot ${pool}/${folder}@${previous_snapshot}" ${CTMP}/destroy_target_snap_$$.txt
+                        error "Failed to destroy target snapshot ${pool}/${folder}@${previous_snapshot}" ${CTMP}/destroy_target_snap_$$.txt
                         update_job_status "$job_status" 'clean_failures' '+1'
                     fi
 
                     if [ "$clean" == 'true' ]; then 
                         zfs destroy -d -r "${pool}/${folder}@${previous_snapshot}" 2> ${CTMP}/destroy_source_snap_$$.txt
                         if [ $? -ne 0 ]; then
+                            zfs holds "${pool}/${folder}@${previous_snapshot}" >> ${CTMP}/destroy_source_snap_$$.txt
+                            zfs userrefs "${pool}/${folder}@${previous_snapshot}" >> ${CTMP}/destroy_source_snap_$$.txt
                             clean='false'
-                            error "Failed to destroy snapshot ${pool}/${folder}@${previous_snapshot}" ${CTMP}/destroy_source_snap_$$.txt
+                            error "Failed to destroy source snapshot ${pool}/${folder}@${previous_snapshot}" ${CTMP}/destroy_source_snap_$$.txt
                             update_job_status "$job_status" 'clean_failures' '+1' 
                         fi
                     fi

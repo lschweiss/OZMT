@@ -274,25 +274,10 @@ else
         rm ${TMP}/replication/zfs_rollback_$$ 2> /dev/null
     fi
 
-    # Copy quota,refquota to user parameters
-
-    quota_folders=`zfs list -o name -H -p -r ${pool}/${folder}`
-    
-    for quota_folder in $quota_folders; do
-        quota=`zfs get -o value -H -p quota $quota_folder`
-        current=`zfs get -o value -H -p -s local ${zfs_quota_property} $quota_folder 2>/dev/null`
-        if [ "$current" != "$quota" ]; then
-            zfs set ${zfs_quota_property}="$quota" $quota_folder
-        fi
-    done
-
-    for refquota_folder in $quota_folders; do
-        refquota=`zfs get -o value -H -p refquota $refquota_folder`
-        current=`zfs get -o value -H -p -s local ${zfs_refquota_property} $refquota_folder 2>/dev/null`
-        if [ "$current" != "$refquota" ]; then
-            zfs set ${zfs_refquota_property}="$refquota" $refquota_folder
-        fi
-    done
+    # Remove quotas on the target folder(s)
+    if [ "$zfs_replication_remove_quotas" == 'true' ]; then
+        ssh $target_pool "ozmt-remove-quotas.sh ${target_pool}/${target_folder}"
+    fi
 
    
     # Start zfs send
@@ -304,6 +289,13 @@ else
         -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
         -T "${TMP}/replication/job_target_info.$(${BASENAME} ${job_definition})"
     send_result=$?
+
+    # Remove quotas a second time incase a quota change was transmitted via the send.
+    if [ "$zfs_replication_remove_quotas" == 'true' ]; then
+        ssh $target_pool "ozmt-remove-quotas.sh ${target_pool}/${target_folder}"
+    fi
+
+    
 fi
 
 if [ $send_result -ne 0 ]; then

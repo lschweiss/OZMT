@@ -73,6 +73,7 @@ for pool in $pools; do
             failures=0
             # Determine which definitions have changed since last run 
             ls -1At --color=never /${pool}/zfs_tools/etc/pool-filesystems | \
+                ${GREP} -v -P ".+~" | \
                 ${SED} '/\.last_setup_run/q' | \
                 ${GREP} -v ".last_setup_run" | \
                 ${GREP} -v ".replication_setup" | \

@@ -153,6 +153,28 @@ last_run=`${DATE} +"%F %H:%M:%S%z"`
 # 
 # pause
 
+
+# Copy quota,refquota to user parameters
+
+quota_folders=`zfs list -o name -H -p -r ${pool}/${folder}`
+
+for quota_folder in $quota_folders; do
+    quota=`zfs get -o value -H -p quota $quota_folder`
+    current=`zfs get -o value -H -p -s local ${zfs_quota_property} $quota_folder 2>/dev/null`
+    if [ "$current" != "$quota" ]; then
+        zfs set ${zfs_quota_property}="$quota" $quota_folder
+    fi
+done
+
+for refquota_folder in $quota_folders; do
+    refquota=`zfs get -o value -H -p refquota $refquota_folder`
+    current=`zfs get -o value -H -p -s local ${zfs_refquota_property} $refquota_folder 2>/dev/null`
+    if [ "$current" != "$refquota" ]; then
+        zfs set ${zfs_refquota_property}="$refquota" $refquota_folder
+    fi
+done
+
+
 # Generate new snapshot
 
 last_snapshot="${zfs_replication_snapshot_name}_${now_stamp}"
