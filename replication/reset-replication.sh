@@ -312,6 +312,7 @@ parent_valid_snaps=
 
 debug "Found snaps in parent folder ${source_pool}/${source_folder}: $parent_replication_snaps"
 
+
 # Make sure each snapshot is also in all the children
 # Eliminate from the list any snapshot that is not in all children
 if [ "$children_folders" != "" ]; then
@@ -319,14 +320,21 @@ if [ "$children_folders" != "" ]; then
     for parent_snap in $parent_replication_snaps; do
         valid_snap='true'
         parent_snap_name=`echo $parent_snap|${CUT} -d '@' -f2`
+        parent_snap_creation=`zfs get -o value -H -p creation ${pool}/${source_folder}@${parent_snap_name}`
         for child_folder in $children_folders; do
-            child_snaps=`printf '%s\n' "$replication_snaps" | \
-                         ${GREP} "^$child_folder@"`
-            # Test if snap is good
-            echo $child_snaps | ${GREP} -q "$parent_snap_name"
-            if [ $? -ne 0 ]; then
-                debug "Parent snapshot ${parent_snap}, is not in child folder $child_folder"
-                valid_snap='false'
+            # Test if child folder was created after the parent snapshot
+            child_folder_creation=`zfs get -o value -H -p creation $child_folder`    
+            if [ $child_folder_creation -gt $parent_snap_creation ]; then
+                debug "Child folder $child_folder was created after parent snapshot.  Skipping."
+            else
+                child_snaps=`printf '%s\n' "$replication_snaps" | \
+                             ${GREP} "^$child_folder@"`
+                # Test if snap is good
+                echo $child_snaps | ${GREP} -q "$parent_snap_name"
+                if [ $? -ne 0 ]; then
+                    debug "Parent snapshot ${parent_snap}, is not in child folder $child_folder"
+                    valid_snap='false'
+                fi
             fi
         done
         if [ "$valid_snap" == 'true' ]; then
@@ -352,6 +360,7 @@ parent_replication_snaps=`printf '%s\n' "$parent_valid_snaps"`
 for parent_snap in $parent_replication_snaps; do
     valid_snap='true'
     parent_snap_name=`echo $parent_snap|${CUT} -d '@' -f2`
+    parent_snap_creation=`zfs get -o value -H -p creation ${pool}/${source_folder}@${parent_snap_name}`
 
     for ds_target in $ds_targets; do
         if [ "$ds_target" != "${source_pool}:${source_folder}" ]; then
@@ -375,13 +384,19 @@ for parent_snap in $parent_replication_snaps; do
             # Check child snaps
             if [[ "${valid_snap}" == 'true' && "$children_folders" != "" ]]; then
                 for child_folder in $children_folders; do
-                    child_folder_short="${child_folder:${#ds_source}}"
-                    debug "Checking for snapshot on ${ds_target}${child_folder_short}"
-                    printf '%s\n' "$target_snaps" | ${GREP} -q "${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}"
-                    if [ $? -ne 0 ]; then
-                        debug "Snapshot not found \"${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}\""
-                        valid_snap='false'
-                        break
+                    # Test if source child folder was created after the parent source snapshot
+                    child_folder_creation=`zfs get -o value -H -p creation $child_folder`    
+                    if [ $child_folder_creation -gt $parent_snap_creation ]; then
+                        debug "Child folder $child_folder was created after parent snapshot.  Skipping."
+                    else
+                        child_folder_short="${child_folder:${#ds_source}}"
+                        debug "Checking for snapshot on ${ds_target}${child_folder_short}"
+                        printf '%s\n' "$target_snaps" | ${GREP} -q "${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}"
+                        if [ $? -ne 0 ]; then
+                            debug "Snapshot not found \"${target_pool}/${target_folder}${child_folder_short}@${parent_snap_name}\""
+                            valid_snap='false'
+                            break
+                        fi
                     fi
                 done
             fi
