@@ -436,6 +436,9 @@ fi
 # Destroy all other replication snapshots
 ##
 
+# TODO: zfs destroy can have multiple snapshots in one command per zfs folder.   This should be done to speed this process.
+# TODO: Use GNU parallel to speed this process too.
+
 # Destroy source snapshots
 for snap in $replication_snaps; do
     echo "$snap" | ${GREP} -q "$snap_grep" 
