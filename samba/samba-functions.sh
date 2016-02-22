@@ -101,6 +101,7 @@ build_smb_conf () {
     local keytab_file=
     local cifs_template=
     local template_config_file=
+    local shares=
     local shared_folder=
     local shared_folders=
     local cifs_share=
@@ -127,13 +128,13 @@ build_smb_conf () {
         return 1
     fi
 
-    if [ -d /${pool}/zfs_tools/etc/samba/${dataset_name} ]; then
-        # Move the samba etc and var dirs into the dataset.
-        mkdir -p ${dataset_mountpoint}/samba
-        chmod 770 ${dataset_mountpoint}/samba
-        mv /${pool}/zfs_tools/etc/samba/${dataset_name} ${dataset_mountpoint}/samba/etc
-        mv /${pool}/zfs_tools/var/samba/${dataset_name} ${dataset_mountpoint}/samba/var
-    fi
+#    if [ -d /${pool}/zfs_tools/etc/samba/${dataset_name} ]; then
+#        # Move the samba etc and var dirs into the dataset.
+#        mkdir -p ${dataset_mountpoint}/samba
+#        chmod 770 ${dataset_mountpoint}/samba
+#        mv /${pool}/zfs_tools/etc/samba/${dataset_name} ${dataset_mountpoint}/samba/etc
+#        mv /${pool}/zfs_tools/var/samba/${dataset_name} ${dataset_mountpoint}/samba/var
+#    fi
 
     mkdir -p $smb_conf_dir
     
@@ -169,12 +170,12 @@ build_smb_conf () {
     fi
 
     smb_inherit_owner=`zfs get -H -o value -s local,received ${zfs_cifs_property}:inheritowner ${zfs_folder}`
-    if [ "$smb_inherit_owner" == '-' ]; then
+    if [ "$smb_inherit_owner" == '' ]; then
         smb_inherit_owner='yes'
     fi
     smb_log_level=`zfs get -H -o value -s local,received ${zfs_cifs_property}:loglevel ${zfs_folder}`
     if [ "$smb_log_level" == '' ]; then
-        smb_log_level='1'
+        smb_log_level='3'
     fi
     smb_admin_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:adminusers ${zfs_folder}`
     if [ "$smb_admin_users" == '-' ]; then
@@ -231,17 +232,14 @@ build_smb_conf () {
     # remove and rebuild share defintions
     rm -f /${smb_conf_dir}/smb_share*.conf
 
+
+
+    ##
     # Construct shares config
-    shared_folders=`zfs get -H -o name -s local,received -r ${zfs_cifs_property}:share ${zfs_folder}`
-    debug "Shared folders: $shared_folders"
-    for shared_folder in $shared_folders; do
-        cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
-        mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
-        share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share ${shared_folder}`
-        smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:users ${shared_folder}`
-        if [ "$smb_valid_users" == '-' ]; then
-            smb_valid_users=''
-        fi
+    ##
+
+    build_share_config () {
+
         debug "Adding share $cifs_share to $server_name for $mountpoint"
         IFS=':'
         read -r conf_type conf_name <<< "$share_config"
@@ -256,6 +254,10 @@ build_smb_conf () {
             'system')
                 share_config_file="${conf_name}"
                 ;;
+            *)
+                error "Invalid share config specified: $share_config"
+                continue
+                ;;
         esac
         if [ ! -f ${share_config_file} ]; then
             error "Missing cifs config file ${share_config_file} for dataset ${dataset_name} share ${cifs_share}"
@@ -265,22 +267,79 @@ build_smb_conf () {
         if [[ "${share_config_file}" == *".template" ]]; then
             debug "template: ${share_config_file}"
 
+            smb_valid_users="$(echo -E $smb_valid_users | ${SED} -e 's/[\/&]/\\&/g')"
+            smb_admin_users="$(echo -E $smb_admin_users | ${SED} -e 's/[\/&]/\\&/g')"
+
+            echo "validusers = $smb_valid_users"
+
             ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
                 ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
                 ${SED} s,#SERVER_NAME#,${server_name},g | \
                 ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
-                ${SED} "s%#VALID_USERS#%${smb_valid_users}%g" > \
+                ${SED} "s%#VALID_USERS#%${smb_valid_users}%g" | \
+                ${SED} "s%#ADMIN_USERS#%${smb_admin_users}%g" > \
                 "${smb_conf_dir}/smb_share_${cifs_share}.conf"
 
         else
             cp "$share_config_file" "${smb_conf_dir}/smb_share_${cifs_share}.conf"
         fi
         echo "include = ${smb_conf_dir}/smb_share_${cifs_share}.conf" >> "${smb_conf_dir}/smb_shares.conf"
+
+
+    }
+
+    # New format all shares defined at the dataset level
+
+    shares=`zfs get -H -o value -s local,received ${zfs_cifs_property}:shares ${zfs_folder}`
+
+    if [ "$shares" != '-' ]; then
+        x=1
+        while [ $x -le $shares ]; do
+    
+            cifs_share=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:sharename ${zfs_folder}`
+            mountpoint="$(zfs get -H -o value mountpoint ${zfs_folder})/$(zfs get -H -o value ${zfs_cifs_property}:share:${x}:path ${zfs_folder})"
+            share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:config ${zfs_folder}`
+            smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:validusers ${zfs_folder}`
+            if [ "$smb_valid_users" == '-' ]; then
+                smb_valid_users=''
+            fi
+            smb_admin_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:adminusers ${zfs_folder}`
+            if [ "$smb_admin_users" == '-' ]; then
+                smb_admin_users=''
+            fi
+
+            if [ "$cifs_share" != '-' ]; then
+                debug "Using new share config"
+                build_share_config
+            fi
+        
+            x=$(( x + 1 ))
+    
+        done
+    fi
+        
+
+    # Old format shares defined at zfs folder level.   This doesn't allow for shares on non-zfs folders.
+
+    shared_folders=`zfs get -H -o name -s local,received -r ${zfs_cifs_property}:share ${zfs_folder}`
+    debug "Shared folders: $shared_folders"
+    for shared_folder in $shared_folders; do
+        cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
+        mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
+        share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share ${shared_folder}`
+        smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:users ${shared_folder}`
+        if [ "$smb_valid_users" == '-' ]; then
+            smb_valid_users=''
+        fi
+        warning "Using old share config"
+        build_share_config
+
     done
 
     ##
     # Build the smb_server.conf
     ##
+
     echo "private dir = ${dataset_mountpoint}/samba/var" > $server_conf
     echo "pid directory = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
     echo "lock directory = ${dataset_mountpoint}/samba/var" >> $server_conf
