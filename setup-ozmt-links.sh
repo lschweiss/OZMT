@@ -28,6 +28,11 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 rm -f /usr/sbin/ozmt-*
 
+ln -s ${TOOLS_ROOT}/snapshots/snapjobs-mod.sh /usr/sbin/ozmt-snapjobs-mod.sh
+ln -s ${TOOLS_ROOT}/snapshots/snapjobs-mod.sh /usr/sbin/ozmt-snapjobs-add.sh
+ln -s ${TOOLS_ROOT}/snapshots/snapjobs-del.sh /usr/sbin/ozmt-snapjobs-del.sh
+ln -s ${TOOLS_ROOT}/snapshots/snapjobs-show.sh /usr/sbin/ozmt-snapjobs-show.sh
+
 ln -s ${TOOLS_ROOT}/pools_filesystems/setup-filesystems.sh /usr/sbin/ozmt-setup-filesystems.sh
 
 ln -s ${TOOLS_ROOT}/rsync/sync_snap_folder.sh /usr/sbin/ozmt-sync-snap-folder.sh

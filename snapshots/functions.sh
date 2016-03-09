@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012 - 2015  Chip Schweiss
+# Copyright (C) 2012 - 2016  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -40,15 +40,172 @@ locate_snap () {
             snap=`ls -1 $path|${GREP} $date`
         fi
     else
-        error "locate_snap: Directory $path not found."
+        warning "locate_snap: Directory $path not found."
         return 1
     fi
 
     if [ "${snap}" == "" ]; then
-        error "locate_snap: Snapshot for $date on path $path not found."
+        warning "locate_snap: Snapshot for $date on path $path not found."
         return 1
     fi
 
     echo $snap
     return 0
 }
+
+snap_job_usage () {
+    local snap=
+    if [ -t 1 ]; then
+        cat ${TOOLS_ROOT}/snapshots/USAGE
+        for snap in $snaptypes; do
+            echo "      $snap"
+        done
+    fi
+}
+    
+show_snap_job () {
+
+    local zfs_folder="$1"
+    local folder=
+    local folders=
+    local recursive="$2"
+    local result=
+    local snaptype=
+
+    # Test folder exists
+    zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
+    result=$?
+    if [ $result -ne 0 ]; then
+        warning "show_snap_job called on non-existant zfs folder $zfs_folder"
+        snap_job_usage
+        return 1
+    fi
+
+    if [[ "$recursive" != "" && "$recursive" != "-r" ]]; then
+        warning "show_snap_job called with invalid parameter $recursive"
+        snap_job_usage
+        return 1
+    fi
+    
+    folders=`zfs list -o name -H ${recursive} ${zfs_folder}`
+
+    for folder in $folders; do
+        for snaptype in $snaptypes; do
+            existing=`zfs get -o value -H -s local,received ${zfs_snapshot_property}:${snaptype} $folder`
+            if [ "$existing" != '' ]; then
+                echo -E "${folder} ${snaptype} ${existing}" >> ${TMP}/snapjobs_$$
+            fi
+        done
+    done 
+
+    column -t ${TMP}/snapjobs_$$
+    rm ${TMP}/snapjobs_$$    
+
+}
+
+add_mod_snap_job () {
+
+    local zfs_folder="$1"
+    local snap_job="$2"
+    local snap_job_type=
+    local snap_job_keep=
+    local result=
+    local fixed_folder=`foldertojob $zfs_folder`
+    local pool=`echo $zfs_folder | ${CUT} -f 1 -d '/'`
+    local existing=
+
+    if [ $# -lt 2 ]; then
+        warning "add_mod_snap_job called with too few arguements"
+        snap_job_usage
+        return 1
+    fi
+
+
+    # Test folder exists
+    zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
+    result=$?
+    if [ $result -ne 0 ]; then
+        warning "add_mod_snap_job called on non-existant zfs folder $zfs_folder"
+        snap_job_usage
+        return 1
+    fi
+
+    while [ "$snap_job" != "" ]; do
+
+        snap_job_type=`echo $snap_job | ${CUT} -f 1 -d '/'`
+        snap_job_keep=`echo $snap_job | ${CUT} -f 2 -d '/'`
+
+        # Test valid snap_job
+        echo $snaptypes | ${GREP} -q "\b${snap_job_type}\b"
+        result=$?
+        if [ $result -ne 0 ]; then
+            warning "add_mod_snap_job: invalid snap type specified: $snap_job_type"
+            snap_job_usage
+        fi
+    
+        notice "add_mod_snap_job: updating $zfs_folder job $snap_job"
+        # Update the job
+        zfs set ${zfs_snapshot_property}:${snap_job_type}="$snap_job_keep" $zfs_folder
+        
+        # Flush appropriate caches
+        # TODO: Don't just flush be reload the cache, so next job executes quickly
+        existing=`zfs get -o value -s local,received ${zfs_snapshot_property}:${snap_job_type} $zfs_folder`
+        if [ "$existing" == '' ]; then
+            # Flush cache for the job type
+            rm -f /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${pool} 2>/dev/null
+        else
+            # Flush the cache for the folder
+            rm -f /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${fixed_folder} 2>/dev/null
+        fi
+    
+        shift
+        snap_job="$2"
+
+    done
+            
+}
+        
+del_snap_job () {
+
+    local zfs_folder="$1"
+    local snap_job="$2"
+    local result=
+    local fixed_folder=`foldertojob $zfs_folder`
+    local pool=`echo $zfs_folder | ${CUT} -f 1 -d '/'`
+    
+    if [ $# -lt 2 ]; then
+        warning "del_snap_job called with too few arguements"
+        snap_job_usage
+        return 1
+    fi
+
+    # Test folder exists
+    zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
+    result=$?
+    if [ $result -ne 0 ]; then
+        warning "del_snap_job called on non-existant zfs folder $zfs_folder"
+        snap_job_usage
+        return 1
+    fi
+
+    while [ "$snap_job" != "" ]; do
+        # Test valid snap_job
+        echo $snaptypes | ${GREP} -q "\b${snap_job}\b"
+        result=$?
+        if [ $result -ne 0 ]; then
+            warning "del_snap_job: invalid snap type specified: $snap_job"
+            snap_job_usage
+            return 1
+        fi
+
+        zfs inherit ${zfs_snapshot_property}:${snap_job} $zfs_folder
+        # flush cache for the job type and folder
+        rm -f /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job}_${pool} 2>/dev/null
+        rm -f /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job}_${fixed_folder} 2>/dev/null
+
+        shift
+        snap_job="$2"
+    done
+
+
+}    

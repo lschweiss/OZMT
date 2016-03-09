@@ -817,16 +817,7 @@ zfs_cache () {
     fi
 
     if [ "$use_cache" == 'true' ]; then
-        zfs_command=`head -1 $cache_file`
-        if [ "$zfs_command" != "zfs $*" ]; then
-            # Return the cache and update cache file to include the command
-            cat $cache_file
-            debug "Updating cache to new format.  File: $cache_file "
-            sed -i '1s,^,zfs $*\n,' $cache_file
-        else
-            debug "Using cache file"
-            tail -n+2 $cache_file
-        fi
+        tail -n+2 $cache_file
     else
         echo "zfs $*" > $cache_file
         zfs $* | tee -a $cache_file

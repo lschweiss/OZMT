@@ -169,6 +169,10 @@ if [ -z $NL ]; then
     NL=`gnu_source nl`
 fi
 
+if [ -z $STAT ]; then
+    STAT=`gnu_source stat`
+fi
+
 if [ -z $MUTT ]; then
     MUTT=`gnu_source mutt`
 fi

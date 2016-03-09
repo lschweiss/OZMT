@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012 - 2015  Chip Schweiss
+# Copyright (C) 2012 - 2016  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,10 +18,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-. ../zfs-tools-init.sh
 
-snaptype="$1"
+# Find our source and change to the directory
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    my_source=`readlink -f "${BASH_SOURCE[0]}"`
+else
+    my_source="${BASH_SOURCE[0]}"
+fi
+cd $( cd -P "$( dirname "${my_source}" )" && pwd )
+
+. ../zfs-tools-init.sh
+. functions.sh
+
 
 if [ "x$snapshot_logfile" != "x" ]; then
     logfile="$snapshot_logfile"
@@ -35,31 +43,4 @@ else
     report_name="$default_report_name"
 fi
 
-
-echo $snaptypes | ${GREP} -q "\b${snaptype}\b"
-result=$?
-if [ $result -ne 0 ]; then
-    warning "process-snaps.sh: invalid snap type specified: $snaptype"
-    exit 1
-fi
-
-# collect jobs
-
-pools="$(pools)"
-
-debug "Pools: $pools"
-
-now=`${DATE} +%F_%H:%M%z`
-stamp="${snaptype}_${now}"
-
-mkdir -p ${TMP}/snapshots
-
-command_max=$(( $(getconf ARG_MAX) - 1024 ))
-
-# Fork one job per pool
-for pool in $pools; do
-
-    launch ./process-snaps-pool.sh $pool $snaptype
-
-done
-
+del_snap_job "$@"

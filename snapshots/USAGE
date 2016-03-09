@@ -1,0 +1,17 @@
+Usage:
+    ozmt-snapjobs-mod.sh {zfs_folder} {type/count} [{type/count}].. 
+      adds new job(s) or modifies existing job(s)
+
+    ozmt-snapjobs-del.sh {zfs_folder} {type} [{type}]..
+      deletes job(s) from zfs_folder of {type}
+
+    ozmt-snapjobs-show.sh {zfs_folder} [-r]
+      shows all snapshot jobs for {zfs_folder}
+        -r  recusively show jobs for all children
+  
+    Recursive snapshots can be managed by adding an 'r' after {count}.  For example:
+      ozmt-snapjobs tank/folder "daily|14r" "weekly|4" "monthly|6"
+    will snapshot 'tank/folder' and all of its children folders daily, keeping 14 snapshots,
+      4 weekly and 6 monthly snapshots will be kept only on 'tank/folder'
+
+    The folowing snapshot types are managed on this system:
