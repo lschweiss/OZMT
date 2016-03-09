@@ -55,7 +55,7 @@ command_max=$(( $(getconf ARG_MAX) - 1024 ))
 
 debug "Pool: $pool"
 
-rm -f ${TMP}/snapshots/${snaptype}.* 2>/dev/null
+rm -f ${TMP}/snapshots/${snaptype}_${pool}.* 2>/dev/null
 
 folders=`zfs_cache get -H -o name -s local,received -r ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
 
@@ -98,29 +98,29 @@ for folder in $folders; do
     
     if [ "${keepcount:0:1}" == "r" ]; then
         # This is a recursive job.  Enumerate all children folders instead of using two snapshot commands
-        zfs list -o name -H -r ${folder} | $SED "s,$,@$stamp," >> ${TMP}/snapshots/${snaptype}.standard
+        zfs list -o name -H -r ${folder} | $SED "s,$,@$stamp," >> ${TMP}/snapshots/${snaptype}_${pool}.standard
     else
-        echo ${folder}@${stamp} >> ${TMP}/snapshots/${snaptype}.standard
+        echo ${folder}@${stamp} >> ${TMP}/snapshots/${snaptype}_${pool}.standard
     fi
 
 done
 
-if [ -f ${TMP}/snapshots/${snaptype}.standard ]; then
+if [ -f ${TMP}/snapshots/${snaptype}_${pool}.standard ]; then
     x=1
     # Assemble snapshot command(s)
-    echo -n "zfs snapshot " > ${TMP}/snapshots/${snaptype}.command.${x}
+    echo -n "zfs snapshot " > ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
 
     while IFS='' read -r line || [[ -n "$line" ]]; do
-        if [ $( $STAT --printf="%s" ${TMP}/snapshots/${snaptype}.command.${x} ) -lt $command_max ]; then
-            echo -n "$line " >> ${TMP}/snapshots/${snaptype}.command.${x}
+        if [ $( $STAT --printf="%s" ${TMP}/snapshots/${snaptype}_${pool}.command.${x} ) -lt $command_max ]; then
+            echo -n "$line " >> ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
         else
-            echo "&" >> ${TMP}/snapshots/${snaptype}.command.${x}
+            echo "&" >> ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
             x=$(( x + 1 ))
-            echo -n "zfs snapshot " > ${TMP}/snapshots/${snaptype}.command.${x}
-            echo $line >> ${TMP}/snapshots/${snaptype}.command.${x}
+            echo -n "zfs snapshot " > ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
+            echo $line >> ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
         fi
-    done < "${TMP}/snapshots/${snaptype}.standard"
-    echo "2>>${TMP}/snapshots/snapshot_${x}_$$.error.txt" >> ${TMP}/snapshots/${snaptype}.command.${x}
+    done < "${TMP}/snapshots/${snaptype}_${pool}.standard"
+    echo "2>>${TMP}/snapshots/snapshot_${x}_$$.error.txt" >> ${TMP}/snapshots/${snaptype}_${pool}.command.${x}
 
     unset IFS
 
@@ -129,8 +129,8 @@ if [ -f ${TMP}/snapshots/${snaptype}.standard ]; then
 
     y=1
     while [ $y -le $x ]; do
-        cp ${TMP}/snapshots/${snaptype}.command.${y} ${TMP}/snapshots/snapshot_${y}_$$.error.txt
-        source ${TMP}/snapshots/${snaptype}.command.${y}
+        cp ${TMP}/snapshots/${snaptype}_${pool}.command.${y} ${TMP}/snapshots/snapshot_${y}_$$.error.txt
+        source ${TMP}/snapshots/${snaptype}_${pool}.command.${y}
         result=$?
         if [ $result -ne 0 ]; then
             error "Failed snapshot(s) for $pool." ${TMP}/snapshots/snapshot_${y}_$$.error.txt
