@@ -246,12 +246,10 @@ process_message() {
 
         if [[ "$DEBUG" != 'true' && "$skip" != 'true' ]]; then
             $TOOLS_ROOT/reporting/send_email.sh $send_options -f "$message_file" -s "$this_subject" -i "${importance}" -r "$email_to"
-            if [ $? -eq 0 ]; then
-                rm $message_file
-            fi 
+            rm -f $message_file 2> /dev/null
         fi
         
-        if [ "$skip" != 'true' ]; then
+        if [ "$skip" == 'true' ]; then
             rm -f $message_file
         fi
 
