@@ -65,7 +65,7 @@ fi
 
 # Check if any processes have open files, if so kill them
 
-mountpoint=`zfs get -H -o mountpoint $unmount_zfs_folder`
+mountpoint=`zfs get -H -o value mountpoint $unmount_zfs_folder`
 pids=`${LSOF} -t $mountpoint`
 for pid in $pids; do
     echo "Killing pid: $pid"
@@ -74,14 +74,17 @@ done
 
 # Unmount the zfs folder
 
-${TIMEOUT} 45s zfs unmount -f $unmount_zfs_folder
+${TIMEOUT} 30s zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
 result=$?
 
-if [ $result -eq 124 ]; then
-    warning "zfs unmount -f $unmount_zfs_folder timed out after 45 seconds.  Collecting truss."
+if [ $result -ne 0 ]; then
+    warning "zfs unmount -f $unmount_zfs_folder failed, ERR $result  Collecting truss." 
+    cat ${TMP}/zfs_unmount_$$.txt
     truss zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
     result=$?
-    warning "Truss output of zfs unmount -f $unmount_zfs_folder" ${TMP}/zfs_unmount_$$.txt
+    cat ${TMP}/zfs_unmount_$$.txt
+    warning "Truss output of zfs unmount -f $unmount_zfs_folder Result: $result" ${TMP}/zfs_unmount_$$.txt
+    
 fi
  
 if [ $result -ne 0 ] ; then 
