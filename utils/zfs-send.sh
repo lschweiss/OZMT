@@ -106,7 +106,8 @@ trap clean_up SIGHUP SIGINT SIGTERM
 
 
 die () {
-    error "$1"
+    error "$1" $2
+    rm $2 2>/dev/null
     clean_up 1
 }
 
@@ -371,7 +372,7 @@ if [ "$remote_host" != "" ]; then
         verify='fail'
     fi 
     #TODO: Need to check for $remote_tmp folder collisions and compensate.       
-    ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
+    /${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
         error "${job_name}: Cannot connect to remote host at root@${remote_host}"
@@ -762,10 +763,10 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         remote_watch="mbuffer_transport $remote_watch"
         sleep 1
         # Attach the port reservation to the mbuffer process
-        timeout 30s $remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid" > ${TMP}/$$_remote_mbuffer_pid
+        timeout 30s $remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid" > ${TMP}/$$_remote_mbuffer_pid 2>${TMP}/$$_remote_mbuffer_pid_error.txt
         if [ $? -ne 0 ]; then
             rm -f ${TMP}/$$_remote_mbuffer_pid
-            die "${job_name}: Could not connect to remote host to collect mbuffer_transport.pid"
+            die "${job_name}: Could not connect to remote host to collect mbuffer_transport.pid" ${TMP}/$$_remote_mbuffer_pid_error.txt
         fi
         mbuffer_pid=`cat ${TMP}/$$_remote_mbuffer_pid`
         rm ${TMP}/$$_remote_mbuffer_pid

@@ -124,7 +124,7 @@ build_smb_conf () {
     local vip_host=
 
     if [ "$(zfs get -H -o value mounted $zfs_folder)" != 'yes' ]; then
-        error "Dataset $dataset_name is not mounted.  Cannot start CIFS services."
+        error "Dataset $dataset_name is not mounted on ${zfs_folder}.  Cannot start CIFS services."
         return 1
     fi
 
