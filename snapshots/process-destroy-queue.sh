@@ -41,8 +41,6 @@ wait_for_lock $destroy_queue
 
 folders=`ls -1t $destroy_queue`
 
-echo "folders: $folders"
-
 mkdir -p ${TMP}/snapshots
 
 for folder in $folders; do
@@ -70,8 +68,13 @@ for folder in $folders; do
 
     echo " 2>${TMP}/snapshots/destroy_$$.error.txt" >> ${TMP}/snapshots/destroy_$$.sh
 
-    source ${TMP}/snapshots/destroy_$$.sh 
-    result=$?
+    if [ "$DEBUG" == 'true' ]; then
+        cat ${TMP}/snapshots/destroy_$$.sh
+        result=0
+    else   
+        source ${TMP}/snapshots/destroy_$$.sh 
+        result=$?
+    fi
 
     if [ $result -ne 0 ]; then 
         warning "Failed to destroy snapshots for $zfs_folder." ${TMP}/snapshots/destroy_bulk_$$.error.txt

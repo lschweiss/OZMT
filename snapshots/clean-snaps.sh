@@ -73,26 +73,34 @@ for pool in $pools; do
             # Make sure we should clean this folder
             replication=`echo $folder_props | ${CUT} -d ' ' -f 2`
             if [ "$replication" == "on" ]; then
-                debug "Replication is ON for $zfsfolder"
-                replication_dataset=`echo $folder_props | ${CUT} -d ' ' -f 3`
-                replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
-                debug "Replication source: $replication_source"
-                if [[ "${pool}:${folder}" == "$replication_source"* ]]; then
-                    clean_this_folder='true'
+                debug "Replication: on"
+                replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${folder} 3>/dev/null`
+                replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${folder} 3>/dev/null`
+                # This could be a child folder, handle appropriately
+                if [[ "$replication_folder_point" == "local" || "$replication_folder_point" == "received" ]]; then
+                    replication_folder="${folder#*/}"
                 else
-                    replication_endpoints=`echo $folder_props | ${CUT} -d ' ' -f 4`
-                    if [ $replication_endpoints -gt 2 ]; then
-                        clean_this_folder='true'
-                    fi
+                    # This is a child folder.  Find the parent folder that is the replication point.
+                    replication_pool_folder=`echo "$replication_folder_point" | ${AWK} -F " " '{print $3}'`
+                    replication_folder="${replication_pool_folder#*/}"
+                fi
+                # Get the known source
+                replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
+                if [ "$replication_source" == "${pool}:${replication_folder}" ]; then
+                    clean_this_folder='true'
                 fi
             else
+                #debug "Replication: off"
                 clean_this_folder='true'
             fi
-
+        
             if [ "$clean_this_folder" == 'false' ]; then
-                # Skip this folder
+                debug "Skipping cleaning for ${folder} Replication dataset: $replication_dataset Replication source: $replication_source
+                       Replication folder: ${replication_folder} Replication folder point: $replication_folder_point"
+                # Skip this job
                 continue
             fi
+
 
             keepcount=`zfs_cache get -H -o value ${zfs_snapshot_property}:${snaptype} ${folder} 3>/dev/null`
 
