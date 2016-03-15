@@ -43,6 +43,7 @@ ln -s ${TOOLS_ROOT}/utils/zpool-cache-detach.sh /usr/sbin/ozmt-zpool-cache-detac
 ln -s ${TOOLS_ROOT}/utils/zpool-cache-attach.sh /usr/sbin/ozmt-zpool-cache-attach.sh
 ln -s ${TOOLS_ROOT}/utils/zfs-cache-refresh.sh /usr/sbin/ozmt-zfs-cache-refresh.sh
 ln -s ${TOOLS_ROOT}/utils/zfs-rollback-folders.sh /usr/sbin/ozmt-zfs-rollback-folders.sh
+ln -s ${TOOLS_ROOT}/utils/remove-quota.sh /usr/sbin/ozmt-remove-quota.sh
 
 #ln -s ${TOOLS_ROOT}/samba/samba-trigger.sh /usr/sbin/ozmt-samba-trigger.sh
 if [ -f /usr/sbin/ozmt-samba-trigger.sh ]; then
