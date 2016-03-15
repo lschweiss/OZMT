@@ -42,7 +42,7 @@ if [ "$HOME" == "" ];then
     export HOME="${TMP}/parallel"
 fi
 
-export DEBUG="true"
+#export DEBUG="true"
 
 debug "fast-zfs-unmount $1 $2"
 
@@ -74,7 +74,7 @@ done
 
 # Unmount the zfs folder
 
-${TIMEOUT} 30s zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
+${TIMEOUT} 30s truss zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
 result=$?
 
 if [ $result -ne 0 ]; then
@@ -86,6 +86,8 @@ if [ $result -ne 0 ]; then
     warning "Truss output of zfs unmount -f $unmount_zfs_folder Result: $result" ${TMP}/zfs_unmount_$$.txt
     
 fi
+
+rm ${TMP}/zfs_unmount_$$.txt 2> /dev/null
  
 if [ $result -ne 0 ] ; then 
     warning "Could not unmount $unmount_zfs_folder"

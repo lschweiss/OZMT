@@ -44,7 +44,7 @@ logfile="$default_logfile"
 
 report_name="$default_report_name"
 
-export DEBUG="true"
+#export DEBUG="true"
 
 # Minimum number of arguments needed by this program
 MIN_ARGS=1
