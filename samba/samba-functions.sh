@@ -270,7 +270,7 @@ build_smb_conf () {
             smb_valid_users="$(echo -E $smb_valid_users | ${SED} -e 's/[\/&]/\\&/g')"
             smb_admin_users="$(echo -E $smb_admin_users | ${SED} -e 's/[\/&]/\\&/g')"
 
-            echo "validusers = $smb_valid_users"
+            #echo "validusers = $smb_valid_users"
 
             ${SED} s,#CIFS_SHARE#,${cifs_share},g "${share_config_file}" | \
                 ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
