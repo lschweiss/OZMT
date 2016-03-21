@@ -59,17 +59,20 @@ fi
 # Collect cache disks
 ##
 
-disks=`cat /${pool}/zfs_tools/etc/cache-disks`
+if [ -f /${pool}/zfs_tools/etc/cache-disks]; then
+    disks=`cat /${pool}/zfs_tools/etc/cache-disks`
+    
+    ##
+    # Add cache disks
+    ##
+    
+    for disk in $disks; do
+    
+        debug "zpool-detach-cache.sh: Removing $disk from $pool"
+        zpool add $pool cache $disk || warning "zpool-attach-cache.sh: Failed to add cache disk $disk to pool $pool"
+    
+    done
 
-##
-# Add cache disks
-##
-
-for disk in $disks; do
-
-    debug "zpool-detach-cache.sh: Removing $disk from $pool"
-    zpool add $pool cache $disk || warning "zpool-attach-cache.sh: Failed to add cache disk $disk to pool $pool"
-
-done
+fi
 
 exit 0

@@ -1,0 +1,44 @@
+#!/bin/sh
+# $Id: S98cache,v 0.1 2016/03/18 14:33:40 pg Exp $
+#
+# Script:	S99cache
+#
+# Description:	Detach or attach zfs cache devices
+#
+# Platform:	All
+#
+# Author:	Chip Schweiss - chip.schweiss@wustl.edu
+#
+
+. /opt/HAC/bin/rsf.sh
+
+service=${RSF_SERVICE:-"service_name"}	# edit for pre-1.3 releases
+
+script="`basename $0`"
+
+state=$1
+attempt=${2:-'1'}
+
+case "${state}" in
+
+'start')
+	dated_echo "Attaching cache to pool:${RSF_SERVICE}"
+    ${PROP_ZPOOL_CACHE_ATTACH} ${RSF_SERVICE}
+	echo "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
+	echo
+	exit ${RSF_OK}
+	;;
+
+'stop')
+	echo
+	echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+	dated_echo "Detaching cache from pool:${RSF_SERVICE}"
+    ${PROP_ZPOOL_CACHE_DETACH} ${RSF_SERVICE}
+	exit ${RSF_OK}
+	;;                        
+
+*)	echo "usage: $0 <start|stop>"
+	exit ${RSF_WARN}
+	;;
+
+esac

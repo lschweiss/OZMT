@@ -58,23 +58,27 @@ fi
 # Collect cache disks
 ##
 
-disks=`cat /${pool}/zfs_tools/etc/cache-disks`
+if [ -f /${pool}/zfs_tools/etc/cache-disks ]; then
 
-##
-# Reduce maximum freed blocks per transaction group, so remove is non-blocking
-##
-
-echo zfs_free_max_blocks/w1388 | mdb -kw
-
-##
-# Add cache disks
-##
-
-for disk in $disks; do
+    disks=`cat /${pool}/zfs_tools/etc/cache-disks`
     
-    debug "zpool-detach-cache.sh: Removing $disk from $pool"
-    zpool remove $pool $disk || warning "zpool-detach-cache.sh: Failed to remove cache disk $disk to pool $pool"
+    ##
+    # Reduce maximum freed blocks per transaction group, so remove is non-blocking
+    ##
+    
+    echo zfs_free_max_blocks/w1388 | mdb -kw
+    
+    ##
+    # Add cache disks
+    ##
+    
+    for disk in $disks; do
+        
+        debug "zpool-detach-cache.sh: Removing $disk from $pool"
+        zpool remove $pool $disk || warning "zpool-detach-cache.sh: Failed to remove cache disk $disk to pool $pool"
+    
+    done
 
-done
+fi
 
 exit 0
