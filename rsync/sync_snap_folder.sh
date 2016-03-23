@@ -66,6 +66,7 @@ show_usage() {
     echo "      [-i] SSH is incoming, defaults to outgoing"
     echo "  [-n name] job name.  Defaults to source folder."
     echo "  [-r] dry Run."
+    echo "  [-P path] Remote rsync path"
     echo
     exit 1
 }
@@ -94,11 +95,12 @@ remote_shell_flag=
 dereference_symlinks_flag=
 scan_depth_flag=
 job_name_flag=
+remote_rsync=
 scan_depth=1
 
 progress=""
 
-while getopts apkirtDuc:x:d:s:e:z:l:n: opt; do
+while getopts apkirtDuc:x:d:s:e:z:l:n:P: opt; do
     case $opt in
         x)  # Exclude File Specified
             exclude_file_flag=1
@@ -126,6 +128,9 @@ while getopts apkirtDuc:x:d:s:e:z:l:n: opt; do
         r)  # Dry Run
             debug "Doing a dry run of rsync"
             dry_run_flag=1;;
+        P)  # Remote rsync path
+            remote_rsync="$OPTARG"
+            ;;
         s)  # Split rsync jobs
             split_rsync_flag=1
             split_rsync_job_count="$OPTARG"
@@ -268,6 +273,10 @@ fi
 if [ ! -z "$update_flag" ]; then
     debug "Updating on destination"
     extra_options="${extra_options} --update"
+fi
+
+if [ ! -z "$remote_rsync" ]; then
+    extra_options="${extra_options} --rsync-path=$remote_rsync"
 fi
 
 
