@@ -727,7 +727,7 @@ if [[ "$incoming_via_ssh_flag" == "1" || -d "${source_folder}/.snapshot" || -d "
  
         # Randomize the list to better spread the load across jobs 
 
-        cat ${TMP}/sync_folder_list_$$ | sort -R > ${TMP}/sync_folder_list_$$_rand
+        cat ${TMP}/sync_folder_list_$$ | ${SORT} -R > ${TMP}/sync_folder_list_$$_rand
         
        
         
