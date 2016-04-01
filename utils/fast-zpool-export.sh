@@ -65,6 +65,8 @@ if [ $? -ne 0 ]; then
 fi
 
 
+stop_cron
+
 ##
 # exportfs each NFS export
 ##
@@ -102,4 +104,6 @@ fi
 ##
 
 zpool export $@
-exit $?
+result=$?
+start_cron
+exit $result
