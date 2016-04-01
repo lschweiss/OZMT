@@ -276,7 +276,7 @@ else
 
     # Remove quotas on the target folder(s)
     if [ "$zfs_replication_remove_quotas" == 'true' ]; then
-        ssh $target_pool "ozmt-remove-quotas.sh ${target_pool}/${target_folder}"
+        ssh $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
     fi
 
    
@@ -292,7 +292,7 @@ else
 
     # Remove quotas a second time incase a quota change was transmitted via the send.
     if [ "$zfs_replication_remove_quotas" == 'true' ]; then
-        ssh $target_pool "ozmt-remove-quotas.sh ${target_pool}/${target_folder}"
+        ssh $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
     fi
 
     
