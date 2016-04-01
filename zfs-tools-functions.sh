@@ -893,7 +893,45 @@ remote_zfs_cache () {
     return $result
 }
 
+stop_cron () {
+    # For operations such as import or exporting a pool we don't want our cron
+    # jobs firing durring these operations
 
+    case $os in
+        'SunOS')
+            svcadm disable svc:/system/cron:default
+            return $?
+            ;;
+        'Linux')
+            # TODO: Need to test if this a a systemd OS
+            return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+start_cron () {
+    # For operations such as import or exporting a pool we don't want our cron
+    # jobs firing durring these operations
+
+    case $os in
+        'SunOS')
+            svcadm enable svc:/system/cron:default
+            return $?
+            ;;
+        'Linux')
+            # TODO: Need to test if this a a systemd OS
+            return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+ 
     
 
 

@@ -60,12 +60,15 @@ for last; do : ; done
 
 import_pool="$last"
 
+stop_cron
+
 zpool import -N $@ 
 result=$?
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then
     warning "Pool \"$import_pool\" does not appear to be imported.  Aborting."
+    start_cron
     exit 1
 fi
 
@@ -83,7 +86,10 @@ if [ $result -eq 0 ]; then
     rm -f ${TMP}/zpool_import_zfs.$$ ${TMP}/zpool_import_zfs_roots.$$ ${TMP}/zpool_import_zfs_root_folders.$$
 else
     warning "Some ZFS folders failed to mount"
+    start_cron
     exit $result
 fi
+
+start_cron
 
 exit 0
