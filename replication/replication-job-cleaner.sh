@@ -61,9 +61,9 @@ mkdir -p $job_cleaner_lock_dir
 
 if [ ! -f ${job_cleaner_lock} ]; then
     touch ${job_cleaner_lock}
+    init_lock ${job_cleaner_lock}
 fi
 
-init_lock ${job_cleaner_lock}
 wait_for_lock ${job_cleaner_lock} $zfs_replication_job_cleaner_cycle
 
 if [ $? -ne 0 ]; then
