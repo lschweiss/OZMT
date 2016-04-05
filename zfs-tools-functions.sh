@@ -601,26 +601,54 @@ update_job_status () {
 
 }
 
+#init_lock () {
+#
+#    local lockfile="${1}.lock"
+#    local unlockfile="${1}.unlock"
+#
+#
+#    # Update from old unlock naming
+#    if [ -f "${lockfile}.unlock" ]; then
+#        rm "${lockfile}.unlock"
+#    fi
+#
+#    # This has a very short race window between the two checks.   Not sure how to eliminate it.
+#
+#    if [ ! -f "$lockfile" ]; then
+#        if [ ! -f "$unlockfile" ]; then
+#            touch "$unlockfile"
+#        fi
+#    fi
+#
+#}
+
 init_lock () {
 
+    local file="$1"
     local lockfile="${1}.lock"
     local unlockfile="${1}.unlock"
+    local files=
 
+    files=`echo -E ${file}* 2>/dev/null`
 
-    # Update from old unlock naming
-    if [ -f "${lockfile}.unlock" ]; then
-        rm "${lockfile}.unlock"
+    # Test the file to lock exists
+    if [ ! -f "$file" ]; then
+        error "Attempted to initialize a lock on a non-existant file ${file}."
+        return 1
     fi
 
-    # This has a very short race window between the two checks.   Not sure how to eliminate it.
+    # Test either lock or unlock file exists
 
-    if [ ! -f "$lockfile" ]; then
-        if [ ! -f "$unlockfile" ]; then
+    echo -E $files | ${GREP} -q -F "$unlockfile"
+    if [ $? -ne 0 ]; then
+        echo -E $files | ${GREP} -q -F "$lockfile"
+        if [ $? -ne 0 ]; then
             touch "$unlockfile"
         fi
     fi
 
 }
+
 
 wait_for_lock() {
 
