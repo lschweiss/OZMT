@@ -632,7 +632,7 @@ init_lock () {
     files=`echo -E ${file}* 2>/dev/null`
 
     # Test the file to lock exists
-    if [ ! -f "$file" ]; then
+    if [ ! -e "$file" ]; then
         error "Attempted to initialize a lock on a non-existant file ${file}."
         return 1
     fi
