@@ -175,8 +175,10 @@ job_lock_dir="${replication_dir}/joblocks"
 job_lock="${job_lock_dir}/zfs_send_$(echo $jobname | ${CUT} -d ':' -f 1)"
 
 mkdir -p "$job_lock_dir"
-touch "$job_lock"
-init_lock "$job_lock"
+if [ ! -f $job_lock ]; then
+    touch "$job_lock"
+    init_lock "$job_lock"
+fi
 
 wait_for_lock "$job_lock"
 if [ $? -ne 0 ]; then
