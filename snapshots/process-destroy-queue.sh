@@ -38,6 +38,10 @@ fi
 destroy_queue="/${pool}/zfs_tools/var/spool/snapshot/destroy_queue"
 
 wait_for_lock $destroy_queue
+if [ $? -ne 0 ]; then
+    error "Failed to get lock for destroy_queue: ${destroy_queue}.  Failing job."
+    exit 1
+fi
 
 folders=`ls -1t $destroy_queue`
 

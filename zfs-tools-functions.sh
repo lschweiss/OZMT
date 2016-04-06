@@ -665,12 +665,7 @@ wait_for_lock() {
         expire="1800"
     fi
 
-    debug "Aquiring lock file: $(basename $lockfile)"
-
-    if [ -f "${lockfile}.unlock" ]; then
-        mv "${lockfile}.unlock" "$unlockfile"
-        debug "Renamed unlock file to new format: $unlockfile"
-    fi
+    debug "Aquiring lock file: $lockfile"
 
     # There is a race condition here.  When update_job_status is rewriting there is a moment
     # when the file does not exist, followed by it being unlocked.  Hopefully,
@@ -716,18 +711,20 @@ wait_for_lock() {
                         return 1
                     fi
                 else
-                    debug "Lock file exists, however the process is dead."
-                    debug "Removing the lock file."
-                    touch "$unlockfile"
+                    error "Lock file exists, however the process is dead: $lockfile"
+                    return 1
+                    #debug "Removing the lock file."
+                    #touch "$unlockfile"
                     #Reduce the odds of a race condition
-                    sleep 0.2
+                    #sleep 0.2
                fi
             else
-                debug "Lock file exists, however the process is dead."
-                debug "Claiming previous lock file."
-                touch "$unlockfile"
+                error "Lock file exists, however the process is dead: $lockfile"
+                return 1
+                #debug "Claiming previous lock file."
+                #touch "$unlockfile"
                 #Reduce the odds of a race condition
-                sleep 0.3
+                #sleep 0.3
             fi
         fi
     done

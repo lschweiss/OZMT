@@ -98,6 +98,10 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                 # Collect job info
                 source "${replication_dir}/failed/${job}"
                 wait_for_lock "${job_status}"
+                if [ $? -ne 0 ]; then
+                    error "Failed to get lock for job status: ${job_status}.  Failing job."
+                    exit 1
+                fi
                 source "${job_status}"
                 release_lock "${job_status}"
                 # Test is okay to try again
@@ -208,6 +212,10 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                     previous_jobname=
                     source "${replication_dir}/pending/${job}"
                     wait_for_lock "${job_status}"
+                    if [ $? -ne 0 ]; then
+                        error "Failed to get lock for job status: ${job_status}.  Failing job."
+                        exit 1
+                    fi
                     source "${job_status}"
                     release_lock "${job_status}"
                     if [ -f "${replication_dir}/schedule_in_progress" ]; then

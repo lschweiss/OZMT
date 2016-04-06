@@ -77,6 +77,10 @@ if [ -f "$replication_dir/suspend_all_jobs" ]; then
 fi
 
 wait_for_lock "${job_status}"
+if [ $? -ne 0 ]; then
+    error "Failed to get lock for job status: ${job_status}.  Failing job."
+    exit 1
+fi
 source "${job_status}"
 release_lock "${job_status}"
 
