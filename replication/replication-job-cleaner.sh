@@ -141,7 +141,10 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                         debug "No previous snapshot for job ${job}.  Moving to complete"
                         echo "completion_time=\"$(job_stamp)\"" >> "${replication_dir}/synced/${job}"
                         mv "${replication_dir}/synced/${job}" "${replication_dir}/complete/"
-                        update_job_status "$job_status" "last_complete" "$(job_stamp)"
+                        update_job_status "$job_status" 'clean_failures' '#REMOVE#' \
+                            'clean_missing_snapshot' '#REMOVE#' \
+                            'last_complete' "$(job_stamp)"
+
                     fi
                 else
                     # Confirm previous job is in complete status
@@ -166,10 +169,11 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
             continue
         fi
         if [ -d "${replication_dir}/cleaning" ]; then
-            jobs=`ls -1 "${replication_dir}/cleaning"|sort`
+            jobs=`ls -1 "${replication_dir}/cleaning" | ${SORT}`
             for job in $jobs; do
                 clean_failures=0
                 clean_missing_snapshot=0
+                suspended=
                 
                 debug "found job: $job"
                 # Collect job info
@@ -177,8 +181,8 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
                 source "${job_status}"
 
-                if [ "$suspended}" == 'true' ]; then
-                    notice "Replication suspended for ${dataset_name}. Skipping cleaning"
+                if [ "$suspended" == 'true' ]; then
+                    debug "Replication suspended for ${dataset_name}. Skipping cleaning"
                     continue
                 fi
 
@@ -187,7 +191,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 ##
 
                 if [ $clean_missing_snapshot -ge 2 ]; then
-                    warning "Attempting clean job $job more than 2 times"
+                    warning "Attempting clean job $job $clean_missing_snapshot times."
                 fi
 
                 if [ $clean_missing_snapshot -ge 4 ]; then
@@ -330,7 +334,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     ssh $target_pool "zfs destroy -d -r \"${target_pool}/${target_folder}@${previous_snapshot}\"" 2> ${CTMP}/destroy_target_snap_$$.txt
                     if [ $? -ne 0 ]; then
                         clean='false'
-                        error "Failed to destroy target snapshot ${pool}/${folder}@${previous_snapshot}" ${CTMP}/destroy_target_snap_$$.txt
+                        error "Failed to destroy target snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${CTMP}/destroy_target_snap_$$.txt
                         update_job_status "$job_status" 'clean_failures' '+1'
                     fi
 
