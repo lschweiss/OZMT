@@ -324,11 +324,27 @@ process_message() {
         fi
     fi
 
-    # If enable append to log file
+    # If enabled, append to log file
     if [[ "x$logfile" != "x" && "${this_message_level}" -ge "$logging_level" ]]; then
 
-        echo "${this_subject}" >> "${logfile}.${this_month}"
-        echo "${this_message}" >> "${logfile}.${this_month}"
+        case "${this_message_level}" in
+            '0')
+                this_subject="DEBUG: ${basename} ${report_name} $HOSTNAME"
+                ;;
+            '1')
+                this_subject="NOTICE: ${basename} ${report_name} $HOSTNAME"
+                ;;
+            '2')
+                this_subject="WARNING: ${basename} ${report_name} $HOSTNAME"
+                ;;
+            '3')
+                this_subject="ERROR: ${basename} ${report_name} $HOSTNAME"
+                ;;
+        esac
+
+
+        mkdir -p $(dirname $logfile)
+        echo "${this_subject} - ${this_message}" >> "${logfile}.${this_month}"
 
         if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then
             cat "${this_include_file}" >> "${logfile}.${this_month}"

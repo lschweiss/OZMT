@@ -58,8 +58,6 @@ for pool in $pools; do
         continue
     fi
 
-    init_lock "$cache_dir"
-
     wait_for_lock "$cache_dir"
 
     next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`

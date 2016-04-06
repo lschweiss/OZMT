@@ -174,6 +174,19 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 clean_failures=0
                 clean_missing_snapshot=0
                 suspended=
+                last_snapshot=
+                last_jobname=
+                last_run=
+                failures=
+                queued_jobs=
+                last_complete=
+                jobname=
+                previous_jobname=
+                snapshot=
+                previous_snapshot=
+
+
+
                 
                 debug "found job: $job"
                 # Collect job info

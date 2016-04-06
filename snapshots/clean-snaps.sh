@@ -48,8 +48,10 @@ fi
 for pool in $pools; do
 
     # Collect snapshot data
-    mkdir -p /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
-    init_lock /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
+    if [ ! -d /${pool}/zfs_tools/var/spool/snapshot/destroy_queue ]; then
+        mkdir -p /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
+        init_lock /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
+    fi
 
     zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
     zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,$zfs_replication_endpoints_property ${pool} > \

@@ -59,9 +59,9 @@ mkdir -p $job_runner_lock_dir
 
 if [ ! -f ${job_runner_lock} ]; then
     touch ${job_runner_lock}
+    init_lock ${job_runner_lock}
 fi
 
-init_lock ${job_runner_lock}
 wait_for_lock ${job_runner_lock} $zfs_replication_job_runner_cycle
 
 if [ $? -ne 0 ]; then

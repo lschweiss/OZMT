@@ -825,7 +825,10 @@ zfs_cache () {
     local result=0
 
     cache_path="/${pool}/zfs_tools/var/cache/zfs_cache"
-    mkdir -p "${cache_path}"
+    if [ ! -d "${cache_path}" ]; then
+        mkdir -p "${cache_path}"
+        init_lock "${cache_path}"
+    fi
 
     cache_file="${cache_path}/zfs_${fixed_args}"
  
@@ -879,7 +882,11 @@ remote_zfs_cache () {
     local result=0
 
     cache_path="/var/zfs_tools/cache/zfs_cache/${pool}"
-    mkdir -p "${cache_path}"
+    
+    if [ ! -d "${cache_path}" ]; then
+        mkdir -p "${cache_path}"
+        init_lock "${cache_path}"
+    fi
 
     cache_file="${cache_path}/zfs_${fixed_args}"
 
