@@ -466,6 +466,8 @@ update_job_status () {
     local increment=
     local previous_value=
     local have_lock='false'
+    local lock_pid=
+    local keep_lock='false'
 
     # There is a race condition here.  When update_job_status is rewriting there is a moment
     # when the file does not exist, followed by it being unlocked.  Hopefully,
@@ -527,8 +529,29 @@ update_job_status () {
         fi
 
         if [ "$have_lock" == 'false' ]; then
-            wait_for_lock "$status_file" 5
-            have_lock='true'
+            # Check if our calling process locked the file already
+            if [ -f "${status_file}.lock" ]; then
+                lock_pid=`cat ${status_file}.lock`
+                if [ "$$" == "$lock_pid" ]; then
+                    debug "update_job_status: Lock obtained by calling process"
+                    have_lock='true'
+                    keep_lock='true'
+                else
+                    wait_for_lock "$status_file"
+                    if [ $? -ne 0 ]; then
+                        error "Could not obtain lock: $lock"
+                        return 1
+                    fi                
+                    have_lock='true'
+                fi
+            else
+                wait_for_lock "$status_file"
+                if [ $? -ne 0 ]; then
+                    error "Could not obtain lock: $lock"
+                        return 1
+                fi
+                have_lock='true'
+            fi
         fi
 
         debug "Updating $variable in $status_file"
@@ -595,7 +618,9 @@ update_job_status () {
 
     done
 
-    release_lock "$status_file"
+    if [ "$keep_lock" == 'false' ]; then
+        release_lock "$status_file"
+    fi
 
     return 0
 
@@ -726,6 +751,7 @@ wait_for_lock() {
                 #Reduce the odds of a race condition
                 #sleep 0.3
             fi
+            sleep 1
         fi
     done
 
@@ -746,13 +772,15 @@ release_lock() {
         if [ $$ -eq $lockpid ]; then
             locked="false"
             mv "$lockfile" "$unlockfile"
-            debug "Lock released: $(basename $lockfile)"
+            debug "Lock released: $lockfile"
         else
-            error "release_lock called without lock ownership"
+            set > ${TMP}/bad_lock_release_$$.txt
+            error "release_lock called without lock ownership: $lockfile" ${TMP}/bad_lock_release_$$.txt
             return 1
         fi
     else
-        error "release_lock called without lock being obtained first!"
+        set > ${TMP}/bad_lock_release_$$.txt
+        error "release_lock called without lock being obtained first: $lockfile" ${TMP}/bad_lock_release_$$.txt
         return 1
     fi
     

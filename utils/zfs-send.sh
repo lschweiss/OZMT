@@ -312,7 +312,7 @@ fi
 
 
 if [ -d $tmpdir ]; then
-    error "${jobname}: Temp directory $tmpdir already exists. Removing."
+    warning "${jobname}: Temp directory $tmpdir already exists. Removing."
     rm -rf $tmpdir
 fi
 mkdir -p $tmpdir

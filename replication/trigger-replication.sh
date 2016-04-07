@@ -82,7 +82,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 source "${job_status}"
-release_lock "${job_status}"
+#release_lock "${job_status}"
 
 if [ "$suspended" == 'true' ]; then
     debug "Replication is suspended for data set $dataset_name"
@@ -105,6 +105,7 @@ case "$errorcode" in
     '124')
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host timed out after 1m.  Setting job to failed."
         update_job_status "${job_status}" "failures" "+1"
+        release_lock "${job_status}"
         rm -f ${TMP}/target_check_$$
         rm -f ${TMP}/target_check_error_$$
         exit 1
@@ -114,7 +115,9 @@ case "$errorcode" in
         if [ "$target_source_reference" != "${pool}:${folder}" ]; then
             error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
             update_job_status "${job_status}" "suspended" "true"
+            release_lock "${job_status}"
             suspended="true"
+            exit 1
         fi
         rm -f ${TMP}/target_check_$$
         rm -f ${TMP}/target_check_error_$$
@@ -122,6 +125,7 @@ case "$errorcode" in
     *)  
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_error_$$
         update_job_status "${job_status}" "failures" "+1"
+        release_lock "${job_status}"
         rm -f ${TMP}/target_check_$$
         rm -f ${TMP}/target_check_error_$$
         exit 1
@@ -184,7 +188,7 @@ done
 last_snapshot="${zfs_replication_snapshot_name}_${now_stamp}"
 
 debug "Generating snapshot ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp}"
-timeout 10m zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} 2> ${TMP}/replication_snapshot_$$.txt
+timeout 20m zfs snapshot -r ${pool}/${folder}@${zfs_replication_snapshot_name}_${now_stamp} 2> ${TMP}/replication_snapshot_$$.txt
 errorcode=$?
 
 if [ $errorcode -ne 0 ]; then
@@ -192,6 +196,7 @@ if [ $errorcode -ne 0 ]; then
         ${TMP}/replication_snapshot_$$.txt
     update_job_status "${job_status}" "suspended" "true"
     rm ${TMP}/replication_snapshot_$$.txt 2> /dev/null
+    release_lock "${job_status}"
     exit 1
 fi
 
@@ -253,6 +258,8 @@ echo "execution_number=\"1\"" >> $jobfile
 
 update_job_status "${job_status}" "last_run" "${last_run}" 
 mv "$jobfile" "$pendingfile"
+
+release_lock "${job_status}"
 
 
 

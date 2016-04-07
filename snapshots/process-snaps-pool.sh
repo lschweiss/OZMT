@@ -126,7 +126,8 @@ if [ -f ${TMP}/snapshots/${snaptype}_${pool}.standard ]; then
 
     # Execute snapshots
     debug "Executing $x snapshot commands for snap policy $snaptype on ${pool}"
-
+    
+    start_time="$SECONDS"
     y=1
     while [ $y -le $x ]; do
         cp ${TMP}/snapshots/${snaptype}_${pool}.command.${y} ${TMP}/snapshots/snapshot_${y}_$$.error.txt
@@ -138,5 +139,9 @@ if [ -f ${TMP}/snapshots/${snaptype}_${pool}.standard ]; then
         rm ${TMP}/snapshots/snapshot_${y}_$$.error.txt
         y=$(( y + 1 ))
     done
+
+    notice "Completed ${snaptype} snapshots with $X commands on ${pool} in $(( $SECONDS - $start_time )) seconds."
+
+
 fi
 

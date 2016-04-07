@@ -82,9 +82,23 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     for pool in $pools; do
         debug "Finding FAILED replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+        runner_lock="${replication_dir}/runner"
+        # Lock on running
+        if [ ! -f "${runner_lock}" ]; then
+            touch "${runner_lock}"
+            init_lock "${runner_lock}"
+        fi
+
+        wait_for_lock "${runner_lock}"
+        if [ $? -ne 0 ]; then
+            warning "Could not aquire runner lock for pool $pool"
+            continue
+        fi
+
         # Check if all jobs suspended
         if [ -f "$replication_dir/suspend_all_jobs" ]; then
             notice "All jobs suspended. Not running jobs on pool: $pool"
+            release_lock "${runner_lock}"
             continue
         fi
         if [ -d "${replication_dir}/failed" ]; then
@@ -182,7 +196,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                 fi        
     
             done
-        fi 
+        fi
+        release_lock "${runner_lock}"
     done
     
     # Parse pending jobs
@@ -192,6 +207,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     for pool in $pools; do
         debug "Finding PENDING replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+
+
         if [ -f "$replication_dir/suspend_all_jobs" ]; then
             notice "All jobs suspended. Not running jobs on pool: $pool"
             continue
@@ -204,6 +221,20 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
         fi
 
         if [ -d "${replication_dir}/pending" ]; then
+            runner_lock="${replication_dir}/runner"
+            # Lock on running
+            if [ ! -f "${runner_lock}" ]; then
+                touch "${runner_lock}"
+                init_lock "${runner_lock}"
+            fi
+
+            wait_for_lock "${runner_lock}"
+            if [ $? -ne 0 ]; then
+                warning "Could not aquire runner lock for pool $pool"
+                continue
+            fi
+
+
             jobs=`ls -1 "${replication_dir}/pending"|sort`
             for job in $jobs; do
                 debug "found job: $job"
@@ -214,7 +245,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                     wait_for_lock "${job_status}"
                     if [ $? -ne 0 ]; then
                         error "Failed to get lock for job status: ${job_status}.  Failing job."
-                        exit 1
+                        continue
                     fi
                     source "${job_status}"
                     release_lock "${job_status}"
@@ -239,13 +270,16 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                                 continue
                             fi
                             # Launch the replication job
-                            debug "Launching replication job"
+                            debug "Launching replication job ${job}"
                             mv "${replication_dir}/pending/${job}" "${replication_dir}/running/${job}"
                             launch ./replication-job.sh "${replication_dir}/running/${job}" 
                         fi 
                     fi # $suspended == true
                 fi # -f "${replication_dir}/pending/${job}"
             done # for job
+     
+            release_lock "${runner_lock}"
+
         fi # if [ -d "${replication_dir}/pending" ]
         # Clean completed jobs
         if [ -d "${replication_dir}/complete" ]; then

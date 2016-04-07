@@ -54,15 +54,28 @@ for pool in $pools; do
     debug "Looking for replication jobs on pool $pool"
     replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"
     replication_def_dir="${replication_job_dir}/definitions"
+    schedule_lock="${replication_job_dir}/scheduling"
     if [ -d "$replication_def_dir" ]; then
+        # Lock on scheduling
+        if [ ! -f "${replication_job_dir}/scheduling" ]; then
+            touch "${schedule_lock}"
+            init_lock "${schedule_lock}"
+        fi
+        wait_for_lock "${schedule_lock}"
+        if [ $? -ne 0 ]; then
+            warning "Could not aquire scheduling lock for pool $pool"
+            continue
+        fi
+
         if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
             debug "Skipping job scheduling because $replication_job_dir/suspend_all_jobs is present"
             if test `find "$replication_job_dir/suspend_all_jobs" -mmin +${zfs_replication_suspended_error_time}`; then
                 error "Skipping relication because $replication_job_dir/suspend_all_jobs is present for more than ${zfs_replication_suspended_error_time} minutes.  Reason: $(cat $replication_job_dir/suspend_all_jobs)"
             fi
+            release_lock "${schedule_lock}"
             continue
         fi
-        touch "${replication_job_dir}/schedule_in_progress"
+
         folder_defs=`ls -1 "$replication_def_dir"|sort`
         for folder_def in $folder_defs; do
             active=
@@ -77,8 +90,13 @@ for pool in $pools; do
                 job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                 source "${job_definition}"
                 if [ -f "${job_status}" ]; then
+                    wait_for_lock "${job_status}"
                     source "${job_status}"
-                fi 
+                    release_lock "${job_status}"
+                else
+                    touch "${job_status}"
+                    init_lock "${job_status}"
+                fi
 
 
                 # Test if this is the active dataset
@@ -222,6 +240,8 @@ for pool in $pools; do
 
             done # for target_def
         done # for folder_def
+
+        release_lock "${schedule_lock}"
 
     fi # if [ -d "$replication_def_dir" ]
     

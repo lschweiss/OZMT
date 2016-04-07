@@ -104,6 +104,12 @@ die () {
     
     if [ "$keep_suspended" != 'true' ]; then
         rm /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
+        if [ "$scheduling_locked" == 'true' ]; then
+            release_lock "/$source_pool/zfs_tools/var/replication/jobs/scheduling"
+        fi
+        if [ "$runner_locked" == 'true' ]; then
+            release_lock "/$source_pool/zfs_tools/var/replication/jobs/runner"
+        fi
     else
         debug "Keep suspended set.  Not resuming replication."
     fi
@@ -194,6 +200,7 @@ running_begin=
 running_end=
 for job in $jobs; do
     source $job
+    
         running_jobs=`ls -1 /${source_pool}/zfs_tools/var/replication/jobs/running/ | ${GREP} "^${dataset_name}_to_${target_pool}"`
         debug "Reported running jobs: $running_jobs"
         job_dead='false'
@@ -208,18 +215,19 @@ for job in $jobs; do
                     zfs_send_pid=`cat "${info_folder}/zfs_send.pid"`
                     case $os in 
                         'SunOS') 
-                            check_zfs_send="/usr/bin/ptree $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}"
+                            /usr/bin/ptree $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}
+                            result=$?
                             ;;
                         'Linux')
-                            check_zfs_send="pstree -a -n -A -l -p $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}"
+                            pstree -a -n -A -l -p $zfs_send_pid | ${GREP} 'zfs send' | ${GREP} -q ${dataset_name}
+                            result=$?
                             ;;
                     esac
                 else
                     job_dead='true'
                 fi
                 # Check if it's running
-                "$check_zfs_send"
-                if [ $? -ne 0 ]; then
+                if [ $result -ne 0 ]; then
                     job_dead='true'
                 fi
             else
@@ -231,14 +239,15 @@ for job in $jobs; do
             if [ "$job_dead" == 'true' ]; then
                 # Remove running status
                 notice "Replication job $running_job is defunct.  Moving back to pending."
-                mv /$pool/zfs_tools/var/replication/jobs/running/${running_job} \
-                    /$pool/zfs_tools/var/replication/jobs/pending/${running_job}
-                if [[ "$DEBUG" != 'true' &&  -d "$info_folder" ]]; then
-                    rm -rf "$info_folder"
-                    rm -f "${TMP}/replication/job_info.${running_job}"
-                    rm -f "${TMP}/replication/job_target_info.${running_job}"
-                fi
+                #mv /$pool/zfs_tools/var/replication/jobs/running/${running_job} \
+                #    /$pool/zfs_tools/var/replication/jobs/pending/${running_job}
+                #if [[ "$DEBUG" != 'true' &&  -d "$info_folder" ]]; then
+                #    rm -rf "$info_folder"
+                ##    rm -f "${TMP}/replication/job_info.${running_job}"
+                #    rm -f "${TMP}/replication/job_target_info.${running_job}"
+                #fi
             else
+                notice "Replication job $running_job is still running."
                 # Job is still running collect the relevent snapshots
                 # TODO:  In order to support multiple replication targets, this needs to collect snapshots for each job
                 source /$pool/zfs_tools/var/replication/jobs/running/${running_job}
@@ -246,6 +255,11 @@ for job in $jobs; do
                 running_end="${snapshot}"
             fi
         done # for running_job
+
+        if [ "$running_jobs" != "" ]; then
+            warning "Running jobs reported for ${dataset_name}. Aborting. "
+            die 1
+        fi
 
         if [[ "$wait_for_running" == 'true' && "$job_dead" == 'false' ]]; then
             debug "Waiting for running job(s) to complete for up to $reset_replication_timeout minutes"
@@ -272,8 +286,23 @@ done
 
 
 ##
-# Temporarily suspend scheduling any new jobs on the source pool
+# Temporarily suspend scheduling and running any new jobs on the source pool
 ##
+
+wait_for_lock "/$source_pool/zfs_tools/var/replication/jobs/scheduling" 
+    if [ $? -ne 0 ]; then
+        echo "Could not aquire scheduling lock." 
+        exit 1
+    fi
+scheduling_locked='true'
+wait_for_lock "/$source_pool/zfs_tools/var/replication/jobs/runner"
+    if [ $? -ne 0 ]; then
+        echo "Could not aquire scheduling lock."
+        release_lock "/$source_pool/zfs_tools/var/replication/jobs/scheduling"
+        exit 1
+    fi
+runner_locked='true'
+
 echo "Resetting replication for $dataset" > /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
 
 
