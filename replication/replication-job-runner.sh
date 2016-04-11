@@ -114,7 +114,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                 wait_for_lock "${job_status}"
                 if [ $? -ne 0 ]; then
                     error "Failed to get lock for job status: ${job_status}.  Failing job."
-                    exit 1
+                    continue
                 fi
                 source "${job_status}"
                 release_lock "${job_status}"
