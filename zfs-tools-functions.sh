@@ -684,6 +684,8 @@ wait_for_lock() {
     local lockpid=
     local locked='false'
 
+    local deadcount=0
+
     if [ "$#" -eq "2" ]; then
         expire="$2"
     else
@@ -692,6 +694,7 @@ wait_for_lock() {
 
     debug "Aquiring lock file: $lockfile"
 
+    # Check for lock file
     # There is a race condition here.  When update_job_status is rewriting there is a moment
     # when the file does not exist, followed by it being unlocked.  Hopefully,
     # the this three check sequence can mitigate the race.   
@@ -725,33 +728,40 @@ wait_for_lock() {
             # check if it is running
             # TODO: Make this work on things beside Illumos
             if [ -e /proc/$lockpid ]; then
+                # TODO: This assumes the pid is the process that called for the lock.  This is only
+                # likely on a system that has rapid reuse of PIDs.
+
                 # TODO: Don't use ps, it can be to heavy when the system is load stressed.
-                ps awwx |${GREP} -v grep | ${GREP} -q "$lockpid "
-                result=$?
-                if [ "$result" -eq "0" ]; then
+                #ps awwx |${GREP} -v grep | ${GREP} -q "$lockpid "
+                #result=$?
+                #if [ "$result" -eq "0" ]; then
                     # Process id exists.  Sleep 1/2 second and try again.
-                    sleep 0.5
+                #    sleep 0.5
                     if [ $(( $SECONDS - $starttime )) -ge $expire ]; then
                         warning "Previous run of $0 (PID $lockpid) appears to be hung.  Giving up. To manually clear, delete ${lockfile} and touch ${unlockfile}"
                         return 1
                     fi
-                else
+                #else
+                #     error "Lock file exists, however the process is dead: $lockfile"
+                #     return 1
+                #     #debug "Removing the lock file."
+                #     #touch "$unlockfile"
+                #     #Reduce the odds of a race condition
+                #     #sleep 0.2
+                #fi
+            else
+                # Give the previous lock holder a chance to return the unlock file.
+                deadcount=$(( deadcount + 1 ))
+                if [ $deadcount -ge 3 ]; then
                     error "Lock file exists, however the process is dead: $lockfile"
                     return 1
-                    #debug "Removing the lock file."
-                    #touch "$unlockfile"
-                    #Reduce the odds of a race condition
-                    #sleep 0.2
-               fi
-            else
-                error "Lock file exists, however the process is dead: $lockfile"
-                return 1
+                fi
                 #debug "Claiming previous lock file."
                 #touch "$unlockfile"
                 #Reduce the odds of a race condition
                 #sleep 0.3
             fi
-            sleep 1
+            sleep 0.5
         fi
     done
 
