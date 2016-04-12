@@ -291,8 +291,11 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     echo $?>${CTMP}/result_$$ ) | ${GREP} "@${snapshot}$"`
                 if [ $(cat ${CTMP}/result_$$) -ne 0 ]; then
                     warning "Could not collect source snapshots for ${pool}/${folder}."
+                    rm ${CTMP}/result_$$
                     continue
                 fi
+
+                rm ${CTMP}/result_$$ 2>/dev/null
 
 
                 # Verify 'snapshot' on all coresponding target folders
@@ -303,6 +306,8 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     warning "Could not collect target snapshots for ${target_pool}/${target_folder}."
                     continue
                 fi
+            
+                rm ${CTMP}/result_$$ 2>/dev/null
 
 
                 match='false'
@@ -367,6 +372,8 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                         fi
                     fi
                 fi
+                rm ${CTMP}/destroy_source_snap_$$.txt 2>/dev/null
+                rm ${CTMP}/destroy_target_snap_$$.txt 2>/dev/null
 
                 if [ "$clean" == 'true' ]; then
                     if [ "$DEBUG" != 'true' ]; then
