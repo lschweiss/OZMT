@@ -54,10 +54,12 @@ for pool in $pools; do
     debug "Looking for replication jobs on pool $pool"
     replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"
     replication_def_dir="${replication_job_dir}/definitions"
-    schedule_lock="${replication_job_dir}/scheduling"
+    schedule_lock_dir="${TMP}/replication/scheduling"
+    schedule_lock="${schedule_lock_dir}/scheduling-${pool}"
+    mkdir -p "${schedule_lock_dir}"
     if [ -d "$replication_def_dir" ]; then
         # Lock on scheduling
-        if [ ! -f "${replication_job_dir}/scheduling" ]; then
+        if [ ! -f "${schedule_lock}" ]; then
             touch "${schedule_lock}"
             init_lock "${schedule_lock}"
         fi
