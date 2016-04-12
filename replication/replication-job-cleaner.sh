@@ -67,7 +67,7 @@ fi
 wait_for_lock ${job_cleaner_lock} $zfs_replication_job_cleaner_cycle
 
 if [ $? -ne 0 ]; then
-    error "replication_job_cleaner: failed to get lock in $zfs_replication_job_cleaner_cycle seconds, aborting"
+    warning "replication_job_cleaner: failed to get lock in $zfs_replication_job_cleaner_cycle seconds, aborting"
     exit 1
 fi
 

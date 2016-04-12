@@ -176,7 +176,7 @@ migrating='false'
 
 
 # Setup job locking
-job_lock_dir="${replication_dir}/joblocks"
+job_lock_dir="${TMP}/replication/job-locks/${pool}"
 job_lock="${job_lock_dir}/zfs_send_$(echo $jobname | ${CUT} -d ':' -f 1)"
 
 mkdir -p "$job_lock_dir"
