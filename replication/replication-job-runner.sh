@@ -82,7 +82,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     for pool in $pools; do
         debug "Finding FAILED replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
-        runner_lock="${job_runner_lock_dir}/runner-${pool}"
+        mkdir -p ${job_runner_lock_dir}/${pool}
+        runner_lock="${job_runner_lock_dir}/${pool}/runner"
         # Lock on running
         if [ ! -f "${runner_lock}" ]; then
             touch "${runner_lock}"
@@ -221,7 +222,8 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
         fi
 
         if [ -d "${replication_dir}/pending" ]; then
-            runner_lock="${job_runner_lock_dir}/runner-${pool}"
+            mkdir -p ${job_runner_lock_dir}/${pool}
+            runner_lock="${job_runner_lock_dir}/${pool}/runner"
             # Lock on running
             if [ ! -f "${runner_lock}" ]; then
                 touch "${runner_lock}"
