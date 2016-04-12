@@ -54,7 +54,7 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 #
 ##
 
-job_cleaner_lock_dir="/var/zfs_tools/replication/job-cleaner"
+job_cleaner_lock_dir="${TMP}/replication/job-cleaner"
 job_cleaner_lock="${job_cleaner_lock_dir}/job-cleaner"
 
 mkdir -p $job_cleaner_lock_dir
