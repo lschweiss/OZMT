@@ -761,7 +761,9 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
             "$target_fifo" \
             "$remote_tmp/mbuffer_transport.error" 
         remote_watch="mbuffer_transport $remote_watch"
-        sleep 1
+        # TODO:  Under heavy load this sleep is not enough causing the job to fail. A method to 
+        # deal with this is needed.
+        sleep 2
         # Attach the port reservation to the mbuffer process
         timeout 30s $remote_ssh "cat ${remote_tmp}/mbuffer_transport.pid" > ${TMP}/$$_remote_mbuffer_pid 2>${TMP}/$$_remote_mbuffer_pid_error.txt
         if [ $? -ne 0 ]; then
