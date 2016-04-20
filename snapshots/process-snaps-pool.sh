@@ -140,7 +140,7 @@ if [ -f ${TMP}/snapshots/${snaptype}_${pool}.standard ]; then
         y=$(( y + 1 ))
     done
 
-    notice "Completed ${snaptype} snapshots with $X commands on ${pool} in $(( $SECONDS - $start_time )) seconds."
+    notice "Completed ${snaptype} snapshots with $x commands on ${pool} in $(( $SECONDS - $start_time )) seconds."
 
 
 fi
