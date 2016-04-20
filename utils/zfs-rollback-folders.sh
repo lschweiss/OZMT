@@ -65,13 +65,16 @@ fi
 # Rollback folders
 for rollback_snap in $target_folder_snaps; do
     debug "zfs rollback -Rf $rollback_snap"
-    timeout 10m zfs rollback -Rf $rollback_snap 2>${TMP}/replication/zfs_rollback_$$
+    # TODO: Under heavy load or when LOTS of snapshots are being created/destroyed this rollback can take
+    #       a long time.   It would be best to slow down replication in response to the rollback taking too long
+    #       It should also become unnessary of all replication copies are kept unmounted. <- Prefered, but more complex.
+    timeout 20m zfs rollback -Rf $rollback_snap 2>${TMP}/replication/zfs_rollback_$$.txt
     result=$?
     if [ $result -ne 0 ]; then      
-        error "Could not rollback to snapshot ${rollback_snap}. Error code $result" ${TMP}/replication/zfs_rollback_$$
+        error "Could not rollback to snapshot ${rollback_snap}. Error code $result" ${TMP}/replication/zfs_rollback_$$.txt
         fail='true'
     else
-        rm ${TMP}/replication/zfs_rollback_$$ 2>/dev/null
+        rm ${TMP}/replication/zfs_rollback_$$.txt 2>/dev/null
     fi
 done
 
