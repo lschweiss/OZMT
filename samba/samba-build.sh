@@ -227,6 +227,7 @@ build_dataset_samba () {
     zfs set ${zfs_cifs_property}:nmbd="${prefix}/sbin/nmbd" $dataset_folder
     zfs set ${zfs_cifs_property}:winbindd="${prefix}/sbin/winbindd" $dataset_folder
     zfs set ${zfs_cifs_property}:lib="${prefix}/lib" $dataset_folder
+    zfs set ${zfs_cifs_property}:smbcontrol="${prefix}/bin/smbcontrol" $dataset_folder
 
 
 }

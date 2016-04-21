@@ -269,6 +269,11 @@ if [ -z $WINBINDD ]; then
     WINBINDD="/usr/local/samba/sbin/winbindd"
 fi
 
+if [ -z $SMBCONTROL ]; then
+    SMBCONTROL="/usr/local/samba/bin/smbcontrol"
+fi
+
+
 
 
 # Set defaults
