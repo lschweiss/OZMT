@@ -120,38 +120,39 @@ build_dataset_samba () {
     cd $build_dir
 
     # Get and build zlib
+    # zlib not needed unless building Samba with --with-ads
 
-    echo "Building zlib.."
-
-    if [ -f "$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz" ]; then
-        zlib_tar="$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz"
-    else
-        wget http://zlib.net/zlib-${zlib_version}.tar.gz
-        zlib_tar="${build_dir}/zlib-${zlib_version}.tar.gz"
-    fi
-
-
-    tar zxf $zlib_tar
-
-    cd zlib-${zlib_version}
-
-    ./configure 2>${STMP}/zlib_configure_${zlib_version}_err_$$.txt 1>${STMP}/zlib_configure_${zlib_version}_out_$$.txt
-    if [ $? -ne 0 ]; then
-        echo "Failed to configure zlib build for $dataset.  Output in ${STMP}/zlib_configure_${zlib_version}_err_$$.txt and ${STMP}/zlib_configure_${zlib_version}_out_$$.txt"
-        return 1
-    else
-        echo "Success!"
-    fi
-
-    make 2>${STMP}/zlib_make_${zlib_version}_err_$$.txt 1>${STMP}/zlib_make_${zlib_version}_out_$$.txt
-    if [ $? -ne 0 ]; then
-        echo "Failed to build zlib for $dataset.  Output in ${STMP}/zlib_make_${zlib_version}_err_$$.txt and ${STMP}/zlib_make_${zlib_version}_out_$$.txt"
-        return 1
-    else
-        echo "Success!"
-    fi
-
-    cp /usr/local/lib/pkgconfig/zlib.pc /opt/csw/lib/pkgconfig/zlib.pc
+#    echo "Building zlib.."
+#
+#    if [ -f "$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz" ]; then
+#        zlib_tar="$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz"
+#    else
+#        wget http://zlib.net/zlib-${zlib_version}.tar.gz
+#        zlib_tar="${build_dir}/zlib-${zlib_version}.tar.gz"
+#    fi
+#
+#
+#    tar zxf $zlib_tar
+#
+#    cd zlib-${zlib_version}
+#
+#    ./configure 2>${STMP}/zlib_configure_${zlib_version}_err_$$.txt 1>${STMP}/zlib_configure_${zlib_version}_out_$$.txt
+#    if [ $? -ne 0 ]; then
+#        echo "Failed to configure zlib build for $dataset.  Output in ${STMP}/zlib_configure_${zlib_version}_err_$$.txt and ${STMP}/zlib_configure_${zlib_version}_out_$$.txt"
+#        return 1
+#    else
+#        echo "Success!"
+#    fi
+#
+#    make 2>${STMP}/zlib_make_${zlib_version}_err_$$.txt 1>${STMP}/zlib_make_${zlib_version}_out_$$.txt
+#    if [ $? -ne 0 ]; then
+#        echo "Failed to build zlib for $dataset.  Output in ${STMP}/zlib_make_${zlib_version}_err_$$.txt and ${STMP}/zlib_make_${zlib_version}_out_$$.txt"
+#        return 1
+#    else
+#        echo "Success!"
+#    fi
+#
+#    cp /usr/local/lib/pkgconfig/zlib.pc /opt/csw/lib/pkgconfig/zlib.pc
 
 
     # Download Samba
