@@ -59,12 +59,27 @@ case $os in
         /usr/sbin/mount | ${GREP} -q "on $mount_zfs_folder " 
         if [ $? -ne 0 ]; then
             debug "zfs mount ${VERBOSE}${mount_zfs_folder}"
-            zfs mount ${VERBOSE}$mount_zfs_folder 2> ${TMP}/zfs_mount_$$
-            if [ $? -ne 0 ]; then
-                error "fast-zfs-mount.sh: failed to mount $mount_zfs_folder  Children mounts have been skipped." ${TMP}/zfs_mount_$$
-                exit 1
+            zfs mount ${VERBOSE}$mount_zfs_folder 2> ${TMP}/zfs_mount_$$.txt
+            result=$?
+            if [ $result -ne 0 ]; then
+                cat ${TMP}/zfs_mount_$$.txt|grep -q "directory is not empty"
+                if [ $? -eq 0 ]; then
+                    now="$(now_stamp)"
+                    mountpoint=`zfs get -o value -H mountpoint ${mount_zfs_folder}`
+                    mv ${mountpoint} ${mountpoint}.zfs_non_empty_mountpoint.${now} 2>>${TMP}/zfs_mount_$$.txt && \
+                        zfs mount ${VERBOSE}$mount_zfs_folder 2>>${TMP}/zfs_mount_$$.txt
+                    if [ $? -eq 0 ]; then
+                        error "fast-zfs-mount.sh: failed to mount $mount_zfs_folder even after moving non-empty folder. Children mounts have been skipped." ${TMP}/zfs_mount_$$.txt
+                        exit 1
+                    else
+                        error "${mountpoint} moved to ${mountpoint}.zfs_non_empty_mountpoint.${now}, because directory was not empty on ${mount_zfs_folder}"
+                    fi
+                else
+                    error "fast-zfs-mount.sh: failed to mount $mount_zfs_folder  Children mounts have been skipped." ${TMP}/zfs_mount_$$.txt
+                    exit 1
+                fi
             fi
-            rm ${TMP}/zfs_mount_$$ 2> /dev/null
+            rm ${TMP}/zfs_mount_$$.txt 2> /dev/null
         fi
     ;;
     *)
@@ -78,9 +93,9 @@ esac
 sharenfs=`zfs get -o value -H sharenfs $mount_zfs_folder`
 
 if [ "$sharenfs" != "off" ]; then
-    zfs share $mount_zfs_folder
+    zfs share $mount_zfs_folder 2>${TMP}/zfs_mount_$$.txt
     if [ $? -ne 0 ]; then
-        error "fast-zfs-mount.sh: failed to nfs export $mount_zfs_folder  Children mounts have been skipped." ${TMP}/zfs_mount_$$
+        error "fast-zfs-mount.sh: failed to nfs export $mount_zfs_folder  Children mounts have been skipped." ${TMP}/zfs_mount_$$.txt
         exit 1
     fi
 fi
