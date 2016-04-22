@@ -237,6 +237,15 @@ start_smb_dataset () {
         export LD_LIBRARY_PATH=
     fi
 
+    # smbcontrol
+    smbcontrol_path=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property}:smbcontrol ${zfs_folder} 3>/dev/null`
+    if [ "$smbcontrol_path" != '' ]; then
+        debug "Overriding default smbcontrol for: $smbcontrol_path"
+    else
+        debug "smbcontrol path: $SMBCONTROL"
+        smbcontrol_path="$SMBCONTROL"
+    fi
+
     
 
     if [ "$smbd_running" == 'false' ]; then
@@ -262,6 +271,9 @@ start_smb_dataset () {
         winbindd_pid=`get_pid $nmb_pidfile $zfs_samba_server_startup_timeout`
         winbindd_running='true'
     fi
+
+    # Turn on profiling    
+    ${smbcontrol_path} all profile on
 
      
     update_job_status "$active_smb" "smbd_bin" "${smbd_path}" \

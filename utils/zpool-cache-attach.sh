@@ -59,7 +59,7 @@ fi
 # Collect cache disks
 ##
 
-if [ -f /${pool}/zfs_tools/etc/cache-disks]; then
+if [ -f /${pool}/zfs_tools/etc/cache-disks ]; then
     disks=`cat /${pool}/zfs_tools/etc/cache-disks`
     
     ##

@@ -120,38 +120,39 @@ build_dataset_samba () {
     cd $build_dir
 
     # Get and build zlib
+    # zlib not needed unless building Samba with --with-ads
 
-    echo "Building zlib.."
-
-    if [ -f "$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz" ]; then
-        zlib_tar="$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz"
-    else
-        wget http://zlib.net/zlib-${zlib_version}.tar.gz
-        zlib_tar="${build_dir}/zlib-${zlib_version}.tar.gz"
-    fi
-
-
-    tar zxf $zlib_tar
-
-    cd zlib-$zlib_verions
-
-    ./configure 2>${STMP}/zlib_configure_${zlib_version}_err_$$.txt 1>${STMP}/zlib_configure_${zlib_version}_out_$$.txt
-    if [ $? -ne 0 ]; then
-        echo "Failed to configure zlib build for $dataset.  Output in ${STMP}/zlib_configure_${zlib_version}_err_$$.txt and ${STMP}/zlib_configure_${zlib_version}_out_$$.txt"
-        return 1
-    else
-        echo "Success!"
-    fi
-
-    make 2>${STMP}/zlib_make_${zlib_version}_err_$$.txt 1>${STMP}/zlib_make_${zlib_version}_out_$$.txt
-    if [ $? -ne 0 ]; then
-        echo "Failed to build zlib for $dataset.  Output in ${STMP}/zlib_make_${zlib_version}_err_$$.txt and ${STMP}/zlib_make_${zlib_version}_out_$$.txt"
-        return 1
-    else
-        echo "Success!"
-    fi
-
-    cp /usr/local/lib/pkgconfig/zlib.pc /opt/csw/lib/pkgconfig/zlib.pc
+#    echo "Building zlib.."
+#
+#    if [ -f "$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz" ]; then
+#        zlib_tar="$TOOLS_ROOT/3rdparty/zlib-${zlib_version}.tar.gz"
+#    else
+#        wget http://zlib.net/zlib-${zlib_version}.tar.gz
+#        zlib_tar="${build_dir}/zlib-${zlib_version}.tar.gz"
+#    fi
+#
+#
+#    tar zxf $zlib_tar
+#
+#    cd zlib-${zlib_version}
+#
+#    ./configure 2>${STMP}/zlib_configure_${zlib_version}_err_$$.txt 1>${STMP}/zlib_configure_${zlib_version}_out_$$.txt
+#    if [ $? -ne 0 ]; then
+#        echo "Failed to configure zlib build for $dataset.  Output in ${STMP}/zlib_configure_${zlib_version}_err_$$.txt and ${STMP}/zlib_configure_${zlib_version}_out_$$.txt"
+#        return 1
+#    else
+#        echo "Success!"
+#    fi
+#
+#    make 2>${STMP}/zlib_make_${zlib_version}_err_$$.txt 1>${STMP}/zlib_make_${zlib_version}_out_$$.txt
+#    if [ $? -ne 0 ]; then
+#        echo "Failed to build zlib for $dataset.  Output in ${STMP}/zlib_make_${zlib_version}_err_$$.txt and ${STMP}/zlib_make_${zlib_version}_out_$$.txt"
+#        return 1
+#    else
+#        echo "Success!"
+#    fi
+#
+#    cp /usr/local/lib/pkgconfig/zlib.pc /opt/csw/lib/pkgconfig/zlib.pc
 
 
     # Download Samba
@@ -172,7 +173,7 @@ build_dataset_samba () {
         # See if it is dataset defined
         build_options=`zfs get -H -o value ${zfs_cifs_property}:buildoptions $dataset_folder`  
         if [ "$build_options" == '-' ]; then
-            build_options="--prefix=${prefix} --with-acl-support --with-ldap --with-ads --with-shared-modules=nfs4_acls,vfs_zfsacl,acl_xattr"
+            build_options="--prefix=${prefix} --with-acl-support --with-ldap --with-profiling-data --with-shared-modules=nfs4_acls,vfs_zfsacl,acl_xattr"
         fi
     else
         build_options="$samba_build_options"
@@ -202,6 +203,10 @@ build_dataset_samba () {
         #rm -f ${STMP}/make_${version}_err_$$.txt ${STMP}/make_${version}_out_$$.txt
     fi
 
+    echo "Stopping Samba on $dataset"
+    ozmt-samba-service.sh stop $dataset
+    echo
+
     echo "Installing Samba version $version for $dataset"
     make install 2>${STMP}/make_install_${version}_err_$$.txt 1>${STMP}/make_install_${version}_out_$$.txt
     if [ $? -ne 0 ]; then
@@ -212,11 +217,17 @@ build_dataset_samba () {
         #rm -f ${STMP}/make_${version}_err_$$.txt ${STMP}/make_${version}_out_$$.txt
     fi
 
+    echo "Starting Samba on $dataset"
+    ozmt-samba-service.sh start $dataset
+    echo
+
+
 
     zfs set ${zfs_cifs_property}:smbd="${prefix}/sbin/smbd" $dataset_folder
     zfs set ${zfs_cifs_property}:nmbd="${prefix}/sbin/nmbd" $dataset_folder
     zfs set ${zfs_cifs_property}:winbindd="${prefix}/sbin/winbindd" $dataset_folder
     zfs set ${zfs_cifs_property}:lib="${prefix}/lib" $dataset_folder
+    zfs set ${zfs_cifs_property}:smbcontrol="${prefix}/bin/smbcontrol" $dataset_folder
 
 
 }

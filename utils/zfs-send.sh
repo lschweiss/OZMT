@@ -375,7 +375,7 @@ if [ "$remote_host" != "" ]; then
     /${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
-        error "${job_name}: Cannot connect to remote host at root@${remote_host}"
+        warning "${job_name}: Cannot connect to remote host at root@${remote_host}"
         verify='fail'
     else
         debug "${job_name}: Remote host connection verified."
@@ -748,7 +748,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
         # Collect listening port from remote pool
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh get_port" > ${TMP}/$$_remote_port
         if [ $? != 0 ]; then
-            error "${job_name}: Could not retrieve remote listening port for mbuffer transport."
+            warning "${job_name}: Could not retrieve remote listening port for mbuffer transport."
             clean_up 1
         fi
 
@@ -1072,10 +1072,10 @@ if [ "$success" == 'true' ]; then
 
     if [ "$remote_chksum" != "" ]; then
         scp "$tmpdir/md5sum" "root@${remote_host}:/${remote_chksum}" &> /dev/null ||
-            error "${job_name}: Failed to push md5sum to ${remote_chksum} on ${remote_host}"
+            warning "${job_name}: Failed to push md5sum to ${remote_chksum} on ${remote_host}"
     fi    
 else
-    error "${job_name}: zfs-send job failed.  Status left in $tmpdir and $remote_tmp"
+    warning "${job_name}: zfs-send job failed.  Status left in $tmpdir and $remote_tmp"
 fi
 
 

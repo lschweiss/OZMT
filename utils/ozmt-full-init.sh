@@ -269,6 +269,11 @@ if [ -z $WINBINDD ]; then
     WINBINDD="/usr/local/samba/sbin/winbindd"
 fi
 
+if [ -z $SMBCONTROL ]; then
+    SMBCONTROL="/usr/local/samba/bin/smbcontrol"
+fi
+
+
 
 
 # Set defaults
@@ -403,7 +408,7 @@ if [ "$zfs_cifs_default_share_template" == "" ]; then
 fi
 
 if [ "$zfs_samba_default_version" == "" ]; then
-    zfs_samba_default_version='4.1.17'
+    zfs_samba_default_version='4.4.2'
 fi
 
 if [ "$zfs_vip_property" == "" ]; then
