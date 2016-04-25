@@ -50,9 +50,16 @@ pools="$(pools)"
 
 active_smb_dir="/var/zfs_tools/samba/active"
 smb_datasets_dir="/var/zfs_tools/samba/datasets"
+smb_datasets_lock="${TMP}/samba/datasets.lockfile"
 
 mkdir -p $active_smb_dir
 mkdir -p $smb_datasets_dir
+mkdir -p ${TMP}/samba
+
+if [ ! -f ${smb_datasets_lock} ]; then
+    touch ${smb_datasets_lock}
+    init_lock ${smb_datasets_lock}
+fi
 
 source ./samba-functions.sh
 
@@ -64,9 +71,15 @@ source ./samba-functions.sh
 start_smb_dataset () {
 
     local dataset_name="$1"
+    
+    wait_for_lock ${smb_datasets_lock}
+
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local dataset_mountpoint=`zfs_cache get -H -o value mountpoint $zfs_folder 3>/dev/null`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
+
+    release_lock ${smb_datasets_lock}
+
     local server_name=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local active_smb="${active_smb_dir}/${dataset_name}"
     local smbd_bin=
@@ -370,7 +383,9 @@ check_smb_dataset () {
     local pool=
     local active_smb="${active_smb_dir}/${dataset_name}"
     local start_smb='false'
+    wait_for_lock ${smb_datasets_lock}
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
+    release_lock ${smb_datasets_lock}
     local smbd_pid=
     local smbd_bin=
     local nmbd_pid=

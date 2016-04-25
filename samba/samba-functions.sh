@@ -23,6 +23,7 @@
 
 active_smb_dir="/var/zfs_tools/samba/active"
 smb_datasets_dir="/var/zfs_tools/samba/datasets"
+smb_datasets_lock="${TMP}/samba/datasets.lockfile"
 
 samba_populate_datasets () {
     local pool=
@@ -32,6 +33,16 @@ samba_populate_datasets () {
     local dataset=
     local cifs_property=
 
+    mkdir -p ${TMP}/samba
+
+    if [ ! -f ${smb_datasets_lock} ]; then
+        touch ${smb_datasets_lock}
+        init_lock ${smb_datasets_lock}
+    fi
+
+
+    wait_for_lock ${smb_datasets_lock}
+    
     rm -f $smb_datasets_dir/*
 
     for pool in $pools; do
@@ -48,6 +59,8 @@ samba_populate_datasets () {
         done # for folder
     done # for pool
 
+    release_lock ${smb_datasets_lock}
+
 }
 
 
@@ -63,6 +76,8 @@ samba_datasets () {
     # Returns a list of datasets for a given input
 
     debug "Finding $1"
+
+    wait_for_lock ${smb_datasets_lock}
     
     echo "${pools}" | ${GREP} -q $1
     if [ $? -eq 0 ]; then
@@ -85,6 +100,8 @@ samba_datasets () {
         fi
     fi
 
+    release_lock ${smb_datasets_lock}
+
     return $result
 
 }
@@ -92,9 +109,11 @@ samba_datasets () {
 build_smb_conf () {
 
     local dataset_name="$1"
+    wait_for_lock ${smb_datasets_lock}
     local zfs_folder=`cat ${smb_datasets_dir}/${dataset_name}`
     local dataset_mountpoint=`zfs_cache get -H -o value mountpoint $zfs_folder 3>/dev/null`
     local pool=`cat $smb_datasets_dir/$dataset_name | ${AWK} -F '/' '{print $1}'`
+    release_lock ${smb_datasets_lock}
     local server_name=`zfs_cache get -H -o value -s local,received ${zfs_cifs_property} ${zfs_folder} 3>/dev/null`
     local smb_conf_dir="${dataset_mountpoint}/samba/etc/running"
     local server_conf="${smb_conf_dir}/smb_server.conf"
