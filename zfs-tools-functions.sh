@@ -531,7 +531,7 @@ update_job_status () {
         if [ "$have_lock" == 'false' ]; then
             # Check if our calling process locked the file already
             if [ -f "${status_file}.lock" ]; then
-                lock_pid=`cat ${status_file}.lock`
+                lock_pid=`cat ${status_file}.lock 2>/dev/null`
                 if [ "$$" == "$lock_pid" ]; then
                     debug "update_job_status: Lock obtained by calling process"
                     have_lock='true'
