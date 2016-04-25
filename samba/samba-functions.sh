@@ -311,7 +311,7 @@ build_smb_conf () {
 
     shares=`zfs get -H -o value -s local,received ${zfs_cifs_property}:shares ${zfs_folder}`
 
-    if [ "$shares" != '-' ]; then
+    if [ "$shares" != '' ]; then
         x=1
         while [ $x -le $shares ]; do
     
@@ -340,20 +340,20 @@ build_smb_conf () {
 
     # Old format shares defined at zfs folder level.   This doesn't allow for shares on non-zfs folders.
 
-    shared_folders=`zfs get -H -o name -s local,received -r ${zfs_cifs_property}:share ${zfs_folder}`
-    debug "Shared folders: $shared_folders"
-    for shared_folder in $shared_folders; do
-        cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
-        mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
-        share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share ${shared_folder}`
-        smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:users ${shared_folder}`
-        if [ "$smb_valid_users" == '-' ]; then
-            smb_valid_users=''
-        fi
-        warning "Using old share config"
-        build_share_config
+    #shared_folders=`zfs get -H -o name -s local,received -r ${zfs_cifs_property}:share ${zfs_folder}`
+    #debug "Shared folders: $shared_folders"
+    #for shared_folder in $shared_folders; do
+    #    cifs_share=`echo "$shared_folder" | ${AWK} -F '/' '{print $NF}'`
+    #    mountpoint=`zfs get -H -o value mountpoint ${shared_folder}`
+    #    share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share ${shared_folder}`
+    #    smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:users ${shared_folder}`
+    #    if [ "$smb_valid_users" == '-' ]; then
+    #        smb_valid_users=''
+    #    fi
+    #    warning "Using old share config"
+    #    build_share_config
 
-    done
+    #done
 
     ##
     # Build the smb_server.conf
