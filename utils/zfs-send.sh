@@ -772,7 +772,7 @@ if [ "$mbuffer_transport_use" == 'true' ]; then
             die "${job_name}: Could not connect to remote host to collect mbuffer_transport.pid" ${TMP}/$$_remote_mbuffer_pid_error.txt
         fi
         mbuffer_pid=`cat ${TMP}/$$_remote_mbuffer_pid`
-        rm ${TMP}/$$_remote_mbuffer_pid
+        rm ${TMP}/$$_remote_mbuffer_pid ${TMP}/$$_remote_mbuffer_pid_error.txt 2>/dev/null
         debug "Attaching remote port $remote_port to mbuffer PID $mbuffer_pid command $mbuffer"
         $remote_ssh "${TOOLS_ROOT}/backup/zfs-backup-port-pool.sh attach_port $remote_port $mbuffer_pid $mbuffer"
     fi
