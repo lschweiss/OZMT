@@ -20,7 +20,7 @@
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
-
+/die
 if [ "$logfile" == "" ]; then
     if [ "x$zfs_logfile" != "x" ]; then
         logfile="$zfs_logfile"
@@ -549,8 +549,9 @@ fi
 remote_fifo () {
     local fifo="${remote_tmp}/${1}.fifo"
     debug "${job_name}: Creating remote fifo ${fifo}"
-    ${TIMEOUT} 1m $remote_ssh "mkfifo ${fifo}" || \
-        die "${job_name}: Could not setup remote fifo $1 on host $remote_host"
+    ${TIMEOUT} 1m $remote_ssh "mkfifo ${fifo}" 2>${TMP}/remote_fifo_$$.txt || \
+        die "${job_name}: Could not setup remote fifo $1 on host $remote_host" ${TMP}/remote_fifo_$$.txt
+    rm ${TMP}/remote_fifo_$$.txt 2>/dev/null
     target_fifos="${fifo} $target_fifos"
     result="${fifo}"
 }
