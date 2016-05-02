@@ -97,9 +97,19 @@ ignore_folder_list="$2"
 
 schedule_lock_dir="${TMP}/replication/scheduling/${pool}"
 schedule_lock="${schedule_lock_dir}/scheduling"
+mkdir -p "${schedule_lock_dir}"
+if [ ! -f "${schedule_lock}" ]; then
+    touch "${schedule_lock}"
+    init_lock "${schedule_lock}"
+fi
 
 job_runner_lock_dir="${TMP}/replication/job-runner"
 job_runner_lock="${job_runner_lock_dir}/job-runner"
+mkdir -p $job_runner_lock_dir
+if [ ! -f ${job_runner_lock} ]; then
+    touch ${job_runner_lock}
+    init_lock ${job_runner_lock}
+fi
 
 
 
