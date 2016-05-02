@@ -20,7 +20,7 @@
 
 cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 . ../zfs-tools-init.sh
-/die
+
 if [ "$logfile" == "" ]; then
     if [ "x$zfs_logfile" != "x" ]; then
         logfile="$zfs_logfile"
