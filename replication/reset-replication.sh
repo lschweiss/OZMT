@@ -95,22 +95,6 @@ ds_source=
 
 ignore_folder_list="$2"
 
-schedule_lock_dir="${TMP}/replication/scheduling/${pool}"
-schedule_lock="${schedule_lock_dir}/scheduling"
-mkdir -p "${schedule_lock_dir}"
-if [ ! -f "${schedule_lock}" ]; then
-    touch "${schedule_lock}"
-    init_lock "${schedule_lock}"
-fi
-
-job_runner_lock_dir="${TMP}/replication/job-runner"
-job_runner_lock="${job_runner_lock_dir}/job-runner"
-mkdir -p $job_runner_lock_dir
-if [ ! -f ${job_runner_lock} ]; then
-    touch ${job_runner_lock}
-    init_lock ${job_runner_lock}
-fi
-
 
 
 die () {
@@ -125,7 +109,7 @@ die () {
             release_lock "$schedule_lock"
         fi
         if [ "$runner_locked" == 'true' ]; then
-            release_lock "$job_runner_lock"
+            release_lock "$runner_lock"
         fi
     else
         debug "Keep suspended set.  Not resuming replication."
@@ -134,6 +118,8 @@ die () {
     exit $1
 
 }
+
+trap die SIGINT
 
 ##
 # Gather information about the dataset
@@ -303,22 +289,41 @@ done
 
 
 ##
-# Temporarily suspend scheduling and running any new jobs on the source pool
+# Lock the scheduler
 ##
 
-wait_for_lock "$schedule_lock"
-    if [ $? -ne 0 ]; then
-        echo "Could not aquire scheduling lock." 
-        exit 1
-    fi
+schedule_lock_dir="${TMP}/replication/scheduling/${source_pool}"
+schedule_lock="${schedule_lock_dir}/scheduling"
+mkdir -p "${schedule_lock_dir}"
+if [ ! -f "${schedule_lock}" ]; then
+    touch "${schedule_lock}"
+    init_lock "${schedule_lock}"
+fi
+
+wait_for_lock $schedule_lock || die 1
+
 scheduling_locked='true'
-wait_for_lock "$job_runner_lock"
-    if [ $? -ne 0 ]; then
-        echo "Could not aquire scheduling lock."
-        release_lock "/$source_pool/zfs_tools/var/replication/jobs/scheduling"
-        exit 1
-    fi
+
+##
+# Lock the job runner
+## 
+
+
+job_runner_lock_dir="${TMP}/replication/job-runner"
+job_runner_lock="${job_runner_lock_dir}/job-runner"
+mkdir -p ${job_runner_lock_dir}/${source_pool}
+runner_lock="${job_runner_lock_dir}/${pool}/runner"
+# Lock on running
+if [ ! -f "${runner_lock}" ]; then
+    touch "${runner_lock}"
+    init_lock "${runner_lock}"
+fi
+
+wait_for_lock $runner_lock || die 1
+
 runner_locked='true'
+
+
 
 echo "Resetting replication for $dataset" > /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
 
@@ -557,6 +562,16 @@ for job in $jobs; do
     fi
 
 done
+
+##
+# Reset the job lock(s)
+##
+
+
+job_lock_dir="${TMP}/replication/job-locks/${source_pool}"
+
+rm -f ${job_lock_dir}/zfs_send_${dataset_name}_to_*
+
 
 
 notice "Replication successfully reset for dataset $dataset"
