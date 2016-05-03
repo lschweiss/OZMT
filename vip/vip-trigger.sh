@@ -340,6 +340,11 @@ deactivate_vip () {
     rm -f "${active_ip_dir}/${ip}"
 
     # Remove the static routes
+    # TODO: Keep a usage count on a static route and only delete when the last usage is gone.
+    #       This still leaves a problem when a route needs to be changed.  A better approach 
+    #       may be to have static routes be stored in the ozmt config and managed separately 
+    #       from vIPs. 
+    
     IFS=','
     for route in $routes; do
         if [ "${route:0:1}" == "H" ]; then
@@ -350,10 +355,12 @@ deactivate_vip () {
             IFS=','
             case $os in
                 'Linux')
-                    route delete ${host} $gateway
+                    # route delete ${host} $gateway
+                    debug "Route deletion disabled: route delete ${host} $gateway"
                     ;;
                 'SunOS')
-                    route delete $host $gateway
+                    #route delete $host $gateway
+                    debug "Route deletion disabled: route delete ${host} $gateway"
                     ;;
             esac
         else
@@ -363,10 +370,12 @@ deactivate_vip () {
             IFS=','
             case $os in
                 'Linux')
-                    route delete ${net}/${mask} $gateway
+                    #route delete ${net}/${mask} $gateway
+                    debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
                     ;;
                 'SunOS')
-                    route delete ${net}/${mask} $gateway 
+                    #route delete ${net}/${mask} $gateway 
+                    debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
                     ;;
             esac
 
