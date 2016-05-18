@@ -110,6 +110,11 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
     for pool in $pools; do
         debug "Finding synced replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
+        mounted=`zfs get mounted -o value -H ${pool}/zfs_tools`
+        if [ "$mounted" != 'yes' ]; then
+            notice "zfs_tools not mounted on ${pool}. Skipping"
+            continue
+        fi
         mkdir -p "/${pool}/zfs_tools/var/replication/jobs/cleaning"
         # Check if all jobs suspended
         if [ -f "$replication_dir/suspend_all_jobs" ]; then
