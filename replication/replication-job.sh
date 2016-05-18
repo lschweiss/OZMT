@@ -109,6 +109,7 @@ cd $( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 if [ "x$replication_logfile" != "x" ]; then
     logfile="$replication_logfile"
+    export logfile
 else
     logfile="$default_logfile"
 fi
@@ -289,7 +290,7 @@ else
    
     # Start zfs send
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -d -n "${dataset_name}" -r -I ${delete_snaps} -M \
+    ../utils/zfs-send.sh -d -u -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
         -l "${pool}/${folder}@${snapshot}" \
@@ -319,39 +320,6 @@ else
     debug "Moving job to synced status"
     mv "${job_definition}" "${replication_dir}/synced/"
 
-
-    #if [[ "$delete_snaps" != "" && "$previous_snapshot" != "" ]]; then
-    #    # Delete the previous snapshot
-    #    debug "Only 2 replication endpoints.  Deleting source snapshot."
-    #    zfs destroy -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy_$$.txt 
-    #    if [ $? -ne 0 ]; then
-    #        warning "Could not destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy_$$.txt
-    #        zfs destroy -d -r "${pool}/${folder}@${previous_snapshot}" 2> /${TMP}/zfs_destroy2_$$.txt
-    #        if [ $? -ne 0 ]; then
-    #            error "Could not defer destroy replication snapshot ${pool}/${folder}@${previous_snapshot}" /${TMP}/zfs_destroy2_$$.txt
-    #        fi
-    #        mv "${job_definition}" "${replication_dir}/synced/"
-    #    else
-    #        # Move the job to completed status
-    #        debug "Moving job to completed status"
-    #        touch "${job_definition}"
-    #        mkdir -p "${replication_dir}/complete/"
-    #        mv "${job_definition}" "${replication_dir}/complete/" 
-    #    fi
-    #    rm /${TMP}/zfs_destroy_$$.txt 2>/dev/null
-    #    rm /${TMP}/zfs_destroy2_$$.txt 2>/dev/null
-    #else
-    #    if [ "$delete_snaps" != "" ]; then
-    #        debug "Moving job to completed status"
-    #        touch "${job_definition}"
-    #        mkdir -p "${replication_dir}/complete/"
-    #        mv "${job_definition}" "${replication_dir}/complete/"
-    #    else
-    #        debug "Moving job to synced status"
-    #        mv "${job_definition}" "${replication_dir}/synced/"
-    #    fi
-    #fi
-        
 fi
 
 release_lock "$job_lock"

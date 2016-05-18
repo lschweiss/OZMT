@@ -112,12 +112,15 @@ done
 source replication-functions.sh
 
 
+
+
+
 load_datasets () {
 
     rm -f $dataset_list
 
-    for pool in $pools; do
-        zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>$dataset_cache >> $dataset_list
+    for pool in $(cluster_pools); do
+        remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>$dataset_cache >> $dataset_list
     done
 
     ${SORT} --output ${dataset_list} ${dataset_list}
@@ -125,6 +128,7 @@ load_datasets () {
     dataset_count=`cat $dataset_list | ${WC} -l`
 
 }
+
 
 reload_datasets () {
 

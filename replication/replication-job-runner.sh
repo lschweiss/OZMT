@@ -74,6 +74,11 @@ fi
 # Run repeatedly for up 1 minute or $zfs_replication_job_runner_cycle
 pending_cycles=0
 
+# Limit to 10 seconds on the terminal
+
+if [ -t 1 ]; then
+    zfs_replication_job_runner_cycle=10
+fi
 
 while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
 

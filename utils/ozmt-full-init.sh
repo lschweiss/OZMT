@@ -352,7 +352,7 @@ if [ "$zfs_replication_dataset_property" == "" ]; then
 fi
 
 if [ "$zfs_replication_endpoints_property" == "" ]; then
-    zfs_replication_endpoints_property="${zfs_property_tag}:replicationendpoints"
+    zfs_replication_endpoints_property="${zfs_property_tag}:replication:endpoints"
 fi
 
 if [ "$zfs_quota_property" == "" ]; then
@@ -509,7 +509,7 @@ source $TOOLS_ROOT/zfs-tools-functions.sh
 
 # Skip pools default requires rpool function, sourced above
 if [ "$skip_pools" == "" ]; then
-    skip_pools="$(rpool)"
+    skip_pools="$(rpool) dump"
 fi  
 
 

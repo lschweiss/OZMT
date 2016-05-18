@@ -123,6 +123,7 @@ show_usage() {
     echo "                      -i and -I are mutually exclusive.  The last one specfied will be honored."
     echo "  [-d]                Delete snapshots on the target that do not exist on the source."
     echo "  [-p {prop_string} ] Reset properties on target"
+    echo "  [-u]                pUsh locally set zfs properties to the target."
     echo "  [-h host]           Send to a remote host.  Defaults to via mbuffer."
     echo "  [-S]                Use ssh transport."
     echo "  [-M]                Use mbuffer transport."
@@ -159,6 +160,7 @@ increment_type=''
 delete_snaps='false'
 receive_options='-vu'
 target_prop=
+push_prop=
 remote_host=
 mbuffer_use='false'
 mbuffer_transport_use='false'
@@ -175,7 +177,7 @@ pid_info=
 t_pid_info=
 
 
-while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
+while getopts s:t:f:l:ruiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -213,6 +215,10 @@ while getopts s:t:f:l:riIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
         p)  # Reset properties on target
             target_prop="-o $OPTARG"
             debug "${job_name}: resetting target properties to: $target_prop"
+            ;;
+        u)  # Push locally set zfs properties to the target
+            push_prop='true'
+            debug "${job_name}: pushing locally set zfs properties to the target"
             ;;
         h)  # Remote host
             remote_host="$OPTARG"
@@ -1008,7 +1014,10 @@ while [ "$running" == 'true' ]; do
             else
                 if [ "$process" == "zfs_send" ]; then
                     # zfs send will report a warning and return error if a new child folder was created.  
-                    # Eliminate that condition as a failure
+                    # Eliminate that condition as a failure  
+                    # TODO: This bug has been fixed in https://www.illumos.org/issues/6111  
+                    # It's worth adding a test here if that patch is active on this
+                    # system.
                     cat $tmpdir/zfs_send.error | ${GREP} -q "WARNING: could not send.*does not exist" &&
                         cat $tmpdir/zfs_send.error | ${GREP} -q "^incremental"
                     if [ $? -eq 0 ]; then
@@ -1060,6 +1069,56 @@ while [ "$running" == 'true' ]; do
     sleep 2
 
 done
+
+##
+# Push locally set zfs properties to the target
+##
+
+# TODO: this can be slow and should be religated to a separate process like job cleaning
+
+if [[ "$success" == 'true' && "$push_prop" == 'true' ]]; then
+
+    if [ "$replicate" == 'true' ]; then
+        folder_list=`zfs list -o name -H -t filesystem -r $source_folder`
+    else
+        folder_list="$source_folder"
+    fi
+
+    updates='false'
+
+    echo "#! /bin/bash" > ${TMP}/property_update_$$
+
+    for folder in $folder_list; do
+        child="${folder:${#source_folder}}"
+        local_properties=`zfs get -s local -o property -H all ${source_folder}${child} | ${GREP} -v '^quota$' | ${GREP} -v '^refquota$'`
+        for property in $local_properties; do
+            updates='true'
+            echo "zfs inherit -S $property ${target_folder}${child}" >> ${TMP}/property_update_$$
+            debug "${job_name}: Updating ${target_folder}${child}   $property"
+        done
+    done
+
+    if [ "$updates" == 'true' ]; then
+        if [ "$remote_host" != "" ]; then
+            $remote_ssh < ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+        else
+            chmod +x ${TMP}/property_update_$$
+            ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+        fi
+    fi
+
+    if [ -f ${TMP}/property_update_err_$$ ]; then
+        err_lines=`cat ${TMP}/property_update_err_$$ | ${WC} -l`
+        if [ $err_lines -ge 1 ]; then
+            warning "${job_name}: Errors running property updates" ${TMP}/property_update_err_$$
+            cat ${TMP}/property_update_err_$$
+        fi
+    fi
+
+    rm -f ${TMP}/property_update_$$ ${TMP}/property_update_err_$$
+
+fi
+
 
 ##
 # Report success/failure

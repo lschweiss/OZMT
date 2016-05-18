@@ -346,7 +346,31 @@ rpool () {
 
 }
 
+cluster_pools () {
+
+    local ex=
+    local host=
+
+    IFS=':'
+    for host in $zfs_replication_host_list;do 
+        timeout 20s ssh $host zpool list -H -o name >>${TMP}/pools_$$
+        # Strip explicitly declared "skip_pools"
+        IFS=" "
+        for ex in $skip_pools; do
+            cat ${TMP}/pools_$$ | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$
+            rm ${TMP}/pools_$$
+            mv ${TMP}/poolsx_$$ ${TMP}/pools_$$
+        done
+        cat ${TMP}/pools_$$
+        rm ${TMP}/pools_$$        
+    done
+    unset IFS
+
+}
+
 replication_source () {
+
+    # Returns the parent folder of a defined replication dataset given any child folder.
 
     # Can receive one or two parameters
     
@@ -390,6 +414,106 @@ replication_source () {
         return 0
     fi
 
+}
+
+dataset_source () {
+
+    # For next gen replication only.  Relies on zfs property configured replication.
+
+    # Can receive a dataset name or pool/zfs_folder
+    # If a dataset name is provided, function may be slow while finding the dataset in the cluster
+
+    local dataset_name=
+    local pool_folder=
+    local pool=
+    local folder=
+    local dataset_list="${RTMP}/datasets_source_$$"
+    local replication=
+    local replication_source=
+    local endpoints=
+    local endpoint=()
+    local endpoint_source=()
+    local endpoint_pool=
+    local endpoint_folder=
+    local endpoint_timestamp=
+    local newest=0
+    local count=
+
+    if [ "$2" == '' ]; then
+        dataset_name="$1"
+        # Find the dataset
+        pools="$(cluster_pools)"
+        for pool in $pools; do
+            ssh $pool zfs get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null | \
+                ${GREP} "^${dataset_name}" > $dataset_list
+            if [ $? -eq 0 ]; then
+                # Dataset found
+                pool_folder=`cat $dataset_list | head -1 | ${CUT} -f 2`
+                pool=`echo $pool_folder | ${CUT} -d '/' -f 1`
+                folder=`echo $pool_folder | ${CUT} -d '/' -f 2`
+                break                   
+            fi
+        done
+
+    else
+        pool=`echo $1 | ${AWK} -F '/' '{print $1}'`
+        folder=`echo $1 | ${AWK} -F '/' '{print $2}'`
+        pool_folder="${pool}/${folder}"
+    fi
+
+    # Collect replication information
+    replicaton=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${pool_folder}`
+    
+    if [ "$replication" == 'on' ]; then
+        # Get the source, strip the timestamp
+        replication_source=`zfs get -s local,received -o value -H ${zfs_replication_property}:source ${pool_folder} | \
+            ${CUT} -d '|' -f 1`
+      
+        
+        # Check all the endpoints to make sure the source is in agreement
+        endpoints=`zfs get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder}`
+        
+        if [[ $endpoints =~ ^-?[0-9]+$ ]]; then
+            count=1
+            while [ $count -le $endpoints ]; do
+                endpoint[$count]=`zfs get -s local,received -o value \
+                    -H ${zfs_replication_property}:endpoint:${count} ${pool_folder}`
+                endpoint_pool=`echo $endpoint[$count] | ${CUT} -d ':' -f 1`
+                endpoint_folder=`echo $endpoint[$count] | ${CUT} -d ':' -f 2` 
+                debug "Checking source on ${endpoint_pool}/${endpoint_folder}"
+                endpoint_source[$count]=`ssh $endpoint_pool zfs get -s local,received -o value \
+                    -H ${zfs_replication_property}:source ${endpoint_pool}/${endpoint_folder}`
+                count=$(( count + 1 ))
+                if [ "$endpoint_source[$count]" != '' ]; then
+                    endpoint_timestamp=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 2`
+                    if [ $endpoint_timestamp -gt $newest ]; then
+                        replication_source=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 1`
+                        newest="$endpoint_timestamp"
+                        debug "Newest so far ${endpoint_pool}/${endpoint_folder}"
+                    fi
+                fi                   
+            done
+        else
+            # No endpoints 
+            debug "No endpoints defined for $pool_folder"
+            echo "${pool}:${folder}"
+            return 0
+        fi
+
+        
+
+
+
+
+
+
+
+
+
+
+  
+    fi
+    
 
 }
 
