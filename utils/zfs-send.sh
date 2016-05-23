@@ -54,6 +54,11 @@ success='false'
 # Clean up 
 ##
 clean_up () {
+    
+    if [ "$post_sync_lock" == 'true' ]; then
+        release_lock $post_sync_file
+    fi
+
     if [ "$success" == 'false' ]; then
         # Kill running processes
         pids=`ls -1 $tmpdir/*.pid 2> /dev/null`
@@ -124,6 +129,8 @@ show_usage() {
     echo "  [-d]                Delete snapshots on the target that do not exist on the source."
     echo "  [-p {prop_string} ] Reset properties on target"
     echo "  [-u]                pUsh locally set zfs properties to the target."
+    echo "  [-U]                pUsh locally set zfs properties to the target durring job cleaning."
+    echo "                        Requires -n to be set to the dataset name"
     echo "  [-h host]           Send to a remote host.  Defaults to via mbuffer."
     echo "  [-S]                Use ssh transport."
     echo "  [-M]                Use mbuffer transport."
@@ -177,7 +184,7 @@ pid_info=
 t_pid_info=
 
 
-while getopts s:t:f:l:ruiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
+while getopts s:t:f:l:ruUiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -219,6 +226,11 @@ while getopts s:t:f:l:ruiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
         u)  # Push locally set zfs properties to the target
             push_prop='true'
             debug "${job_name}: pushing locally set zfs properties to the target"
+            ;;
+        U)  # pUsh locally set zfs properties to the target durring job cleaning.
+            push_prop='true'
+            push_prop_later='true'
+            debug "${job_name}: pushing locally set zfs properties to the target durring job cleaning"
             ;;
         h)  # Remote host
             remote_host="$OPTARG"
@@ -305,12 +317,12 @@ while getopts s:t:f:l:ruiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
     esac
 done
 
-tmpdir=${TMP}/zfs_send_to_$(foldertojob ${target_folder})_$$
+tmpdir=${TMP}/replication/zfs_send/zfs_send_to_$(foldertojob ${target_folder})_$$
 if [ "$pid_info" != "" ]; then
     echo "$tmpdir" > "$pid_info"
 fi
 
-remote_tmp=${TMP}/zfs_receive_from_$(foldertojob ${source_folder})_$$
+remote_tmp=${TMP}/replication/zfs_receive/zfs_receive_from_$(foldertojob ${source_folder})_$$
 if [ "$t_pid_info" != "" ]; then
     echo "$remote_tmp" > "$t_pid_info"
 fi
@@ -1086,24 +1098,46 @@ if [[ "$success" == 'true' && "$push_prop" == 'true' ]]; then
 
     updates='false'
 
+    post_sync_file="${TMP}/replication/zfs_properties/${job_name}/local_zfs_properties"
+
+    if [[ "$push_prop_later" == 'true' && "$job_name" != '' ]]; then
+        if [ ! -f $post_sync_file ]; then
+            mkdir -p ${TMP}/replication/zfs_properties/${job_name}
+            touch $post_sync_file
+            init_lock $post_sync_file
+        fi
+        wait_for_lock $post_sync_file
+        rm $post_sync_file
+        touch $post_sync_file
+        post_sync_lock='true'
+        # Lock is released in clean_up function.
+    fi
+
     echo "#! /bin/bash" > ${TMP}/property_update_$$
 
     for folder in $folder_list; do
         child="${folder:${#source_folder}}"
-        local_properties=`zfs get -s local -o property -H all ${source_folder}${child} | ${GREP} -v '^quota$' | ${GREP} -v '^refquota$'`
+        local_properties=`zfs get -s local,default,inherited -o property -H all ${source_folder}${child} | ${GREP} -v '^quota$' | ${GREP} -v '^refquota$'`
         for property in $local_properties; do
             updates='true'
+            if [[ "$push_prop_later" == 'true' && "$job_name" != '' ]]; then
+                echo -e "${child:1}\t$property" >> $post_sync_file
+            fi
             echo "zfs inherit -S $property ${target_folder}${child}" >> ${TMP}/property_update_$$
             debug "${job_name}: Updating ${target_folder}${child}   $property"
         done
     done
 
     if [ "$updates" == 'true' ]; then
-        if [ "$remote_host" != "" ]; then
-            $remote_ssh < ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+        if [[ "$push_prop_later" == 'true' && "$job_name" != '' ]]; then
+            rm ${TMP}/property_update_$$
         else
-            chmod +x ${TMP}/property_update_$$
-            ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+            if [ "$remote_host" != "" ]; then
+                $remote_ssh < ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+            else
+                chmod +x ${TMP}/property_update_$$
+                ${TMP}/property_update_$$ 2>${TMP}/property_update_err_$$
+            fi
         fi
     fi
 
@@ -1111,7 +1145,6 @@ if [[ "$success" == 'true' && "$push_prop" == 'true' ]]; then
         err_lines=`cat ${TMP}/property_update_err_$$ | ${WC} -l`
         if [ $err_lines -ge 1 ]; then
             warning "${job_name}: Errors running property updates" ${TMP}/property_update_err_$$
-            cat ${TMP}/property_update_err_$$
         fi
     fi
 

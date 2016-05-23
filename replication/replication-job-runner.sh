@@ -201,7 +201,13 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                     update_job_status "${job_status}" "suspended" "true"
                 fi        
     
-            done
+                if [ $SECONDS -gt $zfs_replication_job_runner_cycle ]; then
+                    release_lock "${runner_lock}"
+                    release_lock ${job_runner_lock}
+                    exit 0
+                fi
+
+            done # for jobs
         fi
         release_lock "${runner_lock}"
     done
@@ -283,6 +289,13 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                         fi 
                     fi # $suspended == true
                 fi # -f "${replication_dir}/pending/${job}"
+
+                if [ $SECONDS -gt $zfs_replication_job_runner_cycle ]; then
+                    release_lock "${runner_lock}"
+                    release_lock ${job_runner_lock}
+                    exit 0
+                fi
+
             done # for job
      
             release_lock "${runner_lock}"

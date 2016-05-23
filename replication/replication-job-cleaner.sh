@@ -102,6 +102,11 @@ trap ctrl_c SIGINT
 
 # Run repeatedly for up 1 minute or $zfs_replication_job_cleaner_cycle
 
+if [ -t 1 ]; then
+    zfs_replication_job_cleaner_cycle=10
+fi
+
+
 
 while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
@@ -394,7 +399,70 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     fi
                 fi
 
+                ##
+                # Part #4
+                # Run 'zfs inherit -S' on source zfs properties which are local so the replicated value becomes active
+                ##
+
+                local_prop_file="${TMP}/replication/zfs_properties/${dataset_name}/local_zfs_properties"
+                replicated_props="${TMP}/replication/zfs_properties/${dataset_name}/replicated_zfs_properties"
+                props_to_replicate="${TMP}/replication/zfs_properties_${dataset_name}_$$"
+                new_props="${TMP}/replication/zfs_new_properties_${dataset_name}_$$"
+                update_err="${TMP}/replication/zfs_properties/property_update_err_$$"
+                if [ -f $local_prop_file ]; then
+                    wait_for_lock $local_prop_file
+                    if [ -f $replicated_props ]; then
+                        ${GREP} -v -x -f $replicated_props $local_prop_file > $new_props
+                    fi 
+                    
+                    lines=`cat $new_props | ${WC} -l`
+                    x=0
+                    while [ $x -lt $lines ]; do
+                        x=$(( x + 1 ))
+                        line=`cat $new_props | head -n $x | tail -1`
+                        prop_folder=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 1`
+                        property=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 2`
+
+                        if [ "$prop_folder" != "" ]; then
+                            prop_folder="/${prop_folder}"
+                        fi
+                        notice "${dataset_name}: Updating $property on ${target_pool}/${target_folder}${prop_folder}"
+                        echo -e "zfs inherit -S $property ${target_pool}/${target_folder}${prop_folder}" >> $props_to_replicate
+                        echo "$line" >> $replicated_props
+                    done 
+                    unset IFS
+                    rm -f $new_props
+                    rm $local_prop_file
+                    touch $local_prop_file
+                    release_lock $local_prop_file
+                fi
+
+                if [ -f $props_to_replicate ]; then
+                    ${SED} -i '1i#! /bin/bash' $props_to_replicate
+                    if [ -t 1 ]; then
+                        echo "Executing on ${target_pool}:"
+                        cat $props_to_replicate
+                    fi
+                    ${SSH} ${target_pool} < $props_to_replicate 2>${update_err}
+                    if [[ $? -ne 0 && -f ${update_err} ]]; then
+                        err_lines=`cat ${update_err} | ${GREP} -v "Pseudo-terminal" | ${WC} -l`
+                        if [ $err_lines -ge 1 ]; then
+                            if [ -t 1 ]; then
+                                cat ${TMP}/property_update_err_$$
+                            fi
+                            warning "${dataset_name}: Errors running property updates" ${update_err}
+                        fi
+                    fi
+                    rm -f ${TMP}/property_update_err_$$ $props_to_replicate
+                fi
+                
+                if [ $SECONDS -gt $zfs_replication_job_cleaner_cycle ]; then
+                    release_lock ${job_cleaner_lock}
+                    exit 0
+                fi                                                
+
             done # for job
+
         fi # if cleaning directory
 
     done # for pool

@@ -59,6 +59,7 @@ ln -s ${TOOLS_ROOT}/replication/reset-replication.sh /usr/sbin/ozmt-reset-replic
 ln -s ${TOOLS_ROOT}/replication/status-sync.sh /usr/sbin/ozmt-status-sync.sh
 ln -s ${TOOLS_ROOT}/replication/trigger-replication.sh /usr/sbin/ozmt-trigger-replication.sh
 ln -s ${TOOLS_ROOT}/replication/replication-job-runner.sh /usr/sbin/ozmt-replication-job-runner.sh
+ln -s ${TOOLS_ROOT}/replication/replication-job-cleaner.sh /usr/sbin/ozmt-replication-job-cleaner.sh
 
 ln -s ${TOOLS_ROOT}/network/enable-network.sh /usr/sbin/ozmt-enable-network.sh
 ln -s ${TOOLS_ROOT}/network/disable-network.sh /usr/sbin/ozmt-disable-network.sh
