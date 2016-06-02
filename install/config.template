@@ -116,6 +116,9 @@ case $(uname) in
     'SunOS')
         PATH=/usr/gnu/bin:/opt/csw/bin:$PATH
         ;;
+    'Linux')
+        PATH=#PATH#
+        ;;
 esac
 
 if [ -f /etc/ozmt/config.network ]; then
