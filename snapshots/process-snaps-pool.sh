@@ -46,7 +46,7 @@ fi
 
 # collect jobs
 
-now=`${DATE} +%F_%H:%M%z`
+now=`${DATE} +%F_%H:%M%z | ${SED} 's/+/_/g'` # + is not a valid character for a snapshot name
 stamp="${snaptype}_${now}"
 
 mkdir -p ${TMP}/snapshots
