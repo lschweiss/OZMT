@@ -1,0 +1,123 @@
+#! /bin/bash
+# Chip Schweiss - chip.schweiss@wustl.edu
+#
+# Copyright (C) 2016  Chip Schweiss
+#
+# This file managed by Puppet
+
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+
+# The directory we are storing all of our snapshot and ec2tools
+
+TOOLS_ROOT="#TOOLS_ROOT#"
+
+# Some jobs will use temp space.  In the case of restore for Glacier this may need to be large.
+TMP=/tmp/ozmt
+
+# Set the debug level while running on the console
+
+# 0 - Debug
+# 1 - Notice
+# 2 - Warning
+# 3 - Error
+
+debug_level="0"
+
+# Set the logging level
+# 0 - Debug
+# 1 - Notice
+# 2 - Warning
+# 3 - Error
+
+logging_level="1"
+
+default_logfile="/var/log/ozmt.log"
+
+default_report_name="$HOSTNAME"
+
+default_report_title="$HOSTNAME"
+
+
+# rpool zfs pool
+
+rpool="rpool"
+
+tools_snapshot_name="zfs-tools-snap_"
+
+
+# Email reporting: Requires mutt to be installed and configured
+
+    # Address to send reports to
+    email_to=""
+
+    # Address(s) to cc reports to (use a space to separate)
+    email_cc=""
+
+    # Address(s) to bcc reports to (use a space to separate)
+    email_bcc=""
+
+    # Email subject prefix
+    email_prefix="${HOSTNAME}: "
+
+    # When to send debug level messages (now,report,never)
+    email_debug="never"
+
+    # When to send notice level messages (now,report,never)
+    email_notice="report"
+
+    # When to send warnings level messages (now,report,never)
+    email_warnings="report"
+
+    # When to send error level messages (now,report,never)
+    email_errors="now"
+
+    # Rsync
+
+    rsync_report="rsync"
+
+    # Blind
+
+    blind_report="rsync"
+
+
+# Snapshot types to be handled
+
+snaptypes="15min hourly daily daily-delayed mid-day weekday weekday-evening weekly monthly bi-annual annual"
+snapshot_logfile="/var/log/snapshot.log"
+snapshot_report="snapshot"
+
+
+# Replication
+zfs_replication_host_list=""
+
+zfs_replication_sync_file_list=""
+zfs_replication_job_runner_cycle="570"
+zfs_replication_job_cleaner_cycle="570"
+
+zfs_replication_remove_quotas='true'
+
+# Samba defaults
+samba_admin_users=''
+
+case $(uname) in
+    'SunOS')
+        PATH=/usr/gnu/bin:/opt/csw/bin:$PATH
+        ;;
+esac
+
+if [ -f /etc/ozmt/config.network ]; then
+    source /etc/ozmt/config.network
+fi

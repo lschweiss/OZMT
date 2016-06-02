@@ -1,0 +1,28 @@
+
+##
+# OZMT cron jobs
+##
+
+0,15,30,45 * * * *  /opt/ozmt/snapshots/process-snaps.sh 15min 1>/dev/null
+0 * * * *    /opt/ozmt/snapshots/process-snaps.sh hourly 1>/dev/null
+0 12 * * *   /opt/ozmt/snapshots/process-snaps.sh mid-day 1>/dev/null
+0 0 * * *    /opt/ozmt/snapshots/process-snaps.sh daily 1>/dev/null
+0 1 * * *    /opt/ozmt/snapshots/process-snaps.sh daily-delayed 1>/dev/null
+0 0 * * 1,2,3,4,5 /opt/ozmt/snapshots/process-snaps.sh weekday 1>/dev/null
+0 18 * * 1,2,3,4,5 /opt/ozmt/snapshots/process-snaps.sh weekday-evening 1>/dev/null
+0 0 * * 0    /opt/ozmt/snapshots/process-snaps.sh weekly 1>/dev/null
+0 0 1 * *    /opt/ozmt/snapshots/process-snaps.sh monthly 1>/dev/null
+0 0 1 1 *    /opt/ozmt/snapshots/process-snaps.sh bi-annual 1>/dev/null
+0 0 1 7 *    /opt/ozmt/snapshots/process-snaps.sh bi-annual 1>/dev/null
+0 0 1 1 *    /opt/ozmt/snapshots/process-snaps.sh annual 1>/dev/null
+2,17,32,47 * * * *   /opt/ozmt/snapshots/clean-snaps.sh 1>/dev/null
+
+* * * * *    /opt/ozmt/replication/schedule-replication.sh
+1,11,21,31,41,51 * * * *    /opt/ozmt/replication/replication-job-runner.sh
+5,15,25,35,45,55 * * * *    /opt/ozmt/replication/replication-job-cleaner.sh
+
+30 11,23 * * * /opt/ozmt/utils/zfs-cache-refresh.sh 1>/dev/null
+
+0 0 * * *   /root/tools/reporting/send_report.sh
+0,15,30,45 * * * *  /opt/ozmt/reporting/quota-reports.sh
+
