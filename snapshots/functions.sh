@@ -149,20 +149,18 @@ add_mod_snap_job () {
         
         # Flush appropriate caches
         # TODO: Don't just flush but reload the cache, so next job executes quickly
-        existing=`zfs get -o value -s local,received ${zfs_snapshot_property}:${snap_job_type} $zfs_folder`
-        if [ "$existing" == '' ]; then
-            # Flush cache for the job type
-            rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${pool} \
-                2&>1 1>${TMP}/clean_snap_cache_$$.txt 
-            debug "Cleaned cache for ${snap_job_type} on ${pool}" ${TMP}/clean_snap_cache_$$.txt
-            rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
-        else
-            # Flush the cache for the folder
-            rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${fixed_folder} \
-                2&>1 1>${TMP}/clean_snap_cache_$$.txt
-            debug "Cleaned cache for ${snap_job_type} on ${fixed_folder}" ${TMP}/clean_snap_cache_$$.txt
-            rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
-        fi
+
+        # Flush cache for the job type
+        rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${pool} \
+            2&>1 1>${TMP}/clean_snap_cache_$$.txt 
+        #debug "Cleaned cache for ${snap_job_type} on ${pool}" ${TMP}/clean_snap_cache_$$.txt
+        rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
+
+        # Flush the cache for the folder
+        rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${fixed_folder} \
+            2&>1 1>${TMP}/clean_snap_cache_$$.txt
+        #debug "Cleaned cache for ${snap_job_type} on ${fixed_folder}" ${TMP}/clean_snap_cache_$$.txt
+        rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
     
         shift
         snap_job="$2"
