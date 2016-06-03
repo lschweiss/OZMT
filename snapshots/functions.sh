@@ -152,13 +152,13 @@ add_mod_snap_job () {
 
         # Flush cache for the job type
         rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${pool} \
-            2&>1 1>${TMP}/clean_snap_cache_$$.txt 
+            2>&1 1>${TMP}/clean_snap_cache_$$.txt 
         #debug "Cleaned cache for ${snap_job_type} on ${pool}" ${TMP}/clean_snap_cache_$$.txt
         rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
 
         # Flush the cache for the folder
         rm -fv /${pool}/zfs_tools/var/cache/zfs_cache/*${zfs_snapshot_property}:${snap_job_type}_${fixed_folder} \
-            2&>1 1>${TMP}/clean_snap_cache_$$.txt
+            2>&1 1>${TMP}/clean_snap_cache_$$.txt
         #debug "Cleaned cache for ${snap_job_type} on ${fixed_folder}" ${TMP}/clean_snap_cache_$$.txt
         rm ${TMP}/clean_snap_cache_$$.txt 2>/dev/null
     
