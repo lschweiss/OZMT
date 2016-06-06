@@ -143,8 +143,8 @@ for pool in $pools; do
                     last_run_secs=`${DATE} -d "$last_run" +%s`
                     now_secs=`${DATE} -d "$now" +%s`
                     duration_sec="$(( now_secs - last_run_secs ))"
-                    # Add ramdomness of +/- 10% to the duration so jobs with equal freqencies spread out
-                    duration_sec="$(( duration_sec + $(( duration_sec / 10 )) - $(( $RANDOM % $(( duration_sec / 5 )) )) ))"
+                    # Add ramdomness of +/- 25% to the duration so jobs with equal freqencies spread out
+                    duration_sec="$(( duration_sec + $(( duration_sec / 4 )) - $(( $RANDOM % $(( duration_sec / 2 )) )) ))"
 
                     # Round up to nearest minute
                     duration_min="$(( (duration_sec + 30) / 60 ))"

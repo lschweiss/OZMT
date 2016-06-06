@@ -36,7 +36,7 @@ fi
 
 mkdir -p /etc/ozmt
 
-cat ${TOOLS_ROOT}/install/config.template | sed "s,#TOOLS_ROOT#,${TOOLS_ROOT},g" > /etc/ozmt/config
+cat ${TOOLS_ROOT}/install/config.template | sed "s,#TOOLS_ROOT#,${TOOLS_ROOT},g" | sed "s,#PATH#,${PATH},g" > /etc/ozmt/config
 
 cat ${TOOLS_ROOT}/install/crontab.root >> /var/spool/cron/crontabs/root
 
