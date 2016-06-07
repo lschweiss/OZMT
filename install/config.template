@@ -112,7 +112,7 @@ zfs_replication_remove_quotas='true'
 # Samba defaults
 samba_admin_users=''
 
-case $(uname) in
+case $(/bin/uname) in
     'SunOS')
         PATH=/usr/gnu/bin:/opt/csw/bin:$PATH
         ;;
