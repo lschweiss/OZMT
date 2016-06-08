@@ -141,6 +141,7 @@ build_smb_conf () {
     local x=
     local ip=
     local vip_host=
+    local hosts_allow=
 
     if [ "$(zfs get -H -o value mounted $zfs_folder)" != 'yes' ]; then
         error "Dataset $dataset_name is not mounted on ${zfs_folder}.  Cannot start CIFS services."
@@ -197,29 +198,31 @@ build_smb_conf () {
         smb_log_level='3'
     fi
     smb_admin_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:adminusers ${zfs_folder}`
-    if [ "$smb_admin_users" == '-' ]; then
+    if [ "$smb_admin_users" == '' ]; then
         smb_admin_users="$samba_admin_users"
     fi
     keytab_file=`zfs get -H -o value -s local,received ${zfs_cifs_property}:keytab ${zfs_folder}`
     if [ "$keytab_file"  == '' ]; then
         keytab_file="${dataset_mountpoint}/samba/etc/krb5.keytab"
     fi
+    hosts_allow=`zfs get -H -o value -s local,received ${zfs_cifs_property}:hostsallow ${zfs_folder}`
 
     mountpoint=`zfs get -H -o value mountpoint ${zfs_folder}`
     
 
-
     if [[ "${template_config_file}" == *".template" ]]; then
         debug "template: ${template_config_file}"
-
-        ${SED} s,#ZFS_FOLDER#,${zfs_folder},g "${template_config_file}" | \
+        cat "${template_config_file}" | \
+            ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
             ${SED} s,#SERVER_NAME#,${server_name},g | \
-            ${SED} s,#ADMIN_USERS#,${smb_admin_users},g | \
+            ${SED} "s%#ADMIN_USERS#%${smb_admin_users}%g" | \
             ${SED} s,#INHERIT_OWNER#,${smb_inherit_owner},g | \
             ${SED} s,#LOG_LEVEL#,${smb_log_level},g | \
             ${SED} s,#KEYTAB#,${keytab_file},g | \
-            ${SED} s,#MOUNTPOINT#,${mountpoint},g > \
+            ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
+            ${SED} "s/#HOSTSALLOW#/${hosts_allow}/g" > \
             "${smb_conf_dir}/smb_${dataset_name}.conf"
+
 
     else
         cp "$template_config_file" "${smb_conf_dir}/smb_${dataset_name}.conf"
@@ -295,6 +298,7 @@ build_smb_conf () {
                 ${SED} s,#ZFS_FOLDER#,${zfs_folder},g | \
                 ${SED} s,#SERVER_NAME#,${server_name},g | \
                 ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
+                ${SED} "s@#HOSTSALLOW#@${hosts_allow}@g" | \
                 ${SED} "s%#VALID_USERS#%${smb_valid_users}%g" | \
                 ${SED} "s%#ADMIN_USERS#%${smb_admin_users}%g" > \
                 "${smb_conf_dir}/smb_share_${cifs_share}.conf"
@@ -317,6 +321,7 @@ build_smb_conf () {
     
             cifs_share=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:sharename ${zfs_folder}`
             mountpoint="$(zfs get -H -o value mountpoint ${zfs_folder})/$(zfs get -H -o value ${zfs_cifs_property}:share:${x}:path ${zfs_folder})"
+            hosts_allow="$(zfs get -H -o value ${zfs_cifs_property}:share:${x}:hostsallow ${zfs_folder})"
             share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:config ${zfs_folder}`
             smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:validusers ${zfs_folder}`
             if [ "$smb_valid_users" == '-' ]; then
