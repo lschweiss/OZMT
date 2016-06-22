@@ -127,6 +127,7 @@ build_smb_conf () {
     local mountpoint=
     local share_config=
     local share_config_file=
+    local guest_ok=
     local smb_valid_users=
     local smb_admin_users=
     local smb_log_level=
@@ -201,6 +202,10 @@ build_smb_conf () {
     if [ "$smb_admin_users" == '' ]; then
         smb_admin_users="$samba_admin_users"
     fi
+    guest_ok=`zfs get -H -o value -s local,received ${zfs_cifs_property}:guestok ${zfs_folder}`
+    if [ "$guest_ok" == '' ]; then
+        guest_ok="no"
+    fi
     keytab_file=`zfs get -H -o value -s local,received ${zfs_cifs_property}:keytab ${zfs_folder}`
     if [ "$keytab_file"  == '' ]; then
         keytab_file="${dataset_mountpoint}/samba/etc/krb5.keytab"
@@ -219,6 +224,7 @@ build_smb_conf () {
             ${SED} s,#INHERIT_OWNER#,${smb_inherit_owner},g | \
             ${SED} s,#LOG_LEVEL#,${smb_log_level},g | \
             ${SED} s,#KEYTAB#,${keytab_file},g | \
+            ${SED} s,#GUEST_OK#,${guest_ok},g | \
             ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
             ${SED} "s/#HOSTSALLOW#/${hosts_allow}/g" > \
             "${smb_conf_dir}/smb_${dataset_name}.conf"
@@ -299,6 +305,7 @@ build_smb_conf () {
                 ${SED} s,#SERVER_NAME#,${server_name},g | \
                 ${SED} s,#MOUNTPOINT#,${mountpoint},g | \
                 ${SED} "s@#HOSTSALLOW#@${hosts_allow}@g" | \
+                ${SED} "s%#GUEST_OK#%${guest_ok}%g" | \
                 ${SED} "s%#VALID_USERS#%${smb_valid_users}%g" | \
                 ${SED} "s%#ADMIN_USERS#%${smb_admin_users}%g" > \
                 "${smb_conf_dir}/smb_share_${cifs_share}.conf"
@@ -323,6 +330,10 @@ build_smb_conf () {
             mountpoint="$(zfs get -H -o value mountpoint ${zfs_folder})/$(zfs get -H -o value ${zfs_cifs_property}:share:${x}:path ${zfs_folder})"
             hosts_allow="$(zfs get -H -o value ${zfs_cifs_property}:share:${x}:hostsallow ${zfs_folder})"
             share_config=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:config ${zfs_folder}`
+            guest_ok=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:guestok ${zfs_folder}`
+            if [ "$guest_ok" == '' ]; then
+                guest_ok='no'
+            fi
             smb_valid_users=`zfs get -H -o value -s local,received ${zfs_cifs_property}:share:${x}:validusers ${zfs_folder}`
             if [ "$smb_valid_users" == '-' ]; then
                 smb_valid_users=''
