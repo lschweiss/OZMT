@@ -86,6 +86,7 @@ mkdir -p ${RTMP} ${RVAR}
 
 dataset_list="${RTMP}/datasets_$$"
 dataset_cache="${RVAR}/datasets_cache"
+datasets=
 dataset_new='false'
 dataset_folder=
 
@@ -107,7 +108,7 @@ while getopts d:n opt; do
     esac
 done
 
-
+source ${TOOLS_ROOT}/utils/dialog/setup-vars
 
 source replication-functions.sh
 
@@ -120,8 +121,10 @@ load_datasets () {
     rm -f $dataset_list
 
     for pool in $(cluster_pools); do
-        remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>$dataset_cache >> $dataset_list
+        remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>>$dataset_cache >> $dataset_list
     done
+
+    datasets=`cat ${dataset_list} | ${CUT} -f 1 | ${SORT} -u`
 
     ${SORT} --output ${dataset_list} ${dataset_list}
 
@@ -132,8 +135,15 @@ load_datasets () {
 
 reload_datasets () {
 
+    local cache=
+    local caches=
+
     if [ -f $dataset_cache ]; then
-        rm -f $(cat ${dataset_cache})
+        caches=`cat ${dataset_cache}`
+        for cache in $caches; do   
+            rm -f $cache
+        done
+        rm -f $dataset_cache
     fi
     load_datasets
 
@@ -183,6 +193,10 @@ while [ "$dataset_name" == '{new}' ]; do
     if [ $? -eq 0 ]; then
         echo "$(color bd red)Dataset name $choice is already in use."
     else
+        if [ "$choice" == 'new' ]; then
+            echo "$(color bd red)Dataset name 'new' is a reserved word and cannot be used for a dataset name."
+            continue
+        fi
         ${GREP} -qv '[^0-9A-Za-z\$\%\(\)\=\+\-\#\:\{\}]' <<< $choice
         if [ $? -eq 0 ]; then
             dataset_name="$choice"
@@ -208,27 +222,32 @@ if [ "$dataset_new" == 'true' ]; then
 
     dataset_zfs_folder=`cat $dialog_out`
 
+    pool=`echo $dataset_zfs_folder | ${CUT} -d '/' -f 1`
 
-    current_dataset_name=`zfs get -o value -H ${zfs_dataset_property} $dataset_zfs_folder`
+    current_dataset_name=`ssh $pool zfs get -o value -H ${zfs_dataset_property} $dataset_zfs_folder`
 
     if [ "$current_dataset_name" = '-' ]; then 
         echo "$(color bd yellow)Setting dataset name \"$dataset_name\" on zfs folder $dataset_zfs_folder$(color)"
-        zfs set ${zfs_dataset_property}="$dataset_name" $dataset_zfs_folder
+        ssh $pool zfs set ${zfs_dataset_property}="$dataset_name" $dataset_zfs_folder
+        echo -e "${dataset_name}\t${dataset_zfs_folder}" >> $dataset_list
     else
         echo "$(color bd red)Dataset name, \"$current_dataset_name\" is already active on ${dataset_zfs_folder}$(color)"
         exit 1
     fi
 
-    load_replication_data $dataset_zfs_folder
 fi
 
 
+
+
 ##
 #
-# Build replication editing menu
+# Load dataset replication and vip info
 #
 ##
 
+set -x
+load_replication_data $dataset_zfs_folder
 
 
 
