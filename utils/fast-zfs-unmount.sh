@@ -63,27 +63,36 @@ if [ $(cat ${TMP}/fast_unmount_zfs.$$ | wc -l) -gt 0 ]; then
     debug "Children finished unmounting on ${unmount_zfs_folder}.  ${TMP}/fast_unmount_zfs.$$"
 fi
 
-# Check if any processes have open files, if so kill them
-
-mountpoint=`zfs get -H -o value mountpoint $unmount_zfs_folder`
-pids=`${LSOF} -t $mountpoint`
-for pid in $pids; do
-    echo "Killing pid: $pid"
-    kill -9 $pid
-done
-
 # Unmount the zfs folder
+mounted=`zfs get -o value -H mounted $unmount_zfs_folder`
 
-${TIMEOUT} 30s truss zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
-result=$?
+if [ "$mounted" == 'yes' ]; then
+    mountpoint=`zfs get -H -o value mountpoint $unmount_zfs_folder`
+    ${TIMEOUT} 30s umount -f $mountpoint 2>&1
+    result=$?
+else
+    result=0
+fi
 
 if [ $result -ne 0 ]; then
-    warning "zfs unmount -f $unmount_zfs_folder failed, ERR $result  Collecting truss." 
-    cat ${TMP}/zfs_unmount_$$.txt
-    truss zfs unmount -f $unmount_zfs_folder 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
+    # Check if any processes have open files, if so kill them
+    pids=`${LSOF} -t $mountpoint`
+    for pid in $pids; do
+        echo "Killing pid: $pid"
+        kill -9 $pid
+    done
+
+    ${TIMEOUT} 10s umount -f $mountpoint 2>&1
     result=$?
-    cat ${TMP}/zfs_unmount_$$.txt
-    warning "Truss output of zfs unmount -f $unmount_zfs_folder Result: $result" ${TMP}/zfs_unmount_$$.txt
+
+    if [ $result -ne 0 ]; then
+        warning "umount -f $mountpoint failed, ERR $result  Collecting truss." 
+        cat ${TMP}/zfs_unmount_$$.txt
+        truss umount -f $mountpoint 2>&1 | ${TOOLS_ROOT}/3rdparty/moreutils-0.57/ts > ${TMP}/zfs_unmount_$$.txt
+        result=$?
+        cat ${TMP}/zfs_unmount_$$.txt
+        warning "Truss output of umount -f $unmount_zfs_folder Result: $result" ${TMP}/zfs_unmount_$$.txt
+    fi
     
 fi
 
