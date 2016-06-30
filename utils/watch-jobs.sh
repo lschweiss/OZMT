@@ -109,7 +109,6 @@ while [ 1 ]; do
                     suspended=
                     last_run=
                     job_status=
-                    queued_jobs=
                     last_complete=
                     active=
                     job_definition="${replication_def_dir}/${folder_def}/${target_def}"
@@ -159,7 +158,6 @@ while [ 1 ]; do
                     
                     echo -n ", SENDING                                                 "
                     echo -e -n "\033[55GSynced to: $last_complete \033[92G"
-                    echo -e -n "$(print_num 'Que: ' $queued_jobs 6) "
                     echo -e -n "$(print_num 'Pend: ' $pending_jobs 5) "
                     echo -e -n "$(print_num 'Run: ' $running_jobs 2) "
                     echo -e -n "$(print_num 'Fail: ' $failed_jobs 1) "
