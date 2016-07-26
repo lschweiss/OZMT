@@ -79,12 +79,37 @@ check_key () {
 ####
 
 tobytes () {
-    ${AWK} '{ ex = index("KMG", substr($1, length($1)))
-           val = substr($1, 0, length($1))
-           prod = val * 10^(ex * 3)
-           sum += prod
-         }
-         END {print sum}'
+    local size="$1"
+    local bytes=
+    local mathline=
+    
+    case $size in 
+        *T*) # Terabytes notation
+            mathline=`echo $size | \
+                        ${SED} 's/TiB/*(1024^4)/' | \
+                        ${SED} 's/TB/*(1000^4)/' | \
+                        ${SED} 's/T/*(1024^4)/'`
+            bytes=`echo "${mathline}" | $BC`
+            ;;
+        *G*) # Gigabyte notation
+            mathline=`echo $size | \
+                        ${SED} 's/GiB/*(1024^3)/' | \
+                        ${SED} 's/GB/*(1000^3)/' | \
+                        ${SED} 's/G/*(1024^3)/'`
+            bytes=`echo "${mathline}" | $BC`
+            ;;
+        *M*) # Megabyte notation
+            mathline=`echo $size | \
+                        ${SED} 's/MiB/*(1024^3)/' | \
+                        ${SED} 's/MB/*(1000^3)/' | \
+                        ${SED} 's/M/*(1024^3)/'`
+            bytes=`echo "${mathline}" | $BC`
+            ;;
+    esac
+
+    echo $bytes
+
+    
 }
 
 bytestohuman () {

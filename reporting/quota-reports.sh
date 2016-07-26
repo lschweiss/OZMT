@@ -83,6 +83,7 @@ quota_report () {
 
     local job=`foldertojob $folder`
     local pool=`echo $folder | ${AWK} -F "/" '{print $1}'`
+    local pool_free=
     
     local quota_reports=0
     local referenced=
@@ -101,9 +102,13 @@ quota_report () {
     local alert_type=
     local trigger_percent=
     local trigger_bytes=
-    local trigger_t=
-    local trigger_g=
     local triggered=0
+    local trigger_type=
+    local auto_expand=
+    local auto_expand_ref=
+    local expand_bytes=
+    local required_free=
+    local new_quota=
     local quota_trigger=
     local refquota_trigger=
     local size_trigger=
@@ -148,17 +153,17 @@ quota_report () {
     if [[ $quota_reports -eq 0 && ${quota_report[0]} == "" ]]; then
         warning "Quota report job defined for $quota_path, but no reports are defined."
     else
-        referenced=`zfs list -Hp -o referenced $quota_path`
-        refquota=`zfs list -Hp -o refquota $quota_path`
-        logicalused=`zfs list -Hp -o logicalused $quota_path`
-        logicalreferenced=`zfs list -Hp -o logicalreferenced $quota_path`
-        quota=`zfs list -Hp -o quota $quota_path`
-        available=`zfs list -Hp -o available $quota_path`
-        used=`zfs list -Hp -o used $quota_path`
-        used_ds=`zfs list -Hp -o usedbydataset $quota_path`
-        used_snap=`zfs list -Hp -o usedbysnapshots $quota_path`
-        compression=`zfs list -Hp -o compression $quota_path`
-        compressratio=`zfs list -Hp -o compressratio $quota_path`
+        referenced=`zfs get -o value -H -p referenced $quota_path`
+        refquota=`zfs get -o value -H -p refquota $quota_path`
+        logicalused=`zfs get -o value -H -p logicalused $quota_path`
+        logicalreferenced=`zfs get -o value -H -p logicalreferenced $quota_path`
+        quota=`zfs get -o value -H -p quota $quota_path`
+        available=`zfs get -o value -H -p available $quota_path`
+        used=`zfs get -o value -H -p used $quota_path`
+        used_ds=`zfs get -o value -H -p usedbydataset $quota_path`
+        used_snap=`zfs get -o value -H -p usedbysnapshots $quota_path`
+        compression=`zfs get -o value -H -p compression $quota_path`
+        compressratio=`zfs get -o value -H -p compressratio $quota_path`
         report=0
         debug "Checking $quota_path"
         debug "Referenced:          $referenced"
@@ -174,6 +179,7 @@ quota_report () {
         debug "Available:           $available"
         
         while [ $report -le $quota_reports ]; do
+            trigger_type=
             if [ "${quota_report[$report]}" != "" ]; then
                 triggered=0
                 free_trigger=`echo ${quota_report[$report]} | ${AWK} -F '|' '{print $1}'`
@@ -218,6 +224,7 @@ quota_report () {
                             debug "\"scale=2;100-(${referenced}*100/${refquota})\" | $BC | ${SED} 's/^\./0./'"
                             if [ $(echo "$ref_free <= $trigger_percent" | $BC) -eq 1 ]; then 
                                 triggered=1
+                                trigger_type="ref"
                                 refquota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $refquota 2) reference quota<br>"
                             fi
                         fi
@@ -226,34 +233,87 @@ quota_report () {
                             percent_free=`echo "scale=2;100-(${used}*100/${quota})" | $BC | ${SED} 's/^\./0./'`
                             if [ $(echo "$percent_free <= $trigger_percent" | $BC) -eq 1 ]; then
                                 triggered=1
+                                trigger_type="ref"
                                 quota_trigger="The zfs folder $quota_path has less than $free_trigger free of $(bytestohuman $quota 2) quota<br>"
                             fi
                         fi
                         ;;
-                    *T*) # Trigger on terabytes free
-                        mathline=`echo $free_trigger | ${SED} 's/TiB/*(1024^4)/' | ${SED} 's/TB/*(1000^4)/' | ${SED} 's/T/*(1024^4)/'`
-                        trigger_t=`echo $free_trigger | ${AWK} -F 'T' '{print $1}'`
-                        trigger_bytes=`echo "${mathline}" | $BC`
+                    *T* | *G* ) # Trigger on free space
+                        trigger_bytes=`tobytes $free_trigger`
                         if [ $available -le $trigger_bytes ]; then
                             triggered=1
+                            trigger_type="raw"
                             size_trigger="The zfs folder $quota_path has $(bytestohuman $available 2) free.  Triggered at $(bytestohuman $trigger_bytes 2) free<br>"
                         fi
                         ;;
-                    *G*) # Trigger on gigabytes free
-                        mathline=`echo $free_trigger | ${SED} 's/GiB/*(1024^3)/' | ${SED} 's/GB/*(1000^3)/' | ${SED} 's/G/*(1024^3)/'`
-                        trigger_g=`echo $free_trigger | ${AWK} -F 'G' '{print $1}'`
-                        trigger_bytes=`echo "${mathline}" | $BC`  
-                        if [ $available -le $trigger_bytes ]; then
-                            triggered=1
-                            size_trigger="The zfs folder $quota_path has $(bytestohuman $available 2) free.  Triggered at $(bytestohuman $trigger_bytes 2) free<br>"
-                        fi
-                        ;; 
                 esac
+
                 if [ $triggered -eq 1 ]; then
-                    subject="$default_quota_report_title Quota ${alert_type^^}  for $quota_path"
+                    debug "TRIGGERED"
+                    ##
+                    # Auto increase quota
+                    ##
+
+                    auto_expand=`zfs get -H -o value -s local,received ${zfs_quota_report_property}:autoexpand $quota_path`
+                    auto_expand_ref=`zfs get -H -o value -s local,received ${zfs_quota_report_property}:autoexpand:ref $quota_path`
+                    
+                    if [[ "$auto_expand" != "" || "$auto_expand_ref" != "" ]]; then
+                        debug "Expanding quota"
+                        pool_free=`zfs get -H -p -o value available $pool`
+                        required_free=`tobytes $QUOTA_AUTO_EXPAND_REQUIRED_FREE`
+                        
+                        if [ $pool_free -lt $required_free ]; then
+                            warning "Cannot auto expand due to insufficent pool space."
+                            size_trigger="${size_trigger}Cannot auto expand due to insufficent pool space.<br>"
+                        else
+                            if [[ "$auto_expand" != "" && $trigger_type == 'raw' ]]; then
+                                expand_bytes="$(tobytes $auto_expand)"
+                                re='^[0-9]+$'
+                                if ! [[ $expand_bytes =~ $re ]]; then
+                                    error "${zfs_quota_report_property}:autoexpand=$auto_expand on $quota_path is invalid"
+                                else
+                                    new_quota=$(( $quota + $expand_bytes ))
+                                    zfs set quota=$new_quota $quota_path 2> ${TMP}/zfs_quota_expand_error_$$.txt 
+                                    if [ $? -ne 0 ]; then
+                                        error "Failed to expand quota to $(bytestohuman $new_quota) on $quota_path." \
+                                            ${TMP}/zfs_quota_expand_error_$$.txt
+                                    else
+                                        notice "Expanded quota on $quota_path to $(bytestohuman $new_quota)"
+                                        size_trigger="${size_trigger}Automatically expanding quota by ${auto_expand}<br>New quota is set to $(bytestohuman $new_quota)<br>"
+                                    fi                            
+                                    rm -f ${TMP}/zfs_quota_expand_error_$$.txt
+                                fi
+                            fi
+                        
+                            if [[ "$auto_expand_ref" != "" && $trigger_type == 'ref' ]]; then
+                                expand_bytes="$(tobytes $auto_expand_ref)"
+                                re='^[0-9]+$'
+                                if ! [[ $expand_bytes =~ $re ]]; then
+                                    error "${zfs_quota_report_property}:autoexpand=$auto_expand on $quota_path is invalid"
+                                else
+                                    new_quota=$(( $quota + $expand_bytes ))
+                                    zfs set refquota=$new_quota $quota_path 2> ${TMP}/zfs_quota_expand_error_$$.txt
+                                    if [ $? -ne 0 ]; then 
+                                        error "Failed to expand refquota to $(bytestohuman $new_quota) on $quota_path." \
+                                            ${TMP}/zfs_quota_expand_error_$$.txt
+                                    else
+                                        notice "Expanded quota on $quota_path to $(bytestohuman $new_quota)"
+                                        size_trigger="${size_trigger}Automatically expanding refquota by ${auto_expand_ref}<br>New quota is set to $(bytestohuman $new_quota)<br>"
+                                    fi
+                                    rm -f ${TMP}/zfs_quota_expand_error_$$.txt
+                                fi
+                            fi
+
+                        fi # if $pool_free
+                    fi # if $auto_expand
+
+                    ##
                     # Build the email report
+                    ##
+
+                    subject="$default_quota_report_title Quota ${alert_type^^}  for $quota_path"
                     if [ -f "$QUOTA_REPORT_TEMPLATE" ]; then
-                        if [ "${QUOTA_REPORT_TEMPLATE: -4}" == "html" ]; then
+                        if [ "${QUOTA_REPORT_TEMPLATE:(-4)}" == "html" ]; then
                             emailfile="${emailfile}.html"
                         fi
                         cat $QUOTA_REPORT_TEMPLATE | \
@@ -278,8 +338,11 @@ quota_report () {
                         error "Quote report template file not found: $QUOTA_REPORT_TEMPLATE"
                         exit 1
                     fi
-            
-                    # Send to each destination
+
+
+                    ##
+                    # Send report to each destination
+                    ##
     
                     if [ "$ALL_QUOTA_REPORTS" != "" ]; then
                         email_bcc="-b \"$ALL_QUOTA_REPORTS\""
