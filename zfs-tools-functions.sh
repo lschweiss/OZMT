@@ -80,7 +80,7 @@ check_key () {
 
 tobytes () {
     local size="$1"
-    local bytes=
+    local bytes="$1" # Return the input if we don't have anything to do
     local mathline=
     
     case $size in 
