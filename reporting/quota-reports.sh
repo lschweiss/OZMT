@@ -311,7 +311,7 @@ quota_report () {
                     # Build the email report
                     ##
 
-                    subject="$default_quota_report_title Quota ${alert_type^^}  for $quota_path"
+                    subject="$default_quota_report_title Quota ${alert_type^^}  for ${quota_path}, $(bytestohuman $available 2) free"
                     if [ -f "$QUOTA_REPORT_TEMPLATE" ]; then
                         if [ "${QUOTA_REPORT_TEMPLATE:(-4)}" == "html" ]; then
                             emailfile="${emailfile}.html"
