@@ -147,7 +147,13 @@ if [ "$ignore_folder_list" != "" ]; then
 fi
 
 # Where are the targets?
-ds_targets=`cat /$pool/zfs_tools/var/replication/targets/${dataset}`
+
+if [ ! -f /$pool/zfs_tools/var/replication/targets/${dataset} ]; then
+    error "Missing /$pool/zfs_tools/var/replication/targets/${dataset} cannot reset replication with out it."
+    exit 1
+else
+    ds_targets=`cat /$pool/zfs_tools/var/replication/targets/${dataset}`
+fi
 
 # Find and read the definition(s).
 
