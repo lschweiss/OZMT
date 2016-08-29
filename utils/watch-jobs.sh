@@ -95,6 +95,8 @@ while [ "$quit" != 'true' ]; do
         if [ -d "$replication_def_dir" ]; then 
             if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
                 echo " SUSPENDED for all jobs"               
+            else
+                echo "                       "
             fi
             echo "                                                                                                 "
             folder_defs=`ls -1 "$replication_def_dir"|sort`
