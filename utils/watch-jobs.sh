@@ -47,9 +47,7 @@ trap end_watch SIGHUP SIGINT SIGTERM
 
 end_watch () {
 
-    clear
-    exit
-
+    quit='true'
 }
 
 pools="$(pools)"
@@ -84,21 +82,21 @@ print_num () {
 
 }
 
-while [ 1 ]; do 
+while [ "$quit" != 'true' ]; do 
     echo -n "\033[0;0f"
 
     for pool in $pools; do
-        echo "Pool ${pool}, jobs:                   "
-        echo
+        echo "                                                                                                 "
+        echo -n "Pool ${pool}, jobs: "
 
         # Collect defined jobs
         replication_job_dir="/${pool}/zfs_tools/var/replication/jobs"
         replication_def_dir="${replication_job_dir}/definitions"
         if [ -d "$replication_def_dir" ]; then 
             if [ -f "$replication_job_dir/suspend_all_jobs" ]; then
-                echo "Pool $pool replication is SUSPENDED for all jobs"
-                continue
+                echo " SUSPENDED for all jobs"               
             fi
+            echo "                                                                                                 "
             folder_defs=`ls -1 "$replication_def_dir"|sort`
             for folder_def in $folder_defs; do
 
@@ -178,17 +176,4 @@ while [ 1 ]; do
 done # while [ 1 ]
 
 
-    find . -type f 2>/dev/null | \
-    grep -v complete | \
-    grep -v definitions | \
-    sort | \
-    sed 's/$/                                                                    /' | \
-    grep -E --color '\.lock|$'
-
-    fgrep 'complete' status/* 2>/dev/null | \
-    sed 's/$/                                              /'
-    echo "                                                                           "
-    
-    sleep 0.1
-done
 
