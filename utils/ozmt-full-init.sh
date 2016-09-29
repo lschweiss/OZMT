@@ -299,6 +299,10 @@ if [ "$QUOTA_AUTO_EXPAND_REQUIRED_FREE" == "" ]; then
     QUOTA_AUTO_EXPAND_REQUIRED_FREE="2T"
 fi
 
+if [ "$QUOTA_ALERT_TYPES" == "" ]; then
+    QUOTA_ALERT_TYPES="warning critical"
+fi
+
 if [ "$DEBUG_EMAIL_LIMIT" == "" ]; then
     DEBUG_EMAIL_LIMIT="0" # Unlimited
 fi
