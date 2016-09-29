@@ -46,7 +46,7 @@ clear;
 trap end_watch SIGHUP SIGINT SIGTERM
 
 end_watch () {
-
+    
     quit='true'
 }
 
@@ -84,6 +84,8 @@ print_num () {
 
 while [ "$quit" != 'true' ]; do 
     echo -n "\033[0;0f"
+
+    echo -e "\e[?25l"
 
     for pool in $pools; do
         echo "                                                                                                 "
@@ -177,5 +179,4 @@ while [ "$quit" != 'true' ]; do
 
 done # while [ 1 ]
 
-
-
+echo -e "\e[?25h"
