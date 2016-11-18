@@ -442,6 +442,7 @@ process_vip () {
     debug "Processing: $vip_object"
 
     if [ -f "$vip_object" ]; then 
+        debug "This is a file defined VIP"
         # This is an active vIP file, check if its dataset is still on this host.
         vip=`cat $vip_object`
         # Break down the vIP definition
@@ -473,6 +474,7 @@ process_vip () {
 
     zfs get name $vip_object 1>/dev/null 2>/dev/null
     if [ $? -eq 0 ]; then
+        debug "This is a zfs folder/dataset defined VIP"
         # This is a zfs folder on this host, collect its vIPs and active if necessary.
         dataset_name=`zfs get -H -o value $zfs_dataset_property $vip_object`
         pool=`echo $vip_object | ${CUT} -d '/' -f 1`
