@@ -23,6 +23,6 @@
 
 30 11,23 * * * /opt/ozmt/utils/zfs-cache-refresh.sh 1>/dev/null
 
-0 0 * * *   /root/tools/reporting/send_report.sh
+0 0 * * *   /opt/ozmt/reporting/send_report.sh
 0,15,30,45 * * * *  /opt/ozmt/reporting/quota-reports.sh
 
