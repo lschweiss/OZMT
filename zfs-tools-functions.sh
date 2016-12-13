@@ -590,7 +590,7 @@ vip_folders () {
         return 1
     fi
 
-    folders=`zfs_cache list -o name,${zfs_dataset_property},${zfs_vip_property} -r -H $pool 3>/dev/null | ${GREP} -v -P '\t-' | ${CUT} -f 1`
+    folders=`zfs_cache list -o name,${zfs_vip_property} -r -H $pool 3>/dev/null | ${GREP} -v -P '\t-' | ${CUT} -f 1`
 
     for folder in $folders; do
         if [ "$(zfs get -s local,received -o name -H ${zfs_vip_property} ${folder})" == "$folder" ]; then
