@@ -87,9 +87,11 @@ for pool in $pools; do
                     replication_folder="${replication_pool_folder#*/}"
                 fi
                 # Get the known source
-                replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
-                if [ "$replication_source" == "${pool}:${replication_folder}" ]; then
-                    clean_this_folder='true'
+                if [ -f "/${pool}/zfs_tools/var/replication/source/${replication_dataset}" ]; then
+                    replication_source=`cat /${pool}/zfs_tools/var/replication/source/${replication_dataset}`
+                    if [ "$replication_source" == "${pool}:${replication_folder}" ]; then
+                        clean_this_folder='true'
+                    fi
                 fi
             else
                 #debug "Replication: off"
