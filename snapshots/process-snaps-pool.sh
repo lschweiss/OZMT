@@ -53,11 +53,11 @@ mkdir -p ${TMP}/snapshots
 
 command_max=$(( $(getconf ARG_MAX) - 1024 ))
 
-debug "Pool: $pool"
-
 rm -f ${TMP}/snapshots/${snaptype}_${pool}.* 2>/dev/null
 
 folders=`zfs_cache get -H -o name -s local,received -r ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
+
+debug "Pool: $pool Folders: $folders"
 
 # sort folders
 for folder in $folders; do
@@ -68,6 +68,9 @@ for folder in $folders; do
     if [ "$replication" == "on" ]; then
         #debug "Replication: on"
         replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${folder} 3>/dev/null`
+        if [ "replication_dataset" == '-' ]; then
+            replication_dataset=`zfs_cache get -H -o value $zfs_dataset_property ${folder} 3>/dev/null`
+        fi
         replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${folder} 3>/dev/null`
         # This could be a child folder, handle appropriately
         if [[ "$replication_folder_point" == "local" || "$replication_folder_point" == "received" ]]; then
