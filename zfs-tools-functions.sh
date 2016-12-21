@@ -873,7 +873,7 @@ wait_for_lock() {
                 debug "Another process got the lock first.  Still waiting."
             fi
         else
-            lockpid=`cat "$lockfile"`
+            lockpid=`cat "$lockfile" 2>/dev/null`
             # check if it is running
             # TODO: Make this work on things beside Illumos
             if [ -e /proc/$lockpid ]; then
