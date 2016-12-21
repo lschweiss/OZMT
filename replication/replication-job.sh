@@ -167,10 +167,17 @@ fi
 
 endpoint_count=`zfs_cache get -H -o value ${zfs_replication_endpoints_property} ${pool}/${folder} 3>/dev/null`
 
-if [ $endpoint_count -eq 2 ]; then
-    delete_snaps='-d'
-else
+re='^[0-9]+$'
+
+if ! [[ "$endpoint_count" =~ $re ]]; then
+    error "${zfs_replication_endpoints_property} not set on ${pool}/${folder} - $endpoint_count"
     delete_snaps=''
+else
+    if [ $endpoint_count -eq 2 ]; then
+        delete_snaps='-d'
+    else
+        delete_snaps=''
+    fi
 fi
 
 migrating='false'

@@ -415,21 +415,23 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                         ${GREP} -v -x -f $replicated_props $local_prop_file > $new_props
                     fi 
                     
-                    lines=`cat $new_props | ${WC} -l`
-                    x=0
-                    while [ $x -lt $lines ]; do
-                        x=$(( x + 1 ))
-                        line=`cat $new_props | head -n $x | tail -1`
-                        prop_folder=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 1`
-                        property=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 2`
+                    if [ -f $new_props ]; then
+                        lines=`cat $new_props | ${WC} -l`
+                        x=0
+                        while [ $x -lt $lines ]; do
+                            x=$(( x + 1 ))
+                            line=`cat $new_props | head -n $x | tail -1`
+                            prop_folder=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 1`
+                            property=`cat $new_props | head -n $x | tail -1 | ${CUT} -f 2`
 
-                        if [ "$prop_folder" != "" ]; then
-                            prop_folder="/${prop_folder}"
-                        fi
-                        notice "${dataset_name}: Updating $property on ${target_pool}/${target_folder}${prop_folder}"
-                        echo -e "zfs inherit -S $property ${target_pool}/${target_folder}${prop_folder}" >> $props_to_replicate
-                        echo "$line" >> $replicated_props
-                    done 
+                            if [ "$prop_folder" != "" ]; then
+                                prop_folder="/${prop_folder}"
+                            fi
+                            notice "${dataset_name}: Updating $property on ${target_pool}/${target_folder}${prop_folder}"
+                            echo -e "zfs inherit -S $property ${target_pool}/${target_folder}${prop_folder}" >> $props_to_replicate
+                            echo "$line" >> $replicated_props
+                        done 
+                    fi
                     unset IFS
                     rm -f $new_props
                     rm $local_prop_file
