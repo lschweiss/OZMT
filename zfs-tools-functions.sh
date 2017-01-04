@@ -1034,9 +1034,15 @@ zfs_cache () {
     if [ "$use_cache" == 'true' ]; then
         tail -n+2 $cache_file
     else
-        echo "zfs $*" > $cache_file
-        zfs $* | tee -a $cache_file
-        result=$?
+        if [ -f "${cache_path}.lock" ]; then
+            # Cache is being refeshed, don't risk colision.
+            zfs $*
+            result=$?
+        else
+            echo "zfs $*" > $cache_file
+            zfs $* | tee -a $cache_file
+            result=$?
+        fi
     fi
 
     # Allow capture of the cache file associated with this request
