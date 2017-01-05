@@ -23,9 +23,9 @@ stagingjobdir="$TOOLS_ROOT/backup/jobs/staging"
 ec2backupjobdir="$TOOLS_ROOT/backup/jobs/ec2"
 blindbackupjobdir="$TOOLS_ROOT/backup/jobs/blind"
 
-    #mkdir -p $snapjobdir
-    mkdir -p ${stagingjobdir}
-    mkdir -p ${ec2backupjobdir}
+    #MKDIR $snapjobdir
+    MKDIR ${stagingjobdir}
+    MKDIR ${ec2backupjobdir}
 
     
 show_usage() {
@@ -130,7 +130,7 @@ setupreplication () {
                 for rep_host in $rep_hosts; do
                     echo "Adding $vip mapping to $rep_host"
                     if islocal $rep_host; then
-                        mkdir -p ${mapdir}
+                        MKDIR ${mapdir}
                         echo "$host" >> ${mapdir}/${vip}
                     else
                         # echo "Connecting remotely to $rep_host"
@@ -327,8 +327,8 @@ setupzfs () {
         exit 1
     fi
 
-    mkdir -p $snapjobdir
-    mkdir -p $backupjobdir
+    MKDIR $snapjobdir
+    MKDIR $backupjobdir
 
     jobname=`echo "${pool}/${zfspath}" | ${SED} s,/,%,g`
     simple_jobname=`echo "${zfspath}" | ${SED} s,/,%,g`
@@ -345,7 +345,7 @@ setupzfs () {
         fi
         zfs set ${zfs_dataset_property}=${dataset_name} ${pool}/${zfspath}
         #zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
-        mkdir -p /${pool}/zfs_tools/var/replication/datasets
+        MKDIR /${pool}/zfs_tools/var/replication/datasets
         echo "${pool}/${zfspath}" > /${pool}/zfs_tools/var/replication/datasets/${dataset_name}
     fi
 
@@ -434,8 +434,8 @@ setupzfs () {
     glacierjobdir="/${pool}/zfs_tools/etc/backup/jobs/glacier"
     glacierjobstatus="/${pool}/zfs_tools/var/backup/jobs/glacier/status"
 
-    mkdir -p ${glacierjobdir}
-    mkdir -p ${glacierjobstatus}
+    MKDIR ${glacierjobdir}
+    MKDIR ${glacierjobstatus}
 
  
     if [ "x$glacier" != "x" ]; then
@@ -475,7 +475,7 @@ setupzfs () {
         fi
         blindjobname=`echo "${pool}/${zfspath}" | ${SED} s,/,%,g`
         echo "Setting blind backup to $target_folder"
-        mkdir -p "$blindbackupjobdir/$blindjobname"
+        MKDIR "$blindbackupjobdir/$blindjobname"
         echo "zfs_folder=\"${pool}/${zfspath}\"" > $blindbackupjobdir/$blindjobname/folders
         echo "target_folder=\"${target_folder}\"" >> $blindbackupjobdir/$blindjobname/folders
         if [ "x$snap_type" == "x" ]; then
@@ -495,7 +495,7 @@ setupzfs () {
     if [[ "$backup" == "zfs" || "$zfs_backup" == 'true' ]] ; then
         echo "Creating backup job:"
         echo "ZFS send to $backup_target"
-        mkdir -p "${backupjobdir}/zfs"
+        MKDIR "${backupjobdir}/zfs"
         # All variables prefixed by local because this will be sourced in a bash function
         echo "local backup_source=\"${pool}/${zfspath}\"" > "${backupjobdir}/zfs/${jobname}"
         echo "local backup_target=\"${backup_target}\"" >> "${backupjobdir}/zfs/${jobname}"
@@ -508,7 +508,7 @@ setupzfs () {
     if [[ "$QUOTA_REPORT" != "" || $quota_reports -ne 0 ]]; then
         echo "Creating quota reports:"
         # Depricated:
-            mkdir -p "${reportjobdir}/quota"
+            MKDIR "${reportjobdir}/quota"
             echo "local quota_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/quota/${jobname}"
         # New:
             zfs set ${zfs_quota_reports_property}=${quota_reports} ${pool}/${zfspath}
@@ -545,7 +545,7 @@ setupzfs () {
     if [[ "$TREND_REPORT" != "" || $trend_reports -ne 0 ]]; then
         echo "Creating trend reports:"
         # Depricated
-            mkdir -p "${reportjobdir}/trend"
+            MKDIR "${reportjobdir}/trend"
             echo "local trend_path=\"${pool}/${zfspath}\"" > "${reportjobdir}/trend/${jobname}"
         # New:
             zfs set ${zfs_trend_reports_property}=${trend_reports} ${pool}/${zfspath}
@@ -577,7 +577,7 @@ setupzfs () {
     # Prep the snapshot jobs folders
     for snaptype in $snaptypes; do
         if [ ! -d $snapjobdir/$snaptype ]; then
-            mkdir "$snapjobdir/$snaptype"
+            MKDIR "$snapjobdir/$snaptype"
         fi
         rm -f $snapjobdir/$snaptype/${jobname}
         if [ "$staging" != "" ]; then
@@ -647,7 +647,7 @@ setupzfs () {
         if [ -d ${mapdir}/${simple_jobname} ]; then
             rm -rf ${mapdir}/${simple_jobname}
         fi
-        mkdir -p ${mapdir}/${simple_jobname}
+        MKDIR ${mapdir}/${simple_jobname}
 
         for map in $target_maps; do
             IFS='|'
@@ -779,10 +779,10 @@ setupzfs () {
             warning "Replication is already defined on parent zfs dataset $replication_parent"
         fi         
 
-        mkdir -p /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,synced,complete,failed,suspended,status}
+        MKDIR /${pool}/zfs_tools/var/replication/jobs/{definitions,pending,running,synced,complete,failed,suspended,status}
         rm -rf "${replication_job_dir}/definitions/${simple_jobname}"
-        mkdir -p "${replication_job_dir}/definitions/${simple_jobname}"
-        mkdir -p /${pool}/zfs_tools/var/replication/{source,targets}
+        MKDIR "${replication_job_dir}/definitions/${simple_jobname}"
+        MKDIR /${pool}/zfs_tools/var/replication/{source,targets}
         if [ ! -f ${source_tracker} ]; then
             # TODO: validate the default_source_folder
             if [ "$default_source_folder" != "" ]; then
@@ -1077,7 +1077,7 @@ setupzfs () {
         done
     fi
 
-    mkdir -p /${pool}/zfs_tools/var/vip
+    MKDIR /${pool}/zfs_tools/var/vip
 
     if [ $vip -ne 0 ]; then
         if [ "$replication_targets" == "" ]; then
@@ -1117,14 +1117,14 @@ setupzfs () {
     # Setup CIFS
     ##
 
-    mkdir -p /${pool}/zfs_tools/{etc,var}/samba
+    MKDIR /${pool}/zfs_tools/{etc,var}/samba
     
     if [ "$cifs" == 'true' ]; then
         debug "cifs: true"
         clear_cache $pool
         if [ "$dataset_name" != '' ]; then
             server_name="${zfs_samba_server_prefix}${dataset_name}${zfs_samba_server_suffix}"
-            mkdir -p /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
+            MKDIR /${pool}/zfs_tools/{etc,var}/samba/${dataset_name}
             zfs set ${zfs_cifs_property}=${server_name} ${pool}/${zfspath}
             case $cifs_template in
                 *.conf|*.conf.template)

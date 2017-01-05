@@ -187,7 +187,7 @@ migrating='false'
 job_lock_dir="${TMP}/replication/job-locks/${pool}"
 job_lock="${job_lock_dir}/zfs_send_$(echo $jobname | ${CUT} -d ':' -f 1)"
 
-mkdir -p "$job_lock_dir"
+MKDIR "$job_lock_dir"
 if [ ! -f $job_lock ]; then
     touch "$job_lock"
     init_lock "$job_lock"
@@ -258,7 +258,7 @@ case $mode in
          die 1 ;;
 esac
 
-mkdir -p ${TMP}/replication
+MKDIR ${TMP}/replication
 
 # TODO: Remove '-d' and '-r' option from zfs-send.sh
 # To do this each folder must be sent independently requiring an increase in effiency in job startup overhead.

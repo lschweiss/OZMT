@@ -49,7 +49,7 @@ for pool in $pools; do
 
     # Collect snapshot data
     if [ ! -d /${pool}/zfs_tools/var/spool/snapshot/destroy_queue ]; then
-        mkdir -p /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
+        MKDIR /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
         init_lock /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
     fi
 
@@ -69,7 +69,7 @@ for pool in $pools; do
             snap_grep="^${folder}@${snaptype}_"
             folder_fixed="$(foldertojob $folder)"
             destroy_queue="/${pool}/zfs_tools/var/spool/snapshot/destroy_queue/$folder_fixed"
-            mkdir -p $destroy_queue
+            MKDIR $destroy_queue
 
             folder_props=`cat /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties | ${GREP} "^${folder}\s"`
             # Make sure we should clean this folder

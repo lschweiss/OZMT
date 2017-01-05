@@ -61,7 +61,7 @@ previous_snapshot=
 
 job_definition="${1}"
 
-mkdir -p ${TMP}/replication
+MKDIR ${TMP}/replication
 
 if [ -f "$job_definition" ]; then
     source "$job_definition"

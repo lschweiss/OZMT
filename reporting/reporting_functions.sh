@@ -121,7 +121,7 @@ process_message() {
         basename=`basename $0`
     fi
 
-    mkdir -p "${TMP}/reporting"
+    MKDIR "${TMP}/reporting"
 
     if [ "$DEBUG" == "true" ]; then
         noreport="$(color red)Not reporting: "
@@ -172,7 +172,7 @@ process_message() {
         report_name="$default_report_name"
     fi
             
-    mkdir -p "${report_spool}"
+    MKDIR "${report_spool}"
 
     if [ "x${this_report_level}" == "xnow" ]; then
         # Send the email report now
@@ -215,7 +215,7 @@ process_message() {
         if [ "$email_limit" != '0' ]; then
             this_hash=`echo "${this_subject}_${message}" | ${MD5SUM} | ${CUT} -f1 -d" "`
             hash_dir="${limit_dir}/email_${this_hash}"
-            mkdir -p "$hash_dir"
+            MKDIR "$hash_dir"
             for limit in $email_limit; do    
                 limit_type="${limit:0:1}"
                 limit_num="${limit:1}"
@@ -267,7 +267,7 @@ process_message() {
             mv "$TOOLS_ROOT/reporting/reports_pending/${report_name}" "${report_spool}/${report_name}"
         fi
 
-        mkdir -p "${report_spool}/${report_name}/attach"
+        MKDIR "${report_spool}/${report_name}/attach"
 
         # Raise the report level if necessary
         if [ -f "${report_spool}/${report_name}/report_level" ]; then
@@ -283,7 +283,7 @@ process_message() {
             if [ "$report_limit" != '0' ]; then
                 this_hash=`echo "${this_subject}_${message}" | ${MD5SUM} | ${CUT} -f1 -d" "`
                 hash_dir="${limit_dir}/report_${this_hash}"
-                mkdir -p "$hash_dir"
+                MKDIR "$hash_dir"
                 for limit in $report_limit; do
                     limit_type="${limit:0:1}"
                     limit_num="${limit:1}"
@@ -343,7 +343,7 @@ process_message() {
         esac
 
 
-        mkdir -p $(dirname $logfile)
+        MKDIR $(dirname $logfile)
         echo "${this_subject} - ${this_message}" >> "${logfile}.${this_month}"
 
         if [[ "$#" -eq "5" && -f "${this_include_file}" ]]; then

@@ -123,7 +123,7 @@ fi
 
 # Move reporting.muttrc to /etc/ozmt
 if [ -f $TOOLS_ROOT/reporting/reporting.muttrc ]; then
-    mkdir -p /etc/ozmt
+    MKDIR -p /etc/ozmt
     mv $TOOLS_ROOT/reporting/reporting.muttrc /etc/ozmt/reporting.muttrc
 fi
 

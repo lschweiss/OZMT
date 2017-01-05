@@ -52,7 +52,7 @@ debug "Pools: $pools"
 now=`${DATE} +%F_%H:%M%z`
 stamp="${snaptype}_${now}"
 
-mkdir -p ${TMP}/snapshots
+MKDIR ${TMP}/snapshots
 
 command_max=$(( $(getconf ARG_MAX) - 1024 ))
 

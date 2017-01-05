@@ -300,7 +300,7 @@ done
 
 schedule_lock_dir="${TMP}/replication/scheduling/${source_pool}"
 schedule_lock="${schedule_lock_dir}/scheduling"
-mkdir -p "${schedule_lock_dir}"
+MKDIR "${schedule_lock_dir}"
 if [ ! -f "${schedule_lock}" ]; then
     touch "${schedule_lock}"
     init_lock "${schedule_lock}"
@@ -317,7 +317,7 @@ scheduling_locked='true'
 
 job_runner_lock_dir="${TMP}/replication/job-runner"
 job_runner_lock="${job_runner_lock_dir}/job-runner"
-mkdir -p ${job_runner_lock_dir}/${source_pool}
+MKDIR ${job_runner_lock_dir}/${source_pool}
 runner_lock="${job_runner_lock_dir}/${pool}/runner"
 # Lock on running
 if [ ! -f "${runner_lock}" ]; then

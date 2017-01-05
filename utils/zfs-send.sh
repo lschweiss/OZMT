@@ -333,7 +333,7 @@ if [ -d $tmpdir ]; then
     warning "${jobname}: Temp directory $tmpdir already exists. Removing."
     rm -rf $tmpdir
 fi
-mkdir -p $tmpdir
+MKDIR $tmpdir
 
 ######
 ######
@@ -1102,7 +1102,7 @@ if [[ "$success" == 'true' && "$push_prop" == 'true' ]]; then
 
     if [[ "$push_prop_later" == 'true' && "$job_name" != '' ]]; then
         if [ ! -f $post_sync_file ]; then
-            mkdir -p ${TMP}/replication/zfs_properties/${job_name}
+            MKDIR ${TMP}/replication/zfs_properties/${job_name}
             touch $post_sync_file
             init_lock $post_sync_file
         fi

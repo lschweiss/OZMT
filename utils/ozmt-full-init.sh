@@ -285,7 +285,6 @@ fi
 if [ "$log_dir" == "" ]; then
     log_dir="/var/zfs_tools/log"
 fi
-mkdir -p $log_dir
 
 if [ "$minimum_report_frequency" == "" ]; then
     minmum_report_frequency=1800
@@ -505,6 +504,24 @@ if [ -z $tools_snapshot_name ]; then
     tools_snapshot_name="aws-backup_"
 fi
 
+##
+# Handle running as non-root user and ozmt group
+##
+
+if [ $UID -ne 0 ]; then
+    groups | grep -q 'ozmt'
+    if [ $? -ne 0 ]; then
+        echo "Running OZMT as a non-root user.  This user must be a member of the ozmt group."
+        echo "Please add $USER to the OZMT group"
+    fi
+else
+    cat /etc/group | grep -q 'ozmt'
+    if [ $? -ne 0 ]; then
+        echo "Creating ozmt group, gid 69999"
+        groupadd -g 69999 ozmt
+    fi
+fi
+
 
 ##
 # 
@@ -513,6 +530,9 @@ fi
 ##
 
 source $TOOLS_ROOT/zfs-tools-functions.sh
+
+
+MKDIR $log_dir
 
 
 # Skip pools default requires rpool function, sourced above
@@ -581,7 +601,7 @@ if [ "x$TMP" == "x" ]; then
     TMP="/tmp"
 fi
 
-mkdir -p ${TMP}
+MKDIR ${TMP}
 
 if [ -t 1 ]; then 
     if [ "$OZMTpath" != "" ]; then

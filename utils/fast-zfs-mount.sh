@@ -48,7 +48,7 @@ else
     VERBOSE=''
 fi
 
-mkdir -p ${TMP}/parallel
+MKDIR ${TMP}/parallel
 if [ "$HOME" == "" ];then
     export HOME="${TMP}/parallel"
 fi

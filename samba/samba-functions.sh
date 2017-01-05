@@ -33,7 +33,7 @@ samba_populate_datasets () {
     local dataset=
     local cifs_property=
 
-    mkdir -p ${TMP}/samba
+    MKDIR ${TMP}/samba
 
     if [ ! -f ${smb_datasets_lock} ]; then
         touch ${smb_datasets_lock}
@@ -151,13 +151,13 @@ build_smb_conf () {
 
 #    if [ -d /${pool}/zfs_tools/etc/samba/${dataset_name} ]; then
 #        # Move the samba etc and var dirs into the dataset.
-#        mkdir -p ${dataset_mountpoint}/samba
+#        MKDIR ${dataset_mountpoint}/samba
 #        chmod 770 ${dataset_mountpoint}/samba
 #        mv /${pool}/zfs_tools/etc/samba/${dataset_name} ${dataset_mountpoint}/samba/etc
 #        mv /${pool}/zfs_tools/var/samba/${dataset_name} ${dataset_mountpoint}/samba/var
 #    fi
 
-    mkdir -p $smb_conf_dir
+    MKDIR $smb_conf_dir
     
 
     # Build the smb_{dataset_name}.conf
@@ -379,7 +379,7 @@ build_smb_conf () {
     echo "pid directory = /var/zfs_tools/samba/${dataset_name}/run" >> $server_conf
     echo "lock directory = ${dataset_mountpoint}/samba/var" >> $server_conf
 
-    mkdir -p "${dataset_mountpoint}/samba/var/run"
+    MKDIR "${dataset_mountpoint}/samba/var/run"
 
     # Collect vIPs
     vip_count=`zfs_cache get -H -o value $zfs_vip_property ${zfs_folder} 3>/dev/null`
