@@ -167,18 +167,18 @@ last_run=`${DATE} +"%F %H:%M:%S%z"`
 quota_folders=`zfs list -o name -H -p -r ${pool}/${folder}`
 
 for quota_folder in $quota_folders; do
-    quota=`zfs get -o value -H -p quota $quota_folder`
+    quota=`zfs get -o value -H -p quota $quota_folder 2>/dev/null`
     current=`zfs get -o value -H -p -s local ${zfs_quota_property} $quota_folder 2>/dev/null`
     if [ "$current" != "$quota" ]; then
-        zfs set ${zfs_quota_property}="$quota" $quota_folder
+        zfs set ${zfs_quota_property}="$quota" $quota_folder 2>/dev/null
     fi
 done
 
 for refquota_folder in $quota_folders; do
-    refquota=`zfs get -o value -H -p refquota $refquota_folder`
+    refquota=`zfs get -o value -H -p refquota $refquota_folder 2>/dev/null`
     current=`zfs get -o value -H -p -s local ${zfs_refquota_property} $refquota_folder 2>/dev/null`
     if [ "$current" != "$refquota" ]; then
-        zfs set ${zfs_refquota_property}="$refquota" $refquota_folder
+        zfs set ${zfs_refquota_property}="$refquota" $refquota_folder 2>/dev/null
     fi
 done
 
