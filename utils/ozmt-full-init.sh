@@ -115,352 +115,182 @@ gnu_source () {
     return 1           
 }
 
-
 # Load paths if not defined in configs
-if [ -z $LS ]; then
-    LS=`gnu_source ls`
-fi
+[ -z "$LS" ] && LS=`gnu_source ls`
 
-if [ -z $GREP ]; then
-    GREP=`gnu_source grep`
-fi
+[ -z "$GREP" ] && GREP=`gnu_source grep`
 
-if [ -z $HEAD ]; then
-    HEAD=`gnu_source head`
-fi
+[ -z "$HEAD" ] && HEAD=`gnu_source head`
 
-if [ -z $TAIL ]; then
-    TAIL=`gnu_source tail`
-fi
+[ -z "$TAIL" ] && TAIL=`gnu_source tail`
 
-if [ -z $TAC ]; then
-    TAC=`gnu_source tac`
-fi
+[ -z "$TAC" ] && TAC=`gnu_source tac`
 
-if [ -z $FIND ]; then
-    FIND=`gnu_source find`
-fi
+[ -z "$FIND" ] && FIND=`gnu_source find`
 
-if [ -z $SED ]; then
-    SED=`gnu_source sed`
-fi
+[ -z "$SED" ] && SED=`gnu_source sed`
 
-if [ -z $AWK ]; then
-    AWK=`gnu_source awk`
-fi
+[ -z "$AWK" ] && AWK=`gnu_source awk`
 
-if [ -z $CUT ]; then
-    CUT=`gnu_source cut`
-fi
+[ -z "$CUT" ] && CUT=`gnu_source cut`
 
-if [ -z $SORT ]; then
-    SORT=`gnu_source sort`
-fi
+[ -z "$SORT" ] && SORT=`gnu_source sort`
 
-if [ -z $WC ]; then
-    WC=`gnu_source wc`
-fi
+[ -z "$WC" ] && WC=`gnu_source wc`
 
-if [ -z $TAC ]; then
-    TAC=`gnu_source tac`
-fi
+[ -z "$TAC" ] && TAC=`gnu_source tac`
 
-if [ -z $NL ]; then
-    NL=`gnu_source nl`
-fi
+[ -z "$NL" ] && NL=`gnu_source nl`
 
-if [ -z $STAT ]; then
-    STAT=`gnu_source stat`
-fi
+[ -z "$STAT" ] && STAT=`gnu_source stat`
 
-if [ -z $MUTT ]; then
-    MUTT=`gnu_source mutt`
-fi
+[ -z "$MUTT" ] && MUTT=`gnu_source mutt`
 
-if [ -z $DATE ]; then
-    DATE=`gnu_source date`
-fi
+[ -z "$DATE" ] && DATE=`gnu_source date`
 
-if [ -z $RSYNC ]; then
-    RSYNC=`gnu_source rsync`
-fi
+[ -z "$RSYNC" ] && RSYNC=`gnu_source rsync`
 
-if [ -z $SSH ]; then
-    SSH=`gnu_source ssh`
-fi
+[ -z "$SSH" ] && SSH=`gnu_source ssh`
 
-if [ -z $TIMEOUT ]; then
-    TIMEOUT=`gnu_source timeout`
-fi
+[ -z "$TIMEOUT" ] &&TIMEOUT=`gnu_source timeout`
 
-if [ -z $MD5SUM ]; then
-    MD5SUM=`gnu_source md5sum`
-fi
+[ -z "$MD5SUM" ] && MD5SUM=`gnu_source md5sum`
 
-if [ -z $BC ]; then
-    BC=`gnu_source bc`
-fi
+[ -z "$BC" ] && BC=`gnu_source bc`
 
-if [ -z $BASENAME ]; then
-    BASENAME=`gnu_source basename`
-fi
+[ -z "$BASENAME" ] && BASENAME=`gnu_source basename`
 
-if [ -z $PARALLEL ]; then
-    PARALLEL=`gnu_source parallel`
-fi
+[ -z "$PARALLEL" ] && PARALLEL=`gnu_source parallel`
 
-if [ -z $ARPING ]; then
-    ARPING=`gnu_source arping`
-fi
+[ -z "$ARPING" ] && ARPING=`gnu_source arping`
 
-if [ -z $DIALOG ]; then
-    DIALOG=`gnu_source dialog`
-fi
+[ -z "$DIALOG" ] && DIALOG=`gnu_source dialog`
 
-if [ -z $bbcp ]; then
-    bbcp=`gnu_source bbcp`
-fi
+[ -z "$bbcp" ] && bbcp=`gnu_source bbcp`
 
-if [ -z $BBCP ]; then
-    BBCP=`gnu_source bbcp`
-fi
+[ -z "$BBCP" ] && BBCP=`gnu_source bbcp`
 
-if [ -z $mbuffer ]; then
-    mbuffer=`gnu_source mbuffer` 
-fi
+[ -z "$mbuffer" ] && mbuffer=`gnu_source mbuffer` 
 
-if [ -z $MBUFFER ]; then
-    MBUFFER=`gnu_source mbuffer`
-fi
+[ -z "$MBUFFER" ] && MBUFFER=`gnu_source mbuffer`
 
-if [ -z $LSOF ]; then
-    LSOF=`gnu_source lsof`
-fi
+[ -z "$LSOF" ] && LSOF=`gnu_source lsof`
 
-if [ -z $lz4 ]; then
-    lz4=`gnu_source lz4`
-fi
+[ -z "$GROUPADD" ] && GROUPADD=`gnu_source groupadd`
 
-if [ -z $LZ4 ]; then
-    LZ4=`gnu_source lz4`
-fi
+[ -z "$lz4" ] && lz4=`gnu_source lz4`
 
-if [ -z $gzip ]; then
-    gzip=`gnu_source gzip`
-fi
+[ -z "$LZ4" ] && LZ4=`gnu_source lz4`
 
-if [ -z $GZIP ]; then
-    GZIP=`gnu_source gzip`
-fi
+[ -z "$gzip" ] && gzip=`gnu_source gzip`
 
-if [ -z $TAR ]; then
-    TAR=`gnu_source tar`
-fi
+[ -z "$GZIP" ] && GZIP=`gnu_source gzip`
 
-if [ -z $SMBD ]; then
-    SMBD="/usr/local/samba/sbin/smbd"
-fi
+[ -z "$TAR" ] && TAR=`gnu_source tar`
 
-if [ -z $NMBD ]; then
-    NMBD="/usr/local/samba/sbin/nmbd"
-fi
+[ -z "$SMBD" ] && SMBD="/usr/local/samba/sbin/smbd"
 
-if [ -z $WINBINDD ]; then
-    WINBINDD="/usr/local/samba/sbin/winbindd"
-fi
+[ -z "$NMBD" ] && NMBD="/usr/local/samba/sbin/nmbd"
 
-if [ -z $SMBCONTROL ]; then
-    SMBCONTROL="/usr/local/samba/bin/smbcontrol"
-fi
+[ -z "$WINBINDD" ] && WINBINDD="/usr/local/samba/sbin/winbindd"
 
+[ -z "$SMBCONTROL" ] && SMBCONTROL="/usr/local/samba/bin/smbcontrol"
 
 
 
 # Set defaults
 
-if [ "$debug_level" == "" ]; then
-    debug_level=0
-fi
+[ -z "$debug_level" ] && debug_level=0
 
-if [ "$log_dir" == "" ]; then
-    log_dir="/var/zfs_tools/log"
-fi
+[ -z "$log_dir" ] && log_dir="/var/zfs_tools/log"
 
-if [ "$minimum_report_frequency" == "" ]; then
-    minmum_report_frequency=1800
-fi
+[ -z "$minimum_report_frequency" ] && minmum_report_frequency=1800
 
-if [ "$QUOTA_REPORT_TEMPLATE" == "" ]; then
-    QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
-fi
+[ -z "$QUOTA_REPORT_TEMPLATE" ] && QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
 
-if [ "$QUOTA_AUTO_EXPAND_REQUIRED_FREE" == "" ]; then
-    QUOTA_AUTO_EXPAND_REQUIRED_FREE="2T"
-fi
+[ -z "$QUOTA_AUTO_EXPAND_REQUIRED_FREE" ] && QUOTA_AUTO_EXPAND_REQUIRED_FREE="2T"
 
-if [ "$QUOTA_ALERT_TYPES" == "" ]; then
-    QUOTA_ALERT_TYPES="warning critical"
-fi
+[ -z "$QUOTA_ALERT_TYPES" ] && QUOTA_ALERT_TYPES="warning critical"
 
-if [ "$DEBUG_EMAIL_LIMIT" == "" ]; then
-    DEBUG_EMAIL_LIMIT="0" # Unlimited
-fi
+[ -z "$DEBUG_EMAIL_LIMIT" ] && DEBUG_EMAIL_LIMIT="0" # Unlimited
 
-if [ "$NOTICE_EMAIL_LIMIT" == "" ]; then
-    NOTICE_EMAIL_LIMIT="h3" # 3 identical per hour
-fi
+[ -z "$NOTICE_EMAIL_LIMIT" ] && NOTICE_EMAIL_LIMIT="h3" # 3 identical per hour
 
-if [ "$WARNING_EMAIL_LIMIT" == "" ]; then
-    WARNING_EMAIL_LIMIT="m5 h6" # 3 identical per hour
-fi
+[ -z "$WARNING_EMAIL_LIMIT" ] && WARNING_EMAIL_LIMIT="m5 h6" # 3 identical per hour
 
-if [ "$ERROR_EMAIL_LIMIT" == "" ]; then
-    ERROR_EMAIL_LIMIT="m2 h3 d6" # 2 identical per minuted, 3 per hour, 6 per day
-fi
+[ -z "$ERROR_EMAIL_LIMIT" ] && ERROR_EMAIL_LIMIT="m2 h3 d6" # 2 identical per minuted, 3 per hour, 6 per day
 
-if [ "$DEBUG_REPORT_LIMIT" == "" ]; then
-    DEBUG_REPORT_LIMIT="0" # Unlimited
-fi
+[ -z "$DEBUG_REPORT_LIMIT" ] && DEBUG_REPORT_LIMIT="0" # Unlimited
 
-if [ "$NOTICE_REPORT_LIMIT" == "" ]; then
-    NOTICE_REPORT_LIMIT="h20" # 20 identical per hour
-fi
+[ -z "$NOTICE_REPORT_LIMIT" ] && NOTICE_REPORT_LIMIT="h20" # 20 identical per hour
 
-if [ "$WARNING_REPORT_LIMIT" == "" ]; then
-    WARNING_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
-fi
+[ -z "$WARNING_REPORT_LIMIT" ] && WARNING_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
 
-if [ "$ERROR_REPORT_LIMIT" == "" ]; then
-    ERROR_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
-fi
+[ -z "$ERROR_REPORT_LIMIT" ] && ERROR_REPORT_LIMIT="m5 h10 d60" # 5 per minute, 10 per hour, 60 per day
 
-if [ "$samba_report" == "" ]; then
-    samba_report="Samba"
-fi
+[ -z "$samba_report" ] && samba_report="Samba"
 
-if [ "$samba_logfile" == "" ]; then
-    samba_logfile="${log_dir}/samba.log"
-fi
+[ -z "$samba_logfile" ] && samba_logfile="${log_dir}/samba.log"
 
-if [ "$zfs_property_tag" == '' ]; then
-    zfs_property_tag='edu.wustl.nrg'
-fi
+[ -z "$zfs_property_tag" ] && zfs_property_tag='edu.wustl.nrg'
 
-if [ "$zfs_dataset_property" == "" ]; then
-    zfs_dataset_property="${zfs_property_tag}:dataset"
-fi
+[ -z "$zfs_dataset_property" ] && zfs_dataset_property="${zfs_property_tag}:dataset"
 
-if [ "$zfs_replication_property" == "" ]; then
-    zfs_replication_property="${zfs_property_tag}:replication"
-fi
+[ -z "$zfs_replication_property" ] && zfs_replication_property="${zfs_property_tag}:replication"
 
-if [ "$zfs_replication_dataset_property" == "" ]; then
-    zfs_replication_dataset_property="${zfs_property_tag}:replicationdataset"
-fi
+[ -z "$zfs_replication_dataset_property" ] && zfs_replication_dataset_property="${zfs_property_tag}:replicationdataset"
 
-if [ "$zfs_replication_endpoints_property" == "" ]; then
-    zfs_replication_endpoints_property="${zfs_property_tag}:replication:endpoints"
-fi
+[ -z "$zfs_replication_endpoints_property" ] && zfs_replication_endpoints_property="${zfs_property_tag}:replication:endpoints"
 
-if [ "$zfs_quota_property" == "" ]; then
-    zfs_quota_property="${zfs_property_tag}:quota"
-fi
+[ -z "$zfs_quota_property" ] && zfs_quota_property="${zfs_property_tag}:quota"
 
-if [ "$zfs_refquota_property" == "" ]; then
-    zfs_refquota_property="${zfs_property_tag}:refquota"
-fi
+[ -z "$zfs_refquota_property" ] && zfs_refquota_property="${zfs_property_tag}:refquota"
 
-if [ "$zfs_quota_reports_property" == "" ]; then
-    zfs_quota_reports_property="${zfs_property_tag}:quotareports"
-fi
+[ -z "$zfs_quota_reports_property" ] && zfs_quota_reports_property="${zfs_property_tag}:quotareports"
 
-if [ "$zfs_quota_report_property" == "" ]; then
-    zfs_quota_report_property="${zfs_property_tag}:quotareport"
-fi
+[ -z "$zfs_quota_report_property" ] && zfs_quota_report_property="${zfs_property_tag}:quotareport"
 
-if [ "$zfs_trend_reports_property" == "" ]; then
-    zfs_trend_reports_property="${zfs_property_tag}:trendreports"
-fi
+[ -z "$zfs_trend_reports_property" ] && zfs_trend_reports_property="${zfs_property_tag}:trendreports"
 
-if [ "$zfs_trend_report_property" == "" ]; then
-    zfs_trend_report_property="${zfs_property_tag}:trendreport"
-fi
+[ -z "$zfs_trend_report_property" ] && zfs_trend_report_property="${zfs_property_tag}:trendreport"
 
-if [ "$zfs_snapshots_property" == "" ]; then
-    zfs_snapshots_property="${zfs_property_tag}:snapshots"
-fi
+[ -z "$zfs_snapshots_property" ] && zfs_snapshots_property="${zfs_property_tag}:snapshots"
 
-if [ "$zfs_snapshot_property" == "" ]; then
-    zfs_snapshot_property="${zfs_property_tag}:snapshot"
-fi
+[ -z "$zfs_snapshot_property" ] && zfs_snapshot_property="${zfs_property_tag}:snapshot"
 
-if [ "$zfs_cifs_property" == "" ]; then
-    zfs_cifs_property="${zfs_property_tag}:cifs"
-fi
+[ -z "$zfs_cifs_property" ] && zfs_cifs_property="${zfs_property_tag}:cifs"
 
-if [ "$zfs_samba_server_prefix" == "" ]; then
-    zfs_samba_server_prefix="ZFS-"
-fi
+[ -z "$zfs_samba_server_prefix" ] && zfs_samba_server_prefix="ZFS-"
 
-if [ "$zfs_samba_server_suffix" == "" ]; then
-    zfs_samba_server_suffix=""
-fi
+[ -z "$zfs_samba_server_suffix" ] && zfs_samba_server_suffix=""
 
-if [ "$zfs_samba_server_startup_timeout" == "" ]; then
-    zfs_samba_server_startup_timeout="10"
-fi
+[ -z "$zfs_samba_server_startup_timeout" ] && zfs_samba_server_startup_timeout="10"
 
-if [ "$zfs_cifs_default_share_template" == "" ]; then
-    zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
-fi
+[ -z "$zfs_cifs_default_share_template" ] && zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
 
-if [ "$zfs_samba_default_version" == "" ]; then
-    zfs_samba_default_version='4.4.2'
-fi
+[ -z "$zfs_samba_default_version" ] && zfs_samba_default_version='4.4.2'
 
-if [ "$zfs_vip_property" == "" ]; then
-    zfs_vip_property="${zfs_property_tag}:vip"
-fi
+[ -z "$zfs_vip_property" ] && zfs_vip_property="${zfs_property_tag}:vip"
 
-if [ "$zfs_replication_job_runner_cycle" == "" ]; then
-    zfs_replication_job_runner_cycle="60"
-fi
+[ -z "$zfs_replication_job_runner_cycle" ] && zfs_replication_job_runner_cycle="60"
 
-if [ "$zfs_replication_failure_limit" == "" ]; then
-    zfs_replication_failure_limit="30m"
-fi
+[ -z "$zfs_replication_failure_limit" ] && zfs_replication_failure_limit="30m"
 
-if [ "$zfs_replication_queue_delay_count" == "" ]; then
-    zfs_replication_queue_delay_count=2
-fi
+[ -z "$zfs_replication_queue_delay_count" ] && zfs_replication_queue_delay_count=2
 
-if [ "$zfs_replication_queue_max_count" == "" ]; then
-    zfs_replication_queue_max_count=20
-fi
+[ -z "$zfs_replication_queue_max_count" ] && zfs_replication_queue_max_count=20
 
-if [ "$zfs_replication_suspended_error_time" == "" ]; then
-    zfs_replication_suspended_error_time='360' # 6 hours
-fi
+[ -z "$zfs_replication_suspended_error_time" ] && zfs_replication_suspended_error_time='360' # 6 hours
 
-if [ "$zfs_replication_completed_job_retention" == "" ]; then
-    zfs_replication_completed_job_retention="-mtime +30"
-fi
+[ -z "$zfs_replication_completed_job_retention" ] && zfs_replication_completed_job_retention="-mtime +30"
 
-if [ "$zfs_replication_snapshot_name" == "" ]; then
-    zfs_replication_snapshot_name=".ozmt-replication"
-fi
+[ -z "$zfs_replication_snapshot_name" ] && zfs_replication_snapshot_name=".ozmt-replication"
 
-if [ "$zfs_replication_sync_filelist" == "" ]; then
-    zfs_replication_sync_filelist="/etc/hosts:/etc/ozmt/config.common:{pool}/etc/config.common"
-fi
+[ -z "$zfs_replication_sync_filelist" ] && zfs_replication_sync_filelist="/etc/hosts:/etc/ozmt/config.common:{pool}/etc/config.common"
 
-if [ "$zfs_replication_job_cleaner_cycle" == "" ]; then
-    zfs_replication_job_cleaner_cycle="60"
-fi
+[ -z "$zfs_replication_job_cleaner_cycle" ] &&  zfs_replication_job_cleaner_cycle="60"
 
-if [ -z $suspend_all_jobs_timeout ]; then
-    suspend_all_jobs_timeout=60
-fi
+[ -z "$suspend_all_jobs_timeout" ] && suspend_all_jobs_timeout=60
 
 
 # Test essential binaries
