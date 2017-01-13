@@ -37,7 +37,7 @@ zfs_folders="$1"
 
 unmount_zfs_folder="$2"
 
-mkdir -p ${TMP}/parallel
+MKDIR ${TMP}/parallel
 if [ "$HOME" == "" ];then
     export HOME="${TMP}/parallel"
 fi

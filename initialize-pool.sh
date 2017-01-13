@@ -51,7 +51,7 @@ fi
 
 zfs create -o compression=on ${pool}/zfs_tools 
 
-mkdir -p /${pool}/zfs_tools/etc/pool-filesystems
+MKDIR /${pool}/zfs_tools/etc/pool-filesystems
 
 cp $TOOLS_ROOT/filesystem_template /${pool}/zfs_tools/etc/filesystem_template
 

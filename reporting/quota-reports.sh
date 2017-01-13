@@ -146,7 +146,7 @@ quota_report () {
 
     local jobstat="/${pool}/zfs_tools/var/spool/reports"
 
-    mkdir -p "$jobstat"
+    MKDIR "$jobstat"
     touch "${jobstat}/${job}"
     init_lock "${jobstat}/${job}"
 

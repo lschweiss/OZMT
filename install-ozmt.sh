@@ -34,7 +34,12 @@ if [ -f /etc/ozmt/config ]; then
     exit 1
 fi
 
+echo "Creating ozmt group, gid 69999"
+groupadd -g 69999 ozmt
+
 mkdir -p /etc/ozmt
+chgrp ozmt /etc/ozmt
+chmod 2770 /etc/ozmt
 
 cat ${TOOLS_ROOT}/install/config.template | sed "s,#TOOLS_ROOT#,${TOOLS_ROOT},g" | sed "s,#PATH#,${PATH},g" > /etc/ozmt/config
 

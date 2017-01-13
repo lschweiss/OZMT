@@ -57,7 +57,7 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 job_cleaner_lock_dir="${TMP}/replication/job-cleaner"
 job_cleaner_lock="${job_cleaner_lock_dir}/job-cleaner"
 
-mkdir -p $job_cleaner_lock_dir
+MKDIR $job_cleaner_lock_dir
 
 if [ ! -f ${job_cleaner_lock} ]; then
     touch ${job_cleaner_lock}
@@ -73,7 +73,7 @@ fi
 
 CTMP="${TMP}/replication/cleaning"
 
-mkdir -p ${CTMP}
+MKDIR ${CTMP}
 cache_list=${CTMP}/cache_list_$$
 
 clean_cache () {
@@ -120,7 +120,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
             notice "zfs_tools not mounted on ${pool}. Skipping"
             continue
         fi
-        mkdir -p "/${pool}/zfs_tools/var/replication/jobs/cleaning"
+        MKDIR "/${pool}/zfs_tools/var/replication/jobs/cleaning"
         # Check if all jobs suspended
         if [ -f "$replication_dir/suspend_all_jobs" ]; then
             notice "All jobs suspended. Not running clean up jobs on pool: $pool"

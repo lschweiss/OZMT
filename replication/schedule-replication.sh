@@ -56,7 +56,7 @@ for pool in $pools; do
     replication_def_dir="${replication_job_dir}/definitions"
     schedule_lock_dir="${TMP}/replication/scheduling/${pool}"
     schedule_lock="${schedule_lock_dir}/scheduling"
-    mkdir -p "${schedule_lock_dir}"
+    MKDIR "${schedule_lock_dir}"
     if [ -d "$replication_def_dir" ]; then
         # Lock on scheduling
         if [ ! -f "${schedule_lock}" ]; then

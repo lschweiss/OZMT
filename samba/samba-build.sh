@@ -78,7 +78,7 @@ build_dataset_samba () {
     local STMP="${prefix}/build/tmp"
     local zfs_exec=
 
-    mkdir -p $STMP
+    MKDIR $STMP
 
 
     ##
@@ -116,7 +116,7 @@ build_dataset_samba () {
         fi
     fi
 
-    mkdir -p "$build_dir"
+    MKDIR "$build_dir"
     cd $build_dir
 
     # Get and build zlib

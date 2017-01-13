@@ -337,6 +337,32 @@ ssh_wrap () {
 
 ####
 #
+# mkdir function that will set all created directory group ownership to ozmt
+#
+####
+
+MKDIR () {
+
+    local folder="$1"
+    local mkdirout=
+    local new_folder=
+    local new_folders=
+
+    # Not all versions of GNU mkdir use the same characters around the directory names.
+    # This seems to be fairly universal.
+    mkdir --parents --verbose $folder | $AWK '{print $4}' | $SED 's/^.//' | $SED 's/.$//' > /tmp/new_folders_$$
+    new_folders=`cat /tmp/new_folders_$$`
+    for new_folder in $new_folders; do
+        chmod 2770 $new_folder
+        chgrp ozmt $new_folder
+    done    
+    rm -f /tmp/new_folders_$$
+
+}
+
+
+####
+#
 # Pool and file system functions
 #
 ####
@@ -1010,7 +1036,7 @@ zfs_cache () {
 
     cache_path="/${pool}/zfs_tools/var/cache/zfs_cache"
     if [ ! -d "${cache_path}" ]; then
-        mkdir -p "${cache_path}"
+        MKDIR "${cache_path}"
         init_lock "${cache_path}"
     fi
 
@@ -1074,7 +1100,7 @@ remote_zfs_cache () {
     cache_path="/var/zfs_tools/cache/zfs_cache/${pool}"
     
     if [ ! -d "${cache_path}" ]; then
-        mkdir -p "${cache_path}"
+        MKDIR "${cache_path}"
         init_lock "${cache_path}"
     fi
 

@@ -52,9 +52,9 @@ active_smb_dir="/var/zfs_tools/samba/active"
 smb_datasets_dir="/var/zfs_tools/samba/datasets"
 smb_datasets_lock="${TMP}/samba/datasets.lockfile"
 
-mkdir -p $active_smb_dir
-mkdir -p $smb_datasets_dir
-mkdir -p ${TMP}/samba
+MKDIR $active_smb_dir
+MKDIR $smb_datasets_dir
+MKDIR ${TMP}/samba
 
 if [ ! -f ${smb_datasets_lock} ]; then
     touch ${smb_datasets_lock}
@@ -202,7 +202,7 @@ start_smb_dataset () {
     # Start smbd, nmbd, and winbindd
     ##
 
-    mkdir -p /var/zfs_tools/samba/${dataset_name}/run
+    MKDIR /var/zfs_tools/samba/${dataset_name}/run
 
     smb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/smbd.pid"
     nmb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/nmbd.pid"
@@ -212,7 +212,7 @@ start_smb_dataset () {
     #log_dir="/${pool}/zfs_tools/var/samba/${dataset_name}/log"
     log_dir="${dataset_mountpoint}/samba/var/log"
 
-    mkdir -p $log_dir
+    MKDIR $log_dir
 
     touch $active_smb
 

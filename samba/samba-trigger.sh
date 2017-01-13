@@ -50,7 +50,7 @@ pools="$(pools)"
 
 active_smb_dir="/var/zfs_tools/samba/active"
 
-mkdir -p $active_smb_dir
+MKDIR $active_smb_dir
 
 
 ##
@@ -427,7 +427,7 @@ activate_smb () {
         # Start smbd, nmbd, and winbindd
         ##
 
-        mkdir -p /var/zfs_tools/samba/${dataset_name}/run
+        MKDIR /var/zfs_tools/samba/${dataset_name}/run
 
         smb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/smbd.pid"
         nmb_pidfile="/var/zfs_tools/samba/${dataset_name}/run/nmbd.pid"
@@ -436,7 +436,7 @@ activate_smb () {
         smb_conf="${smb_conf_dir}/smb.conf"
         log_dir="/${pool}/zfs_tools/var/samba/${dataset_name}/log" 
 
-        mkdir -p $log_dir
+        MKDIR $log_dir
 
         touch $active_smb
     

@@ -45,7 +45,7 @@ fi
 
 folders=`ls -1t $destroy_queue`
 
-mkdir -p ${TMP}/snapshots
+MKDIR ${TMP}/snapshots
 
 for folder in $folders; do
     zfs_folder="$(jobtofolder $folder)"

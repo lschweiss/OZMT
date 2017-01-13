@@ -278,7 +278,7 @@ activate_vip () {
     done  
     unset IFS 
 
-    mkdir -p ${active_ip_dir}
+    MKDIR ${active_ip_dir}
 
     echo "${pool}|${vIP_dataset}|${vIP}/${netmask}|${routes}|${ipifs}" > "${active_ip_dir}/${ip}"
 

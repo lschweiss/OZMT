@@ -45,7 +45,7 @@ now=`date +%F_%H:%M%z`
 
 pool=$1
 
-mkdir -p "/$pool/zfs_tools/logs"
+MKDIR "/$pool/zfs_tools/logs"
 
 logfile="/$pool/zfs_tools/logs/nfs_stat_${now}"
 

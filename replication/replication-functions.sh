@@ -25,7 +25,7 @@
 
 RCACHE=/var/zfs_tools/replication/cache
 
-mkdir -p ${RCACHE}
+MKDIR ${RCACHE}
 
 load_replication_data () {
 
@@ -64,7 +64,7 @@ load_replication_data () {
     fi
 
     z_cache="${RCACHE}/${z_folder}"
-    mkdir -p ${z_cache}
+    MKDIR ${z_cache}
 
     replication=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${zfs_folder}`
     if [ "$replication" == 'on' ]; then

@@ -50,7 +50,7 @@ zfs_folder="$1"
 snapshot="$2"
 fail='false'
 
-mkdir -p "${TMP}/replication"
+MKDIR "${TMP}/replication"
 
 debug "Recursively rolling back ${zfs_folder}@${snapshot}"
 

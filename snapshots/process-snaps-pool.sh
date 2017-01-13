@@ -49,7 +49,7 @@ fi
 now=`${DATE} +%F_%H:%M%z | ${SED} 's/+/_/g'` # + is not a valid character for a snapshot name
 stamp="${snaptype}_${now}"
 
-mkdir -p ${TMP}/snapshots
+MKDIR ${TMP}/snapshots
 
 command_max=$(( $(getconf ARG_MAX) - 1024 ))
 
