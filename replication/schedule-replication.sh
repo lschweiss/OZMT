@@ -144,6 +144,10 @@ for pool in $pools; do
                     now_secs=`${DATE} -d "$now" +%s`
                     duration_sec="$(( now_secs - last_run_secs ))"
                     # Add ramdomness of +/- 25% to the duration so jobs with equal freqencies spread out
+                    if [ $duration_sec -lt 2 ]; then
+                        # Avoid division by zero error
+                        duration_sec='2'
+                    fi
                     duration_sec="$(( duration_sec + $(( duration_sec / 4 )) - $(( $RANDOM % $(( duration_sec / 2 )) )) ))"
 
                     # Round up to nearest minute
