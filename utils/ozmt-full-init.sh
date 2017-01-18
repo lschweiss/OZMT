@@ -348,7 +348,7 @@ else
     cat /etc/group | grep -q 'ozmt'
     if [ $? -ne 0 ]; then
         echo "Creating ozmt group, gid 69999"
-        $GROUPADD -g 69999 ozmt
+        $GROUPADD -g 69999 ozmt 1>/dev/null
     fi
 fi
 
