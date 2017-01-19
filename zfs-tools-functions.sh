@@ -347,12 +347,13 @@ MKDIR () {
     local mkdirout=
     local new_folder=
     local new_folders=
+    local my_tag=$RANDOM
 
     # Not all versions of GNU mkdir use the same characters around the directory names.
-    # This seems to be fairly universal.
-    mkdir --parents --verbose $folder | $AWK '{print $4}' | $SED 's/^.//' | $SED 's/.$//' > /tmp/new_folders_$$
-    if [ -f /tmp/new_folders_$$ ]; then
-        new_folders=`cat /tmp/new_folders_$$`
+    # This solution seems to be fairly universal.
+    mkdir --parents --verbose $folder | $AWK '{print $4}' | $SED 's/^.//' | $SED 's/.$//' > /tmp/new_folders_$$_$mytag
+    if [ -f /tmp/new_folders_$$_$mytag ]; then
+        new_folders=`cat /tmp/new_folders_$$_$mytag`
         for new_folder in $new_folders; do
             chmod 2770 $new_folder
             chgrp ozmt $new_folder
