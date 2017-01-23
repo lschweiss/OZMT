@@ -956,8 +956,9 @@ release_lock() {
 
     if [ -e "$lockfile" ];then
         # Check the PID
-        lockpid=`cat "$lockfile"`
-        if [ $$ -eq $lockpid ]; then
+        lockpid=`cat "$lockfile" 2>/dev/null`
+        
+        if [[ $lockpid != ''  && $$ -eq $lockpid ]]; then
             locked="false"
             mv "$lockfile" "$unlockfile"
             debug "Lock released: $lockfile"
