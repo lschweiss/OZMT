@@ -62,8 +62,13 @@ import_pool="$last"
 
 stop_cron
 
-zpool import -N $@ 
-result=$?
+zpool list $import_pool 1> /dev/null 2> /dev/null
+if [ $? -ne 0 ]; then
+    zpool import -N $@ 
+    result=$?
+else
+    warning "Pool is already imported: $import_pool"
+fi
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then
