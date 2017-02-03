@@ -347,7 +347,7 @@ MKDIR () {
     local mkdirout=
     local new_folder=
     local new_folders=
-    local my_tag=$RANDOM
+    local mytag=$RANDOM
 
     # Not all versions of GNU mkdir use the same characters around the directory names.
     # This solution seems to be fairly universal.
@@ -358,7 +358,7 @@ MKDIR () {
             chmod 2770 $new_folder
             chgrp ozmt $new_folder
         done    
-        rm -f /tmp/new_folders_$$
+        rm -f /tmp/new_folders_$$_$mytag
     fi
 
 }
