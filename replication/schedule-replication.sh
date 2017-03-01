@@ -59,7 +59,7 @@ for pool in $pools; do
 
     # Create job folders if necessary
     statfolders="cleaning complete definitions failed pending running status suspended synced"
-    for $statfolder in $statfolders; do
+    for statfolder in $statfolders; do
         [ -d "${replication_job_dir}/${statfolder}" ] || MKDIR "${replication_job_dir}/${statfolder}"
     done
 
