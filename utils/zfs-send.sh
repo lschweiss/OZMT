@@ -652,7 +652,7 @@ else
         # Remote
         remote_fifo zfs_receive
         target_fifo="$result"
-        debug "${job_name}: Starting remote zfs receive $target_fifo to ${target_folder}"
+        debug "${job_name}: Starting remote zfs receive ${receive_options} ${target_prop} ${target_folder}"
         remote_launch "zfs_receive" \
             "$target_fifo" \
             "zfs receive ${receive_options} ${target_prop} ${target_folder}" \
@@ -1039,14 +1039,19 @@ while [ "$running" == 'true' ]; do
                     else
                         touch ${tmpdir}/${process}.fail
                         running='false'
+                        touch ${tmpdir}/running.false
                     fi
                 else
                     touch ${tmpdir}/${process}.fail
                     running='false'
+                    touch ${tmpdir}/running.false
                 fi
             fi
         fi
     done
+
+    echo "$complete" > ${tmpdir}/complete.list
+    echo "$watch" > ${tmpdir}/watch.list
 
     # Determine if all processes are complete
     finished='true'
@@ -1063,6 +1068,8 @@ while [ "$running" == 'true' ]; do
     
         if [ "$remote_failed" != "" ]; then
             running='false'
+            touch ${tmpdir}/running.false
+            touch ${tmpdir}/remote.failed
         fi
     fi
 
@@ -1070,10 +1077,13 @@ while [ "$running" == 'true' ]; do
         if [ "$remote_host" != "" ]; then
             if [ "$remote_finished" == "${remote_tmp}/remote.complete" ]; then
                 running='false'
+                touch ${tmpdir}/running.false
                 success='true'
+                touch ${tmpdir}/remote.complete
             fi
         else
             running='false'
+            touch ${tmpdir}/running.false
             success='true'
         fi
     fi
