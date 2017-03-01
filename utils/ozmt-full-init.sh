@@ -160,6 +160,8 @@ gnu_source () {
 
 [ -z "$BASENAME" ] && BASENAME=`gnu_source basename`
 
+[ -z "$DIRNAME" ] && DIRNAME=`gnu_source dirname`
+
 [ -z "$PARALLEL" ] && PARALLEL=`gnu_source parallel`
 
 [ -z "$ARPING" ] && ARPING=`gnu_source arping`
