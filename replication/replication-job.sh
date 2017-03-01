@@ -253,7 +253,7 @@ case $mode in
     'm') mode_option='-M' ;;
     's') mode_option='-S' ;;
          # TODO: Number of BBCP connnections needs to be tuneable
-    'b') mode_option='-b 30' ;;
+    'b') mode_option='-b 30 -z 1' ;;
     'L') error "Local replication not completely coded yet!"
          die 1 ;;
 esac
@@ -266,7 +266,7 @@ MKDIR ${TMP}/replication
 if [ "$previous_snapshot" == "" ]; then
 
     debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -d -n "${dataset_name}" -r ${delete_snaps} -M \
+    ../utils/zfs-send.sh -d -n "${dataset_name}" -r ${delete_snaps} ${mode_option} \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -l "${pool}/${folder}@${snapshot}" \
         -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \

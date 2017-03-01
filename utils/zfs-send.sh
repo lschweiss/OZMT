@@ -826,7 +826,8 @@ case $transport_selected in
         local_fifo bbcp
         target_bbcp_fifo="$result"
         debug "${job_name}: Starting bbcp pipe transport from local $target_bbcp_fifo to remote $target_fifo"
-        ( $bbcp -V -o -s $bbcp_streams -P 60 -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
+        ( $BBCP -V -T "ssh root@${remote_host} $BBCP" -o -s $bbcp_streams -P 60 --port 5201:5500 \
+            -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
             1> $tmpdir/bbcp.log \
             2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
         echo $! > $tmpdir/bbcp.pid
@@ -837,11 +838,20 @@ case $transport_selected in
         fi  
         # Wait for bbcp pipe to be setup
         bbcp_started=1
-        while [ $bbcp_started -ne 1 ]; do
+        debug "${job_name}: Waiting for BBCP to start"
+        SECONDS=0
+        while [ $bbcp_started -eq 1 ]; do
             sleep 0.2
-            cat $tmpdir/bbcp.error | ${GREP} -q "bbcp: Creating $tmpdir"
+            cat $tmpdir/bbcp.error | ${GREP} -q "bbcp: Creating"
             bbcp_started=$?
+            if [ $SECONDS -gt 60 ]; then
+                warning "${job_name}: Failed to start BBCP" $tmpdir/bbcp.error
+                touch $tmpdir/bbcp.fail
+                break
+            fi
         done
+        debug "${job_name}: BBCP started $bbcp_started"
+        sleep 10
     ;;
 
     ssh)
