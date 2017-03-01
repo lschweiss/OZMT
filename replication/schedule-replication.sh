@@ -56,7 +56,16 @@ for pool in $pools; do
     replication_def_dir="${replication_job_dir}/definitions"
     schedule_lock_dir="${TMP}/replication/scheduling/${pool}"
     schedule_lock="${schedule_lock_dir}/scheduling"
-    MKDIR "${schedule_lock_dir}"
+
+    # Create job folders if necessary
+    statfolders="cleaning complete definitions failed pending running status suspended synced"
+    for $statfolder in $statfolders; do
+        [ -d "${replication_job_dir}/${statfolder}" ] || MKDIR "${replication_job_dir}/${statfolder}"
+    done
+
+    # Create schedule lock dir if necessary
+    [ -d "${schedule_lock_dir}" ] || MKDIR "${schedule_lock_dir}"
+
     if [ -d "$replication_def_dir" ]; then
         # Lock on scheduling
         if [ ! -f "${schedule_lock}" ]; then

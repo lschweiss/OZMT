@@ -103,7 +103,7 @@ errorcode=$?
 
 case "$errorcode" in 
     '124')
-        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host timed out after 1m.  Setting job to failed."
+        warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remote host timed out after 1m.  Setting job to failed."
         update_job_status "${job_status}" "failures" "+1"
         release_lock "${job_status}"
         rm -f ${TMP}/target_check_$$
