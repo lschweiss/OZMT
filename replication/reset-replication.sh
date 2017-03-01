@@ -61,7 +61,7 @@ show_usage () {
     echo "                   This should be a comma separated list of ZFS folders within"
     echo "                   the dataset."
     echo ""
-    echo "  The host this command is run on must be either the source host for this dataset."
+    echo "  The host this command is run on must be the source host for this dataset."
     echo ""
     echo "  This is automatically run after every cut over of a dataset source or can be run"
     echo "  manually to cleanup broken replication jobs."
