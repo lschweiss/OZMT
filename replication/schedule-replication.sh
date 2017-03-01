@@ -96,6 +96,7 @@ for pool in $pools; do
                     source "${job_status}"
                     release_lock "${job_status}"
                 else
+                    MKDIR $(DIRNAME $job_status)
                     touch "${job_status}"
                     init_lock "${job_status}"
                 fi
