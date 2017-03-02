@@ -297,7 +297,7 @@ else
    
     # Start zfs send
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -d -U -n "${dataset_name}" -r -I ${delete_snaps} -M \
+    ../utils/zfs-send.sh -d -n "${dataset_name}" -r -I ${delete_snaps} -M \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
         -l "${pool}/${folder}@${snapshot}" \

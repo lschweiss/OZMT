@@ -3,8 +3,10 @@ syntax: glob
 ec2-api*
 zfs-config.sh
 *.sha512
-.*.swp
-.*.orig
+*.swp
+*.orig
+*~
+core
 snapshots/jobs
 backup/jobs
 amazon-glacier-cmd-interface

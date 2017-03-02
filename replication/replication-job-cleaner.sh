@@ -102,9 +102,9 @@ trap ctrl_c SIGINT
 
 # Run repeatedly for up 1 minute or $zfs_replication_job_cleaner_cycle
 
-if [ -t 1 ]; then
-    zfs_replication_job_cleaner_cycle=10
-fi
+#if [ -t 1 ]; then
+#    zfs_replication_job_cleaner_cycle=10
+#fi
 
 
 
@@ -169,7 +169,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
     done
     
     # Parse cleaning jobs
-
+    
     for pool in $pools; do
         debug "Finding cleaning replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
@@ -457,13 +457,15 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     fi
                     rm -f ${TMP}/property_update_err_$$ $props_to_replicate
                 fi
-                
-                if [ $SECONDS -gt $zfs_replication_job_cleaner_cycle ]; then
-                    release_lock ${job_cleaner_lock}
-                    exit 0
-                fi                                                
 
             done # for job
+
+            if [ $SECONDS -gt $zfs_replication_job_cleaner_cycle ]; then
+                debug "Out of time. Exiting"
+                clean_cache
+                release_lock ${job_cleaner_lock}
+                exit 0
+            fi                                                
 
         fi # if cleaning directory
 
