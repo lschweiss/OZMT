@@ -243,7 +243,7 @@ while getopts s:t:f:l:ruUiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
         M)  # Use mbuffer transport
             mbuffer_transport_use='true'
             transport_selected='mbuffer'
-            debug "${job_name}: Using mbuffer trasnport"
+            debug "${job_name}: Using mbuffer transport"
             ;;    
         S)  # Use SSH transport
             ssh_use='true'
