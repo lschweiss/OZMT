@@ -242,8 +242,6 @@ gnu_source () {
 
 [ -z "$zfs_replication_dataset_property" ] && zfs_replication_dataset_property="${zfs_property_tag}:replicationdataset"
 
-[ -z "$zfs_replication_endpoints_property" ] && zfs_replication_endpoints_property="${zfs_property_tag}:replication:endpoints"
-
 [ -z "$zfs_quota_property" ] && zfs_quota_property="${zfs_property_tag}:quota"
 
 [ -z "$zfs_refquota_property" ] && zfs_refquota_property="${zfs_property_tag}:refquota"

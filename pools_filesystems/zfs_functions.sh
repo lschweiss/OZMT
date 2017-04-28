@@ -740,7 +740,7 @@ setupzfs () {
             # Remove zfs properties
             zfs inherit $zfs_replication_property ${pool}/${zfspath}
             zfs inherit $zfs_replication_dataset_property ${pool}/${zfspath}
-            zfs inherit $zfs_replication_endpoints_property ${pool}/${zfspath}
+            zfs inherit ${zfs_replication_property}:endpoints ${pool}/${zfspath}
         fi
     
         replication_parent='-'
@@ -929,7 +929,7 @@ setupzfs () {
         # Tag the zfs folder as replicated.
         zfs set ${zfs_replication_property}=on ${pool}/${zfspath}
         zfs set ${zfs_replication_dataset_property}=${dataset_name} ${pool}/${zfspath}
-        zfs set ${zfs_replication_endpoints_property}=${endpoint_count} ${pool}/${zfspath}
+        zfs set ${zfs_replication_property}:endpoints=${endpoint_count} ${pool}/${zfspath}
         replication=`zfs get -H -o value $zfs_replication_property ${pool}/${zfspath}`
         replication_parent="${zfspath}"
 

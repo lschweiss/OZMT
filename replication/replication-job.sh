@@ -165,12 +165,12 @@ if [ "$failures" == '' ]; then
     failures=0
 fi
 
-endpoint_count=`zfs_cache get -H -o value ${zfs_replication_endpoints_property} ${pool}/${folder} 3>/dev/null`
+endpoint_count=`zfs_cache get -H -o value ${zfs_replication_property}:endpoints ${pool}/${folder} 3>/dev/null`
 
 re='^[0-9]+$'
 
 if ! [[ "$endpoint_count" =~ $re ]]; then
-    error "${zfs_replication_endpoints_property} not set on ${pool}/${folder} - $endpoint_count"
+    error "${zfs_replication_property}:endpoints not set on ${pool}/${folder} - $endpoint_count"
     delete_snaps=''
 else
     if [ $endpoint_count -eq 2 ]; then

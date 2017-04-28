@@ -54,7 +54,7 @@ for pool in $pools; do
     fi
 
     zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
-    zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,$zfs_replication_endpoints_property ${pool} > \
+    zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
             /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 3>/dev/null
 
     for snaptype in $types; do

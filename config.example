@@ -96,8 +96,6 @@ skip_pools="$(rpool)"
 # Default names listed below. 
 
 #zfs_replication_property="edu.wustl.nrg:replication"
-#zfs_replication_dataset_property="edu.wustl.nrg:replicationdataset"
-#zfs_replication_endpoints_property="edu.wustl.nrg:replicationendpoints"
 
 
 # Default number of replication failures for a file system before jobs 
