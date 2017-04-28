@@ -71,6 +71,7 @@ show_snap_job () {
     local recursive="$2"
     local result=
     local snaptype=
+    local has_snaps=
 
     # Test folder exists
     zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
@@ -90,12 +91,17 @@ show_snap_job () {
     folders=`zfs list -o name -H ${recursive} ${zfs_folder}`
 
     for folder in $folders; do
+        has_snaps='false'
         for snaptype in $snaptypes; do
             existing=`zfs get -o value -H -s local,received ${zfs_snapshot_property}:${snaptype} $folder`
             if [ "$existing" != '' ]; then
+                has_snaps='true'
                 echo -E "${folder} ${snaptype} ${existing}" >> ${TMP}/snapjobs_$$
             fi
         done
+        if [ "$has_snaps" == 'false' ]; then
+            echo -E "${folder} no snapshots" >> ${TMP}/snapjobs_$$
+        fi
     done 
 
     column -t ${TMP}/snapjobs_$$
