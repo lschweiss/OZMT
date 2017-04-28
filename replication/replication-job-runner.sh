@@ -301,11 +301,6 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
             release_lock "${runner_lock}"
 
         fi # if [ -d "${replication_dir}/pending" ]
-        # Clean completed jobs
-        if [ -d "${replication_dir}/complete" ]; then
-            debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
-            find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete
-        fi
     done
 
     sleep 5
@@ -315,3 +310,9 @@ done # Less than $zfs_replication_job_runner_cycle
 notice "Pending job processing cycles: $pending_cycles"
 
 release_lock ${job_runner_lock}
+
+# Clean completed jobs
+if [ -d "${replication_dir}/complete" ]; then
+    debug "Cleaning completed job folder.   find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete"
+    find ${replication_dir}/complete $zfs_replication_completed_job_retention -delete >/dev/null
+fi
