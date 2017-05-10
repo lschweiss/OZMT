@@ -54,7 +54,7 @@ for pool in $pools; do
     fi
 
     zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
-    zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_replication_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
+    zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
             /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 3>/dev/null
 
     for snaptype in $types; do
@@ -76,8 +76,8 @@ for pool in $pools; do
             replication=`echo $folder_props | ${CUT} -d ' ' -f 2`
             if [ "$replication" == "on" ]; then
                 debug "Replication: on"
-                replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${folder} 3>/dev/null`
-                replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${folder} 3>/dev/null`
+                replication_dataset=`zfs_cache get -H -o value $zfs_dataset_property ${folder} 3>/dev/null`
+                replication_folder_point=`zfs_cache get -H -o source $zfs_dataset_property ${folder} 3>/dev/null`
                 # This could be a child folder, handle appropriately
                 if [[ "$replication_folder_point" == "local" || "$replication_folder_point" == "received" ]]; then
                     replication_folder="${folder#*/}"
