@@ -111,6 +111,10 @@ die () {
         if [ "$runner_locked" == 'true' ]; then
             release_lock "$runner_lock"
         fi
+        if [ "$cleaner_locked" == 'true' ]; then
+            release_lock "$job_cleaner_lock"
+        fi
+
     else
         debug "Keep suspended set.  Not resuming replication."
     fi
@@ -293,6 +297,8 @@ for job in $jobs; do
         fi            
 done
 
+# Set 1 hour lock timeout
+lock_timeout=$(( 60 * 60 ))
 
 ##
 # Lock the scheduler
@@ -328,6 +334,24 @@ fi
 wait_for_lock $runner_lock || die 1
 
 runner_locked='true'
+
+##
+# Lock the job cleaner
+##
+
+job_cleaner_lock_dir="${TMP}/replication/job-cleaner"
+job_cleaner_lock="${job_cleaner_lock_dir}/job-cleaner"
+
+MKDIR $job_cleaner_lock_dir
+
+if [ ! -f ${job_cleaner_lock} ]; then
+    touch ${job_cleaner_lock}
+    init_lock ${job_cleaner_lock}
+fi
+
+wait_for_lock ${job_cleaner_lock} || die 1
+
+cleaner_locked='true'
 
 
 
