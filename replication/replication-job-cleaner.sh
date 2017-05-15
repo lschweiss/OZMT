@@ -460,6 +460,14 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
             done # for job
 
+            if [ -f "${replication_dir}/cleaning/abort_cleaning" ]; then
+                debug "Early abort of cleaning requested"
+                clean_cache
+                release_lock ${job_cleaner_lock}
+                rm "${replication_dir}/cleaning/abort_cleaning"
+                exit 0
+            fi
+
             if [ $SECONDS -gt $zfs_replication_job_cleaner_cycle ]; then
                 debug "Out of time. Exiting"
                 clean_cache

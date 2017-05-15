@@ -339,6 +339,8 @@ runner_locked='true'
 # Lock the job cleaner
 ##
 
+touch "/$pool/zfs_tools/var/replication/jobs/cleaning/abort_cleaning"
+
 job_cleaner_lock_dir="${TMP}/replication/job-cleaner"
 job_cleaner_lock="${job_cleaner_lock_dir}/job-cleaner"
 
@@ -352,6 +354,7 @@ fi
 wait_for_lock ${job_cleaner_lock} || die 1
 
 cleaner_locked='true'
+rm -f "/$pool/zfs_tools/var/replication/jobs/cleaning/abort_cleaning"
 
 
 
