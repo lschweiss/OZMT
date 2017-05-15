@@ -115,7 +115,7 @@ while [ "$quit" != 'true' ]; do
                     active=
                     job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                     source "${job_definition}"
-                    echo -n "${dataset_name} to ${target}, ${frequency}"
+                    echo -n "${dataset_name} to ${target_pool}, ${frequency}"
                     
                     if [ -f "${job_status}" ]; then
                         source "${job_status}"
