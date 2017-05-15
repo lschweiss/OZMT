@@ -589,6 +589,9 @@ for job in $jobs; do
     if [ "$running_end" == "" ]; then
         # Reset the status to the latest snapshot
         echo "previous_snapshot=\"$common_snap\"" > $job_status
+        if [ -f "${job_status}.lock" ]; then
+            rm "${job_status}.lock" && touch "${job_status}.unlock"
+        fi
     fi
 
 done
