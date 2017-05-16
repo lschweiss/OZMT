@@ -253,7 +253,7 @@ case $mode in
     'm') mode_option='-M' ;;
     's') mode_option='-S' ;;
          # TODO: Number of BBCP connnections needs to be tuneable
-    'b') mode_option='-b 30 -z 4' ;;
+    'b') mode_option='-b 30 -z 1' ;;
     'L') error "Local replication not completely coded yet!"
          die 1 ;;
      *)  error "No mode set"
