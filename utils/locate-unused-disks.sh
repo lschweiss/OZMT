@@ -23,7 +23,7 @@ MKDIR $myTMP
 
 if [ ! -f ${myTMP}/active_disks ]; then
     notice "active disks have not been collected. Collecting now."
-    ./locate-inuse.sh
+    ./locate-inuse-disks.sh
 fi
 
 
@@ -134,6 +134,10 @@ rm -f ${myTMP}/disk_to_location
 for wwn in $wwns; do
     # Collect enclosure data
     encl_id=`cat ${myTMP}/enclosure-data|grep "$wwn"|head -1|cut -f2`
+    if [ "$encl_id" == '' ]; then
+        # Lets try the last in the list
+        encl_id=`cat ${myTMP}/enclosure-data|grep "$wwn"|tail -1|cut -f2`
+    fi
     devnum=`cat ${myTMP}/enclosure-data|grep "$wwn"|head -1|cut -f3`
     vendor=`cat ${myTMP}/enclosure-data|grep "$wwn"|head -1|cut -f4`
     model=`cat ${myTMP}/enclosure-data|grep "$wwn"|head -1|cut -f5`
@@ -148,7 +152,7 @@ for wwn in $wwns; do
     while [ $dev -lt $devnum ]; do
         # Collect os name
         echo -n "$dev "
-        diskline="$(cat ${myTMP}/${HOSTNAME}.smartmon-ux_-zd.txt | awk "\$9 == \"$encl_id\"" | awk "\$10 == \"$dev\""|head -1)"
+        diskline="$(cat ${myTMP}/${HOSTNAME}.smartmon-ux_-zd.txt | awk "\$9 == \"$encl_id\"" | awk "\$10 == \"$dev\""|tail -1)"
         if [ "$diskline" == '' ]; then
             echo -n "NODISK "
             if [ "$DEBUG" == 'true' ]; then
