@@ -43,7 +43,7 @@ for host in $cluster_hosts; do
         debug "Mapping disks for $pool"
         ${execute} zpool status ${pool} | $GREP "ONLINE\|INUSE\|AVAIL" | $GREP "c.t" | \
             $AWK -F ' ' '{print $1}' > ${myTMP}/${pool}_active_disks
-        ${execute} zpool status ${pool} | $GREP "FAULT" | $GREP "c.t" | \
+        ${execute} zpool status ${pool} | $GREP "FAULT\|REMOVED" | $GREP "c.t" | \
             $AWK -F ' ' '{print $1}' > ${myTMP}/${pool}_faulted_disks
         ${execute} cat /${pool}/zfs_tools/etc/spare-disks >> ${myTMP}/${pool}_active_disks 2> /dev/null
 
