@@ -5,7 +5,9 @@
 
 tar zxf sg3_utils-${1}.tgz
 cd sg3_utils-${1}
-./configure --prefix=/opt/ozmt/sg3_utils CFLAGS=-std=c99
+./configure CFLAGS=-std=c99
 make install
 cd ..
-cp -rv sg3_utils/share/man/man8/ /usr/share/man/
+cp -rv /usr/local/share/man/man8/ /usr/share/man/
+cp /usr/local/bin/sg* /opt/ozmt/bin/$(uname)/
+cp /usr/local/bin/scsi* /opt/ozmt/bin/$(uname)/
