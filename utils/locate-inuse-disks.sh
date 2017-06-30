@@ -1,5 +1,28 @@
 #! /bin/bash
 
+
+# TODO: Convert to using sg3_utils
+
+# Known tools thus far
+
+# Collect number of bays, jbod name, wwn
+# sg_ses -p ed /dev/es/ses7
+
+# Gather SAS addresses:
+# sg_inq -p sp /dev/rdsk/c0t5000C500857238F3d0s0
+
+# Gather connected disks via SAS address
+# sg_ses -I 0,19 -p aes /dev/es/ses7
+
+# Gather error counts
+# iostat -En
+
+# References:
+#
+# https://meteo.unican.es/trac/blog/DiskLocationOpenindiana
+
+
+
 # Find our source and change to the directory
 if [ -f "${BASH_SOURCE[0]}" ]; then
     my_source=`readlink -f "${BASH_SOURCE[0]}"`

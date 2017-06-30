@@ -40,39 +40,77 @@ local_pools="zpool list -H -o name"
 myTMP=${TMP}/disk-map
 MKDIR $myTMP
 
+jbods=`cat /etc/ozmt/jbod-map 2> /dev/null | ${AWK} -F ' ' '{print $2}' | ${SORT} `
 
+cat $myTMP/disk_to_location 2> /dev/null | ${CUT} -f 3 | ${SORT} -u > ${myTMP}/unnamed_jbod.txt
 
-cat "$myTMP/disk_to_location" | \
-while IFS='' read -r line || [[ -n "$line" ]]; do
-    # Collect possible disk like
-    possible_disk=`echo $line | ${AWK} -F ' ' '{print $1}'`
-    if [ "$possible_disk" != '' ]; then
-        mapping=`cat ${myTMP}/disk_to_location 2>/dev/null| ${GREP} "$possible_disk"`
-    else
-        mapping=''
+for jbod in $jbods; do
+    wwn=`cat /etc/ozmt/jbod-map | ${GREP} $jbod | ${CUT} -d ' ' -f 1`
+    cat ${myTMP}/unnamed_jbod.txt | ${GREP} -v "$wwn" > ${myTMP}/unnamed_jbod.txt2
+    mv ${myTMP}/unnamed_jbod.txt2 ${myTMP}/unnamed_jbod.txt
+done
+    
+output_map () {
+    local possible_disk=
+    local mapping=
+    local wwn=
+    local bay=
+    local serial=
+    local model=
+    local last_wwn=
+    local line=
+   
+    if [ "$1" == '' ]; then
+        echo "Bad call to output_map"
+        return 1
     fi
-    wwn=''
-    bay=''
-    serial=''
-    if [ "$mapping" != "" ]; then
-        wwn=`echo $mapping | ${CUT} -d ' ' -f 3`
-        bay=`echo $mapping | ${CUT} -d ' ' -f 4`
-        serial=`echo $mapping | ${CUT} -d ' ' -f 2`
-        jbod=''
-        if [ -f /etc/ozmt/jbod-map ]; then
-            jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
+    
+    cat "$myTMP/disk_to_location" | ${GREP} "$1" | ${SORT} -k 4g | \
+    while IFS='' read -r line || [[ -n "$line" ]]; do
+        # Collect possible disk like
+        possible_disk=`echo $line | ${AWK} -F ' ' '{print $1}'`
+        if [ "$possible_disk" != '' ]; then
+            cat ${myTMP}/disk_to_location 2>/dev/null| ${GREP} "$possible_disk" > ${myTMP}/mapping
+        else
+            rm -f ${myTMP}/mapping
         fi
-
-        if [ "$wwn" != "$last_wwn" ]; then
-            echo
-            last_wwn="$wwn"
+        wwn=''
+        bay=''
+        serial=''
+        if [ -f ${myTMP}/mapping ]; then
+            wwn=`cat ${myTMP}/mapping | ${CUT} -f 3`
+            bay=`cat ${myTMP}/mapping | ${CUT} -f 4`
+            serial=`cat ${myTMP}/mapping | ${CUT} -f 2`
+            vendor=`cat ${myTMP}/mapping | ${CUT} -f 5`
+            model=`cat ${myTMP}/mapping | ${CUT} -f 6`
+            firmware=`cat ${myTMP}/mapping | ${CUT} -f 7`
+            jbod=''
+            if [ -f /etc/ozmt/jbod-map ]; then
+                jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
+            fi
+    
+            if [ "$wwn" != "$last_wwn" ]; then
+                echo
+                last_wwn="$wwn"
+            fi
+    
+            printf '%-24s | %-12s | %3s | %20s | %-22s | %-9s | %-12s | %-4s\n' \
+                "$wwn" "$jbod" "$bay" "$serial" "$possible_disk" "$vendor" "$model" "$firmware"
+        else
+            #echo -n ''
+            echo "${line}"
         fi
+    done
 
-        printf '%-24s | %-12s | %3s | %20s | %-30s \n' "$wwn" "$jbod" "$bay" "$serial" "$possible_disk"
-    else
-        #echo -n ''
-        echo "${line}"
-    fi
+}
+
+for jbod in $jbods; do
+    wwn=`cat /etc/ozmt/jbod-map | ${GREP} $jbod | ${CUT} -d ' ' -f 1`
+    output_map $wwn
+done
+
+for wwn in $(cat ${myTMP}/unnamed_jbod.txt); do
+    output_map $wwn
 done
     
 

@@ -165,6 +165,7 @@ for wwn in $wwns; do
             diskvendor=`echo $diskline|awk -F ' ' '{print $4}'`
             diskmodel=`echo $diskline|awk -F ' ' '{print $5}'`
             diskserial=`echo $diskline|awk -F ' ' '{print $11}'`
+            diskfirmware=`echo $diskline|awk -F ' ' '{print $6}'`
         fi
         if [ "$diskserial" = '' ]; then
             echo "NO SERIAL"
@@ -198,7 +199,7 @@ for wwn in $wwns; do
             fi
         fi
         dev=$(( dev + 1 ))
-        echo "${diskosname}\t${diskserial}\t${wwn}\t${dev}" >> ${myTMP}/disk_to_location
+        echo "${diskosname}\t${diskserial}\t${wwn}\t${dev}\t${diskvendor}\t${diskmodel}\t${diskfirmware}" >> ${myTMP}/disk_to_location
     done 
     echo;echo
 done
