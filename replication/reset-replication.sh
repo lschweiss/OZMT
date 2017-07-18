@@ -95,7 +95,7 @@ if [ "$#" -lt "$MIN_ARGS" ]; then
 fi
 
 
-while getopts d:i: opt; do
+while getopts d:i:p: opt; do
     case $opt in
         p)  # All dataset in a pool
             pool="$OPTARG"
@@ -142,7 +142,6 @@ die () {
     ##
     
     if [ "$keep_suspended" != 'true' ]; then
-        rm /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
         if [ "$scheduling_locked" == 'true' ]; then
             release_lock "$schedule_lock"
         fi
@@ -167,6 +166,19 @@ for dataset in $datasets; do
 
     job_count=0
     ds_source=
+    skip_dataset='false'
+    running_end=
+    jobs=
+    abort=
+    ds_source=
+    ds_targets=
+    definitions=
+    target_pool=
+    check_source=
+    job_dead=
+    running_jobs=
+    info_folder=
+    
 
 
     ##
@@ -321,7 +333,8 @@ for dataset in $datasets; do
     
             if [ "$running_jobs" != "" ]; then
                 warning "Running jobs reported for ${dataset_name}. Aborting. "
-                continue
+                skip_dataset='true'
+                break
             fi
     
             if [[ "$wait_for_running" == 'true' && "$job_dead" == 'false' ]]; then
@@ -333,7 +346,8 @@ for dataset in $datasets; do
                     wait_minutes=$(( wait_time / 60 ))
                     if [ $wait_minutes -ge $reset_replication_timeout ]; then
                         error "Waited $reset_replication_timeout minutes for $dataset running jobs to complete.  Giving up."
-                        continue
+                        skip_dataset='true'
+                        break
                     fi
                     ls -1 "/$pool/zfs_tools/var/replication/jobs/running/" | ${GREP} -q "^${dataset_name}_to_${target_pool}"
                     running=$?
@@ -346,6 +360,10 @@ for dataset in $datasets; do
                 debug "No running jobs for $dataset to $target"
             fi            
     done
+
+    if [ "$skip_dataset" == 'true' ]; then
+        continue
+    fi
     
     # Set 1 hour lock timeout
     lock_timeout=$(( 60 * 60 ))
@@ -391,11 +409,11 @@ for dataset in $datasets; do
     ##
     if [ "$cleaner_locked" != 'true' ]; then
 
-        touch "/$pool/zfs_tools/var/replication/jobs/cleaning/abort_cleaning"
         job_cleaner_lock_dir="${TMP}/replication/job-cleaner"
         job_cleaner_lock="${job_cleaner_lock_dir}/job-cleaner"
         
         MKDIR $job_cleaner_lock_dir
+        touch "${job_cleaner_lock_dir}/abort_cleaning"
         
         if [ ! -f ${job_cleaner_lock} ]; then
             touch ${job_cleaner_lock}
@@ -405,11 +423,9 @@ for dataset in $datasets; do
         wait_for_lock ${job_cleaner_lock} || die 1
         
         cleaner_locked='true'
-        rm -f "/$pool/zfs_tools/var/replication/jobs/cleaning/abort_cleaning"
+        rm -f "${job_cleaner_lock_dir}/abort_cleaning"
     fi
     
-    
-    echo "Resetting replication for $dataset" > /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
     
     
     ##
@@ -640,6 +656,7 @@ for dataset in $datasets; do
         done
         if [ "$running_end" == "" ]; then
             # Reset the status to the latest snapshot
+            debug "Setting previous_snapshot=\"$common_snap\""
             echo "previous_snapshot=\"$common_snap\"" > $job_status
         fi
     
