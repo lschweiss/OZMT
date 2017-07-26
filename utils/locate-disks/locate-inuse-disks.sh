@@ -5,21 +5,40 @@
 
 # Known tools thus far
 
+# Collect vendor, name, firmware revision
+# sg_inq -p sdp {device_path}| head 1
+
 # Collect number of bays, jbod name, wwn
 # sg_ses -p ed /dev/es/ses7
+# sg_ses -p ed /dev/bsg/{device}
 
 # Gather SAS addresses:
 # sg_inq -p sp /dev/rdsk/c0t5000C500857238F3d0s0
+# sg_inq -p di /dev/rdsk/c0t5000C500857238F3d0s0
+#    SAS addresses on lines like:
+#       [0x5000c50093e3be85]
+#   
 
 # Gather connected disks via SAS address
 # sg_ses -I 0,19 -p aes /dev/es/ses7
+#   "SAS address:" will match 'sg_inq -p di' of the disk
 
 # Gather error counts
 # iostat -En
 
+# Gather controller connectivity
+# sas2ircu
+
+
 # References:
 #
 # https://meteo.unican.es/trac/blog/DiskLocationOpenindiana
+# http://www.avagotech.com/docs-and-downloads/host-bus-adapters/host-bus-adapters-common-files/sas_sata_6g_p20/SAS2IRCU_P20.zip
+# https://stackoverflow.com/questions/555427/map-sd-sdd-names-to-solaris-disk-names
+# https://openindiana.org/pipermail/openindiana-discuss/2017-May/020729.html  <--- Maping "Log info received for target" messages
+
+# sd mapping:
+# paste -d= <(iostat -x | awk 'NR>2{print $1}') <(iostat -nx | awk 'NR>2{print "/dev/dsk/"$11}')
 
 
 

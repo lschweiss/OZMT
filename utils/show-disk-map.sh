@@ -94,8 +94,8 @@ output_map () {
                 last_wwn="$wwn"
             fi
     
-            printf '%-24s | %-12s | %3s | %20s | %-22s | %-9s | %-12s | %-4s\n' \
-                "$wwn" "$jbod" "$bay" "$serial" "$possible_disk" "$vendor" "$model" "$firmware"
+            printf '%-24s | %-12s | %3s | %-22s | %20s | %-9s | %-12s | %-4s\n' \
+                "$wwn" "$jbod" "$bay" "$possible_disk" "$serial" "$vendor" "$model" "$firmware"
         else
             #echo -n ''
             echo "${line}"

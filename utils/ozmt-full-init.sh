@@ -198,6 +198,10 @@ gnu_source () {
 
 [ -z "$SMBCONTROL" ] && SMBCONTROL="/usr/local/samba/bin/smbcontrol"
 
+[ -z "$SAS2IRCU" ] && SAS2IRCU=`gnu_source sas2ircu`
+
+[ -z "$SAS3IRCU" ] && SAS3IRCU=`gnu_source sas3ircu`
+
 
 
 # Set defaults
