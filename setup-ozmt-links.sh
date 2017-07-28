@@ -46,10 +46,10 @@ ln -s ${TOOLS_ROOT}/utils/zfs-rollback-folders.sh /usr/sbin/ozmt-zfs-rollback-fo
 ln -s ${TOOLS_ROOT}/utils/remove-quota.sh /usr/sbin/ozmt-remove-quota.sh
 ln -s ${TOOLS_ROOT}/utils/watch-jobs.sh /usr/sbin/ozmt-watch-jobs.sh
 ln -s ${TOOLS_ROOT}/utils/watch-zfs-debug.sh /usr/sbin/ozmt-watch-zfs-debug.sh
-ln -s ${TOOLS_ROOT}/utils/locate-inuse-disks.sh /usr/sbin/ozmt-locate-inuse-disks.sh
-ln -s ${TOOLS_ROOT}/utils/locate-unused-disks.sh /usr/sbin/ozmt-locate-unused-disks.sh
+ln -s ${TOOLS_ROOT}/utils/locate-disks/locate-inuse-disks.sh /usr/sbin/ozmt-locate-inuse-disks.sh
+ln -s ${TOOLS_ROOT}/utils/locate-disks/locate-unused-disks.sh /usr/sbin/ozmt-locate-unused-disks.sh
+ln -s ${TOOLS_ROOT}/utils/locate-disks/show-disk-map.sh /usr/sbin/ozmt-show-disk-map.sh 
 ln -s ${TOOLS_ROOT}/utils/extended-zpool-status.sh /usr/sbin/ozmt-zpool-status.sh
-ln -s ${TOOLS_ROOT}/utils/show-disk-map.sh /usr/sbin/ozmt-show-disk-map.sh
 
 
 

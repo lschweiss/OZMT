@@ -85,7 +85,7 @@ output_map () {
             model=`cat ${myTMP}/mapping | ${CUT} -f 6`
             firmware=`cat ${myTMP}/mapping | ${CUT} -f 7`
             jbod=''
-            show_wwn=
+            show_wwn="$show_dev"
             show_jbod=
             if [ -f /etc/ozmt/jbod-map ]; then
                 jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
@@ -96,10 +96,19 @@ output_map () {
                 last_wwn="$wwn"
                 show_wwn="$wwn"
                 show_jbod="$jbod"
+                show_ses=1
             fi
     
             printf '%-24s | %-12s | %3s | %-22s | %20s | %-9s | %-12s | %-4s\n' \
                 "$show_wwn" "$show_jbod" "$bay" "$possible_disk" "$serial" "$vendor" "$model" "$firmware"
+
+            # TODO:  This logic will fail to show all device paths if there are more device paths than connected disks
+            if [[ "$show_wwn" != '' && $show_ses -gt 0 ]]; then
+                show_dev=`cat ${myTMP}/enclosure-data | ${GREP} "$last_wwn" | ${CUT} -f 6 | ${SED} -n -e ${show_ses}p`
+                show_ses=$(( show_ses + 1 ))
+            fi
+                
+
         else
             #echo -n ''
             echo "${line}"
