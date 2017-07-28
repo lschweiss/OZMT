@@ -521,6 +521,7 @@ for dataset in $datasets; do
                               ${GREP} "@$zfs_replication_snapshot_name"`
                 if [ "$target_snaps" == "" ]; then
                     error "Could not collect snapshots from ${target_pool}/${target_folder}"
+                    valid_snap='false'
                     continue
                 fi
                 target_parent_snaps=`printf '%s\n' "$target_snaps" | ${GREP} "^${target_pool}/${target_folder}@"`
