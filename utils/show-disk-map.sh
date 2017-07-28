@@ -85,6 +85,8 @@ output_map () {
             model=`cat ${myTMP}/mapping | ${CUT} -f 6`
             firmware=`cat ${myTMP}/mapping | ${CUT} -f 7`
             jbod=''
+            show_wwn=
+            show_jbod=
             if [ -f /etc/ozmt/jbod-map ]; then
                 jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
             fi
@@ -92,10 +94,12 @@ output_map () {
             if [ "$wwn" != "$last_wwn" ]; then
                 echo
                 last_wwn="$wwn"
+                show_wwn="$wwn"
+                show_jbod="$jbod"
             fi
     
             printf '%-24s | %-12s | %3s | %-22s | %20s | %-9s | %-12s | %-4s\n' \
-                "$wwn" "$jbod" "$bay" "$possible_disk" "$serial" "$vendor" "$model" "$firmware"
+                "$show_wwn" "$show_jbod" "$bay" "$possible_disk" "$serial" "$vendor" "$model" "$firmware"
         else
             #echo -n ''
             echo "${line}"
