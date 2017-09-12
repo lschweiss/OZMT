@@ -123,7 +123,7 @@ for pool in $pools; do
                     ${SORT} -r | \
                     ${TAIL} -n +$(( $keepcount + 1 ))`
                 for snap in $delete_list; do
-                    notice "Destroying: ${snap}, keeping ${keepcount} of type ${snaptype}"
+                    notice "Queuing for destroy: ${snap}, keeping ${keepcount} of type ${snaptype}"
                     echo "$snap" > ${destroy_queue}/${folder_fixed}_$(${DATE} +%s.%N)
                 done
             fi

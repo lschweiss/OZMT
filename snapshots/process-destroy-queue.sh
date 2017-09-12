@@ -51,17 +51,21 @@ for folder in $folders; do
     zfs_folder="$(jobtofolder $folder)"
     x=0
     # Collect snapshots
-    snaps=`ls -1 $destroy_queue/$folder | ${SORT}`
+    snaps=`ls -1 $destroy_queue/$folder | ${SORT} -u`
+    debug "Snaps found: $snaps"
+
     if [ "$snaps" == "" ]; then
+        notice "No snaps for $destroy_queue/$folder"
         continue
     fi
+
     for snap in $snaps; do
         x=$(( x + 1 ))
         snapfile[$x]="$snap"
         snapshot[$x]=`cat $destroy_queue/$folder/$snap | ${AWK} -F '@' '{print $2}'`
     done
-    # Build destroy command
 
+    # Build destroy command
     echo -n "zfs destroy -d ${zfs_folder}@${snapshot[1]}" > ${TMP}/snapshots/destroy_$$.sh
 
     y=2
@@ -75,16 +79,18 @@ for folder in $folders; do
     if [ "$DEBUG" == 'true' ]; then
         cat ${TMP}/snapshots/destroy_$$.sh
         result=0
-    else   
+    else
+        notice "Executing destroy queue: $destroy_queue/$folder"
         source ${TMP}/snapshots/destroy_$$.sh 
         result=$?
     fi
 
     if [ $result -ne 0 ]; then 
-        warning "Failed to destroy snapshots for $zfs_folder." ${TMP}/snapshots/destroy_bulk_$$.error.txt
+        warning "Failed to bulk destroy snapshots for $zfs_folder. Trying individually." ${TMP}/snapshots/destroy_bulk_$$.error.txt
         # Try individually
         y=1
         while [ $y -le $x ]; do
+            notice "Destroying: ${zfs_folder}@${snapshot[$y]}" 
             zfs list -o name -H ${zfs_folder}@${snapshot[$y]} 1>/dev/null 2>/dev/null 
             if [ $? -eq 0 ]; then
                 echo "zfs destroy -d ${zfs_folder}@${snapshot[$y]} 2>${TMP}/snapshots/destroy_${y}_$$.error.txt"
