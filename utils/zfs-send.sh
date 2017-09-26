@@ -69,14 +69,14 @@ clean_up () {
         pids=`ls -1 $tmpdir/*.pid 2> /dev/null`
         for pidfile in $pids; do
             pid=`cat $pidfile`
-            debug "Killing process $pidfile, PID $pid"
+            notice "Killing process $pidfile, PID $pid"
             kill $pid &> /dev/null
         done
         if [ "$remote_host" != "" ]; then
             #DEBUG set -x
             pids=`$remote_ssh "cat $remote_tmp/*.pid 2>/dev/null"`
             for pid in $pids; do
-                debug "Killing remote process PID $pid"
+                notice "Killing remote process PID $pid"
                 $remote_ssh "kill $pid &> /dev/null"
             done
             #DEBUG set +x
@@ -1063,6 +1063,11 @@ while [ "$running" == 'true' ]; do
                     touch ${tmpdir}/running.false
                 fi
             fi
+        fi
+        # Other threads may have created the .fail file
+        if [ -f ${tmpdir}/${process}.fail ]; then
+            running='false'
+            touch ${tmpdir}/running.false
         fi
     done
 

@@ -50,6 +50,8 @@ ln -s ${TOOLS_ROOT}/utils/locate-disks/locate-inuse-disks.sh /usr/sbin/ozmt-loca
 ln -s ${TOOLS_ROOT}/utils/locate-disks/locate-unused-disks.sh /usr/sbin/ozmt-locate-unused-disks.sh
 ln -s ${TOOLS_ROOT}/utils/locate-disks/show-disk-map.sh /usr/sbin/ozmt-show-disk-map.sh 
 ln -s ${TOOLS_ROOT}/utils/extended-zpool-status.sh /usr/sbin/ozmt-zpool-status.sh
+ln -s ${TOOLS_ROOT}/utils/show-disk-map.sh /usr/sbin/ozmt-show-disk-map.sh
+ln -s ${TOOLS_ROOT}/utils/new-dataset.sh /usr/sbin/ozmt-new-dataset.sh
 
 
 
