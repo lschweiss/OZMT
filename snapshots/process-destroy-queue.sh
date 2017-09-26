@@ -94,6 +94,7 @@ for folder in $folders; do
             zfs list -o name -H ${zfs_folder}@${snapshot[$y]} 1>/dev/null 2>/dev/null 
             if [ $? -eq 0 ]; then
                 echo "zfs destroy -d ${zfs_folder}@${snapshot[$y]} 2>${TMP}/snapshots/destroy_${y}_$$.error.txt"
+                zfs destroy -d ${zfs_folder}@${snapshot[$y]} 2>${TMP}/snapshots/destroy_${y}_$$.error.txt
                 result=$?
                 if [ $result -ne 0 ]; then
                     warning "Failed to destroy snapshot for ${zfs_folder}@${snapshot[$y]}." ${TMP}/snapshots/destroy_${y}_$$.error.txt

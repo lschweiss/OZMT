@@ -121,6 +121,15 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
             continue
         fi
         MKDIR "/${pool}/zfs_tools/var/replication/jobs/cleaning"
+
+        if [ -f "${job_cleaner_lock_dir}/abort_cleaning" ]; then
+            notice "Early abort of cleaning requested"
+            clean_cache
+            release_lock ${job_cleaner_lock}
+            rm "${job_cleaner_lock_dir}/abort_cleaning"
+            exit 0
+        fi
+
         # Check if all jobs suspended
         if [ -f "$replication_dir/suspend_all_jobs" ]; then
             notice "All jobs suspended. Not running clean up jobs on pool: $pool"

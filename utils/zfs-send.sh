@@ -54,6 +54,11 @@ success='false'
 # Clean up 
 ##
 clean_up () {
+
+    ptree $$ > $tmpdir/ptree-zfs_send.txt
+    set > $tmpdir/environment.txt
+    echo $1 > $tmpdir/exit-code.txt
+
     
     if [ "$post_sync_lock" == 'true' ]; then
         release_lock $post_sync_file
@@ -850,6 +855,7 @@ case $transport_selected in
                 break
             fi
         done
+        [ -f $tmpdir/bbcp.fail ] && cleanup 1
         debug "${job_name}: BBCP started $bbcp_started"
         sleep 10
     ;;
