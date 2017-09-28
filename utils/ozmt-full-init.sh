@@ -202,6 +202,13 @@ gnu_source () {
 
 [ -z "$SAS3IRCU" ] && SAS3IRCU=`gnu_source sas3ircu`
 
+[ -z "$SG_SES" ] && SG_SES=`gnu_source sg_ses`
+
+[ -z "$SG_INQ" ] && SG_INQ=`gnu_source sg_inq`
+
+[ -z "$SDPARM" ] && SDPARM=`gnu_source sdparm`
+
+
 
 
 # Set defaults
