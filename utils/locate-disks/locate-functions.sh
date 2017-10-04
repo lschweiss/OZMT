@@ -86,7 +86,11 @@ collect_expander_info () {
     rm -f $myTMP/ses_wwn.tmp
     touch $myTMP/ses_wwn.tmp
 
-    collect_disk_info
+    if [ ! -f $myTMP/disks ]; then
+        collect_disk_info
+    fi
+    
+    source $myTMP/disks
 
     debug "Collecting SAS expander information"
 
@@ -155,7 +159,7 @@ collect_expander_info () {
             slot=0
             while [ $slot -lt $slots ]; do
 
-                this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} | \
+                this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
                     $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 echo "expander["${wwn}_sasaddr_${slot}_${paths}"]=\"$this_sasaddr\"" >> $myTMP/expanders
 
