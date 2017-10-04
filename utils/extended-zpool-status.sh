@@ -40,11 +40,24 @@ local_pools="zpool list -H -o name"
 myTMP=${TMP}/disk-map
 MKDIR $myTMP
 
-
 if [ "$1" == '' ]; then
     echo "Must specify a pool."
     exit 1
 fi
+
+source ${TOOLS_ROOT}/utils/locate-disks/locate-functions.sh
+
+if [ ! -f $myTMP/disks ]; then
+    collect-disk-info
+fi
+
+if [ ! -f $myTMP/expanders ]; then
+    collect-expander-info
+fi
+
+source $myTMP/disks
+source $myTMP/expanders
+
 
 
 # Collect zpool status
@@ -63,28 +76,29 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     # Collect possible disk like
     possible_disk=`echo $line | ${AWK} -F ' ' '{print $1}'`
     if [ "$possible_disk" != '' ]; then
-        mapping=`cat ${myTMP}/disk_to_location 2>/dev/null| ${GREP} "$possible_disk"`
-    else
-        mapping=''
-    fi
-    wwn=''
-    bay=''
-    if [ "$mapping" != "" ]; then
-        wwn=`echo $mapping | ${CUT} -d ' ' -f 3`
-        bay=`echo $mapping | ${CUT} -d ' ' -f 4`
-        jbod=''
-        if [ -f /etc/ozmt/jbod-map ]; then
-            jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
-        fi
-        if [ "$jbod" != '' ]; then
-            chassis="$jbod"
+        diskwwn="${disk["${possible_disk}_wwn"]}"
+        if [ "$diskwwn" != '' ]; then
+            bay="${disk["${diskwwn}_slot"]}"
+            if [ "$bay" != '' ]; then
+                bay=$(( bay + 1 ))
+            fi
+            jbodwwn="${disk["${diskwwn}_expander"]}"
+            jbod=''
+            if [ -f /etc/ozmt/jbod-map ]; then
+                jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$jbodwwn" | ${CUT} -d ' ' -f 2`
+            fi
+            if [ "$jbod" != '' ]; then
+                chassis="$jbod"
+            else
+                chassis="$jbodwwn"
+            fi
+            if [ "$resilvering" == 'true' ]; then
+                printf '%-71s | %-12s | %3s \n' "$line" "$chassis" "$bay"
+            else
+                printf '%-60s | %-12s | %3s \n' "$line" "$chassis" "$bay"
+            fi
         else
-            chassis="$wwn"
-        fi
-        if [ "$resilvering" == 'true' ]; then
-            printf '%-71s | %-12s | %3s \n' "$line" "$chassis" "$bay"
-        else
-            printf '%-60s | %-12s | %3s \n' "$line" "$chassis" "$bay"
+            echo "${line}"
         fi
     else
         #echo -n ''

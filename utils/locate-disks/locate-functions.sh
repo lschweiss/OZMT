@@ -196,6 +196,11 @@ collect_disk_info () {
     local addr=
     local addrs=
     local wwns=
+    local vendor=
+    local model=
+    local fwrev=
+    local serial=
+    local unitserial=
     declare -A disk
     declare -A sasaddr
 
@@ -230,8 +235,49 @@ collect_disk_info () {
             done < $myTMP/disk_info.tmp
         fi
 
+        vendor=
+        model=
+        fwrev=
+        serial=
+        unitserial=
+
+        $SG_INQ -s /dev/rdsk/${dev}s0 1> $myTMP/disk_info.tmp  2> /dev/null
+        if [ $? -ne 0 ]; then
+            # Not a useful disk link
+            rm -f $myTMP/disk_info.tmp
+        else
+            while IFS='' read -r line || [[ -n "$line" ]]; do
+                if [[ "${line}" == *"Vendor identification"* ]]; then
+                    vendor="${line:24}"
+                    continue
+                fi
+                if [[ "${line}" == *"Product identification"* ]]; then
+                    model="${line:25}"
+                    continue
+                fi
+                if [[ "${line}" == *"Product revision level"* ]]; then
+                    fwrev="${line:25}"
+                    continue
+                fi
+                if [[ "${line}" == *"Vendor specific"* ]]; then
+                    serial="${line:18}"
+                    continue
+                fi
+                if [[ "${line}" == *"Unit serial number"* ]]; then
+                    unitserial="${line:22}"
+                fi
+                
+            done < $myTMP/disk_info.tmp
+        fi
+
         echo "disk["${wwn}_osname"]=\"$dev\"" >> $myTMP/disks
+        echo "disk["${dev}_wwn"]=\"$wwn\"" >> $myTMP/disks
         echo "disk["${wwn}_sasaddrs"]=\"$addrs\"" >> $myTMP/disks
+        [ -n $vendor ] && echo "disk["${wwn}_vendor"]=\"${vendor//[[:space:]]}\"" >> $myTMP/disks
+        [ -n $model ] && echo "disk["${wwn}_model"]=\"${model//[[:space:]]}\"" >> $myTMP/disks
+        [ -n $fwrev ] && echo "disk["${wwn}_fwrev"]=\"${fwrev//[[:space:]]}\"" >> $myTMP/disks
+        [ -n $serial ] && echo "disk["${wwn}_serial"]=\"${serial//[[:space:]]}\"" >> $myTMP/disks
+        [ -n $unitserial ] && echo "disk["${wwn}_unitserial"]=\"${unitserial//[[:space:]]}\"" >> $myTMP/disks
 
         addr=1
         while [ $addr -le $addrs ]; do
