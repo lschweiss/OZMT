@@ -201,6 +201,7 @@ collect_disk_info () {
     local fwrev=
     local serial=
     local unitserial=
+    local result=
     declare -A disk
     declare -A sasaddr
 
@@ -215,10 +216,14 @@ collect_disk_info () {
 
     for dev in $devs; do
         addrs=0
-        $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info.tmp  2> /dev/null
-        if [ $? -ne 0 ]; then
+        ${TIMEOUT} 3s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info.tmp  2> /dev/null
+        result=$?
+        if [ $result -ne 0 ]; then
             # Not a useful disk link
             rm -f $myTMP/disk_info.tmp
+            if [ $result -eq 124 ]; then
+                echo "disk["${dev}_wwn"]=\"UNAVAILABLE\"" >> $myTMP/disks
+            fi
             continue
         else
             while IFS='' read -r line || [[ -n "$line" ]]; do
