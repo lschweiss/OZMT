@@ -48,11 +48,11 @@ fi
 source ${TOOLS_ROOT}/utils/locate-disks/locate-functions.sh
 
 if [ ! -f $myTMP/disks ]; then
-    collect-disk-info
+    collect_disk_info
 fi
 
 if [ ! -f $myTMP/expanders ]; then
-    collect-expander-info
+    collect_expander_info
 fi
 
 source $myTMP/disks
