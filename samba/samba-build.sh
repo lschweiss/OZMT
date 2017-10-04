@@ -63,6 +63,12 @@ if [ "$zlib_version" == "" ]; then
     zlib_version="1.2.8"
 fi
 
+if [ -z $gcc_path ]; then
+    error "Must have gcc_path set.   On Illumos this may be OpenCSW or pkgsrc.  On Linux the distribution gcc is acceptable."
+    exit 1
+fi 
+
+PATH=$gcc_path:$PATH
 
 
 build_dataset_samba () {
@@ -173,7 +179,7 @@ build_dataset_samba () {
         # See if it is dataset defined
         build_options=`zfs get -H -o value ${zfs_cifs_property}:buildoptions $dataset_folder`  
         if [ "$build_options" == '-' ]; then
-            build_options="--prefix=${prefix} --with-acl-support --with-ldap --with-profiling-data --with-shared-modules=nfs4_acls,vfs_zfsacl,acl_xattr"
+            build_options="--prefix=${prefix} --with-acl-support --with-ldap --with-profiling-data --with-shared-modules=nfs4_acls,vfs_zfsacl,acl_xattr --without-ad-dc"
         fi
     else
         build_options="$samba_build_options"
