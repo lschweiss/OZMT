@@ -66,11 +66,13 @@ clean_up () {
 
     if [ "$success" == 'false' ]; then
         # Kill running processes
-        pids=`ls -1 $tmpdir/*.pid 2> /dev/null`
-        for pidfile in $pids; do
-            pid=`cat $pidfile`
-            notice "Killing process $pidfile, PID $pid"
-            kill $pid &> /dev/null
+        pidfiles=`ls -1 $tmpdir/*.pid 2> /dev/null`
+        for pidfile in $pidfiless; do
+            pids=`cat $pidfile`
+            for pid in $pids; do
+                notice "Killing process $pidfile, PID $pid"
+                kill $pid &> /dev/null
+            done
         done
         if [ "$remote_host" != "" ]; then
             #DEBUG set -x
@@ -395,7 +397,7 @@ if [ "$remote_host" != "" ]; then
         verify='fail'
     fi 
     #TODO: Need to check for $remote_tmp folder collisions and compensate.       
-    /${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
+    ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
         warning "${job_name}: Cannot connect to remote host at root@${remote_host}"
@@ -618,6 +620,7 @@ pause () {
 #
 ################################################################
 
+
 ##
 # zfs receive or flat file
 ##
@@ -629,7 +632,7 @@ if [ "$flat_file" == 'true' ]; then
         target_fifo="$result"
         debug "${job_name}: Starting local pipe from $target_fifo to $target_folder"
         ( cat $target_fifo 1> $target_folder 2> $tmpdir/flat_file.error ; echo $? > $tmpdir/flat_file.errorlevel ) &
-        echo $! > $tmpdir/flat_file.pid
+        pidtree $! > $tmpdir/flat_file.pid
         local_watch="flat_file $local_watch"
         
     else
@@ -651,7 +654,7 @@ else
         debug "${job_name}: Starting local zfs receive $target_fifo to ${target_folder}"
         ( cat $target_fifo | zfs receive ${receive_options} ${target_prop} ${target_folder} \
             2> $tmpdir/zfs_receive.error ; echo $? > $tmpdir/zfs_receive.errorlevel ) &
-        echo $! > $tmpdir/zfs_receive.pid
+        pidtree $! > $tmpdir/zfs_receive.pid
         local_watch="$zfs_receive $local_watch"
     else
         # Remote
@@ -835,7 +838,7 @@ case $transport_selected in
             -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
             1> $tmpdir/bbcp.log \
             2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
-        echo $! > $tmpdir/bbcp.pid
+        pidtree $! > $tmpdir/bbcp.pid
         target_fifo="$target_bbcp_fifo"
         local_watch="bbcp $local_watch"
         if [ -t 1 ]; then
@@ -869,7 +872,7 @@ case $transport_selected in
         target_ssh_fifo="$result"
         debug "${job_name}: Starting ssh pipe transport from local $target_ssh_fifo to remote $target_fifo"
         ( cat $target_ssh_fifo | $remote_ssh "cat > $target_fifo" 2> /$tmpdir/ssh.error ; echo $? > $tmpdir/ssh.errorlevel ) &
-        echo $! > $tmpdir/ssh.pid
+        pidtree $! > $tmpdir/ssh.pid
         target_fifo="$target_ssh_fifo"
         local_watch="ssh $local_watch"
         sleep 3
@@ -890,7 +893,7 @@ case $transport_selected in
             -l $tmpdir/mbuffer_transport.log \
             2> $tmpdir/mbuffer_transport.error ; \
             echo $? > $tmpdir/mbuffer_transport.errorlevel ) &
-        echo $! > $tmpdir/mbuffer_transport.pid
+        pidtree $! > $tmpdir/mbuffer_transport.pid
         target_fifo="$source_mbuffer_transport_fifo"
         local_watch="mbuffer_transport $local_watch"
         sleep 3
@@ -911,7 +914,7 @@ if [ "$bbcp_encrypt" == 'true' ]; then
         openssl aes-256-cbc -pass file:$bbcp_key \
         2> "$tmpdir/openssl.error" | \
         cat > "$target_fifo" ; echo $? > $tmpdir/openssl.errorlevel ) &
-    echo $! > $tmpdir/openssl.pid
+    pidtree $! > $tmpdir/openssl.pid
     target_fifo="$target_ssl_fifo"
     local_watch="openssl $local_watch"
     sleep 3
@@ -935,7 +938,7 @@ if [ "$lz4_level" -ne 0 ]; then
         $lz4 -${lz4_level} 2> "$tmpdir/lz4.error" | \
         cat > "$target_fifo" ; \
         echo $? > "$tmpdir/lz4.errorlevel" ) &
-    echo $! > $tmpdir/lz4.pid
+    pidtree $! > $tmpdir/lz4.pid
     target_fifo="$source_lz4_fifo"
     local_watch="lz4 $local_watch"
     sleep 2
@@ -952,7 +955,7 @@ if [ "$gzip_level" -ne 0 ]; then
     ( cat "$source_gzip_fifo" | \
         gzip -${gzip_level} --stdout 2> "$tmpdir/gzip.error" | \
         cat > "$target_fifo" ; echo $? > "$tmpdir/gzip.errorlevel" ) &
-    echo $! > $tmpdir/gzip.pid
+    pidtree $! > $tmpdir/gzip.pid
     target_fifo="$source_gzip_fifo"
     local_watch="gzip $local_watch"
     sleep 2
@@ -973,7 +976,7 @@ if [ "$mbuffer_use" == 'true' ]; then
         2> $tmpdir/mbuffer.error | \
         cat > "$target_fifo" ; \
         echo $? > "$tmpdir/mbuffer.errorlevel" ) &
-    echo $! > $tmpdir/mbuffer.pid
+    pidtree $! > $tmpdir/mbuffer.pid
     target_fifo="$source_mbuffer_fifo"
     local_watch="mbuffer $local_watch"
     sleep 2
@@ -991,7 +994,7 @@ if [ "$gen_chksum" != "" ] || [ "$remote_chksum" != "" ]; then
         tee $target_fifo | \
         md5sum -b > "$tmpdir/md5sum" 2> "$tmpdir/md5sum.error" ; \
         echo $? > "$tmpdir/md5sum.errorlevel" ) &
-    echo $! > $tmpdir/md5sum.pid
+    pidtree $! > $tmpdir/md5sum.pid
     target_fifo="$source_md5sum_fifo"
     local_watch="md5sum $local_watch"
 fi
@@ -1012,7 +1015,7 @@ fi
 debug "${job_name}: Starting zfs send to $target_fifo"
 debug "${job_name}:   zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
 ( sleep 2 ; zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo ; echo $? > $tmpdir/zfs_send.errorlevel ) &
-echo $! > $tmpdir/zfs_send.pid
+pidtree $! > $tmpdir/zfs_send.pid
 local_watch="zfs_send $local_watch"
 
 
@@ -1108,6 +1111,8 @@ while [ "$running" == 'true' ]; do
             success='true'
         fi
     fi
+
+    set > $tmpdir/environment.out
 
     sleep 2
 

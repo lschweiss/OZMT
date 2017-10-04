@@ -72,6 +72,25 @@ check_key () {
 
 }
 
+pidtree() {
+    declare -A CHILDS
+    while read P PP;do
+        CHILDS[$PP]+=" $P"
+    done < <(ps -e -o pid= -o ppid=)
+
+    walk() {
+        echo $1
+        for i in ${CHILDS[$1]};do
+            walk $i
+        done
+    }
+
+    for i in "$@";do
+        walk $i
+    done
+}
+
+
 ####
 #
 # Conversions
