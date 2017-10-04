@@ -222,6 +222,7 @@ collect_disk_info () {
             # Not a useful disk link
             rm -f $myTMP/disk_info.tmp
             if [ $result -eq 124 ]; then
+                debug "$dev is not responding"
                 echo "disk["${dev}_wwn"]=\"UNAVAILABLE\"" >> $myTMP/disks
             fi
             continue
