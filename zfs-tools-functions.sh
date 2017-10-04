@@ -1000,6 +1000,17 @@ release_lock() {
 
 }
 
+release_locks () {
+    if [ -f "$1" ]; then
+        while IFS='' read -r line || [[ -n "$line" ]]; do
+            release_lock "$line"
+        done < "$1"
+    else
+        error "release_locks called without invalid file $1"
+    fi
+}
+
+
 local_source () {
 
     # processes a data file line by line outputing 'local' at the begining of each line

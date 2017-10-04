@@ -135,6 +135,7 @@ done
 
 
 
+
 die () {
 
     ##
@@ -142,11 +143,11 @@ die () {
     ##
     
     if [ "$keep_suspended" != 'true' ]; then
-        if [ "$scheduling_locked" == 'true' ]; then
-            release_lock "$schedule_lock"
+        if [ "$scheduling_locked" != '' ]; then
+            release_locks "${TMP}/reset-schedule-locks"
         fi
-        if [ "$runner_locked" == 'true' ]; then
-            release_lock "$runner_lock"
+        if [ "$runner_locked" != '' ]; then
+            release_locks "${TMP}/reset-runner-locks"
         fi
         if [ "$cleaner_locked" == 'true' ]; then
             release_lock "$job_cleaner_lock"
@@ -371,9 +372,10 @@ for dataset in $datasets; do
     ##
     # Lock the scheduler
     ##
-    if [ "$scheduling_locked" != 'true' ]; then
+    if [ "$scheduling_locked" != *"#${source_pool}#"* ]; then
         schedule_lock_dir="${TMP}/replication/scheduling/${source_pool}"
         schedule_lock="${schedule_lock_dir}/scheduling"
+        echo "${schedule_lock}" >> ${TMP}/reset-schedule-locks
         MKDIR "${schedule_lock_dir}"
         if [ ! -f "${schedule_lock}" ]; then
             touch "${schedule_lock}"
@@ -382,17 +384,17 @@ for dataset in $datasets; do
         
         wait_for_lock $schedule_lock || die 1
         
-        scheduling_locked='true'
+        scheduling_locked="${scheduling_locked} #${source_pool}#"
     fi
     
     ##
     # Lock the job runner
     ## 
-    if [ "$runner_locked" != 'true' ]; then
+    if [ "$runner_locked" != *"#${source_pool}#"* ]; then
         job_runner_lock_dir="${TMP}/replication/job-runner"
-        job_runner_lock="${job_runner_lock_dir}/job-runner"
-        MKDIR ${job_runner_lock_dir}/${source_pool}
         runner_lock="${job_runner_lock_dir}/${pool}/runner"
+        echo "${runner_lock}" >> ${TMP}/reset-runner-locks
+        MKDIR ${job_runner_lock_dir}/${source_pool}
         # Lock on running
         if [ ! -f "${runner_lock}" ]; then
             touch "${runner_lock}"
@@ -401,7 +403,7 @@ for dataset in $datasets; do
         
         wait_for_lock $runner_lock || die 1
         
-        runner_locked='true'
+        runner_locked="${runner_locked} #${source_pool}#"
     fi
     
     ##
