@@ -62,7 +62,7 @@ interfaces=0
 
 declare -A vip
 
-while getopts p:f:d:v:r:g:i: opt; do
+while getopts p:f:d:v:r:g:i:R:T: opt; do
     case $opt in
         p)  # Pool
             pool="$OPTARG"
@@ -102,6 +102,10 @@ while getopts p:f:d:v:r:g:i: opt; do
         R)  # Replication template
             replication="$OPTARG"
             debug "Replication enabled with ${replication}.template"
+            ;;
+        T)  # Replication target
+            target="$OPTARG"
+            debug "Replication target set to: $target"
             ;;
 
         ?)  # Show program usage and exit
@@ -154,7 +158,8 @@ if [ -f "$template" ]; then
     touch "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
     mkdir -p "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset"
     cat "$template" | \
-        ${SED} s,#POOL#,${pool},g | \
+        ${SED} s,#SOURCEPOOL#,${pool},g | \
+        ${SED} s,#TARGETPOOL#,${target},g | \
         ${SED} s,#DATASET#,${dataset},g | > \
         "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
     source "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
@@ -170,6 +175,9 @@ if [ -f "$template" ]; then
     zfs set ${zfs_replication_property}:endpoint:2="${target_pool}:${folder}" $pool/$folder
     ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
     ssh $target_pool "zfs create ${target_pool}:${folder}"
+
+    # TODO: Create defination on target pool
+
 fi
 
 zfs get all $pool/$folder | sort    
