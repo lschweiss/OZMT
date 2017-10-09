@@ -70,8 +70,11 @@ clean_up () {
         for pidfile in $pidfiless; do
             pids=`cat $pidfile`
             for pid in $pids; do
-                notice "Killing process $pidfile, PID $pid"
-                kill $pid &> /dev/null
+                # Find child pids
+                for cpid in $(pidtree $pid); do 
+                    notice "Killing process $pidfile, PID $cpid"
+                    kill $cpid &> /dev/null
+                done
             done
         done
         if [ "$remote_host" != "" ]; then
