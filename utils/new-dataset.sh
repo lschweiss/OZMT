@@ -104,8 +104,8 @@ while getopts p:f:d:v:r:g:i:R:T: opt; do
             debug "Replication enabled with ${replication}.template"
             ;;
         T)  # Replication target
-            target="$OPTARG"
-            debug "Replication target set to: $target"
+            target_pool="$OPTARG"
+            debug "Replication target set to: $target_pool"
             ;;
 
         ?)  # Show program usage and exit
@@ -122,7 +122,7 @@ done
 
 folder="$dataset"
 
-zfs list $pool/$folder 2>0 1>0
+zfs list $pool/$folder 2>/dev/null 1>/dev/null
 if [ $? -ne 0 ]; then
     zfs create -o mountpoint=/${dataset} $pool/$folder
 fi
@@ -155,17 +155,18 @@ done
 template="/etc/ozmt/replication/${replication}.template"
 
 if [ -f "$template" ]; then
-    touch "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
+    touch /$pool/zfs_tools/var/replication/jobs/suspend_all_jobs
     mkdir -p "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset"
-    cat "$template" | \
-        ${SED} s,#SOURCEPOOL#,${pool},g | \
-        ${SED} s,#TARGETPOOL#,${target},g | \
-        ${SED} s,#DATASET#,${dataset},g | > \
-        "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+    cp "$template" "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#SOURCEPOOL#,${pool},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#TARGETPOOL#,${target_pool},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#DATASET#,${dataset},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+
+    cat "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
     source "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+    touch $job_status
     mv "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool" \
         "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/$target_pool"
-    touch $job_status
     zfs set ${zfs_replication_property}="on" $pool/$folder
     echo "${pool}:${folder}" > $source_tracker
     echo "${pool}:${folder}" > $dataset_targets
@@ -174,9 +175,23 @@ if [ -f "$template" ]; then
     zfs set ${zfs_replication_property}:endpoint:1="${pool}:${folder}" $pool/$folder
     zfs set ${zfs_replication_property}:endpoint:2="${target_pool}:${folder}" $pool/$folder
     ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
-    ssh $target_pool "zfs create ${target_pool}:${folder}"
+    ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
+    ssh $target_pool "echo ${target_pool}:${folder} >> /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
+    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${pool}:${dataset}"
+    ssh $target_pool "mkdir -p /${target_pool}/zfs_tools/var/replication/jobs/definitions/$dataset"
+    #ssh $target_pool "zfs create ${target_pool}/${folder}"
 
-    # TODO: Create defination on target pool
+    cp "$template" ${TMP}/${dataset}_target_definition
+        ${SED} "s,#TARGETPOOL#,${pool},g" --in-place ${TMP}/${dataset}_target_definition
+        ${SED} "s,#SOURCEPOOL#,${target_pool},g" --in-place ${TMP}/${dataset}_target_definition
+        ${SED} "s,#DATASET#,${dataset},g" --in-place ${TMP}/${dataset}_target_definition
+
+    scp ${TMP}/${dataset}_target_definition ${target_pool}:/${target_pool}/zfs_tools/var/replication/jobs/definitions/${dataset}/${pool}
+
+    rm ${TMP}/${dataset}_target_definition
+    
+    # Start replication
+    rm "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
 
 fi
 
