@@ -156,6 +156,8 @@ die () {
     else
         debug "Keep suspended set.  Not resuming replication."
     fi
+
+    rm -f ${TMP}/reset-schedule-locks ${TMP}/reset-runner-locks
     
     exit $1
 
