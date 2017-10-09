@@ -178,6 +178,7 @@ if [ -f "$template" ]; then
     ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
     ssh $target_pool "echo ${target_pool}:${folder} >> /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
     ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${pool}:${dataset}"
+    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${pool}:${dataset}.unlock"
     ssh $target_pool "mkdir -p /${target_pool}/zfs_tools/var/replication/jobs/definitions/$dataset"
     #ssh $target_pool "zfs create ${target_pool}/${folder}"
 
