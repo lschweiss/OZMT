@@ -986,13 +986,11 @@ release_lock() {
             mv "$lockfile" "$unlockfile"
             debug "Lock released: $lockfile"
         else
-            set > ${TMP}/bad_lock_release_$$.txt
-            error "release_lock called without lock ownership: $lockfile" ${TMP}/bad_lock_release_$$.txt
+            error "release_lock called without lock ownership: $lockfile" 
             return 1
         fi
     else
-        set > ${TMP}/bad_lock_release_$$.txt
-        error "release_lock called without lock being obtained first: $lockfile" ${TMP}/bad_lock_release_$$.txt
+        error "release_lock called without lock being obtained first: $lockfile"
         return 1
     fi
     
