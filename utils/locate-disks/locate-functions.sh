@@ -69,6 +69,8 @@ collect_expander_info () {
     local paths=
     local slots=
     local this_sasaddr=
+    local wwn=
+    local jbod_name=
     local slot_des='false'
     declare -A expander
     expander_list=
@@ -152,6 +154,12 @@ collect_expander_info () {
             echo "expander["${wwn}_model"]=\"$model\"" >> $myTMP/expanders
             echo "expander["${wwn}_fwrev"]=\"$fwrev\"" >> $myTMP/expanders
             echo "expander["${wwn}_slots"]=\"$slots\"" >> $myTMP/expanders
+
+            jbod_name=`cat /etc/ozmt/jbod-map | ${GREP} $wwn 2> /dev/null | ${AWK} -F ' ' '{print $2}'`
+            if [ "$jbod_name" != "" ]; then
+                echo "expander["${wwn}_name"]=\"$jbod_name\"" >> $myTMP/expanders
+            fi
+            
 
             # Collect attached sas addresses 
 
