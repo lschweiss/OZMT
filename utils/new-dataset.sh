@@ -46,10 +46,11 @@ show_usage() {
     echo
     echo "    [-r {network/mask}]          Route for vIP"
     echo "                                 x.x.x.x/x format"
-    echo "                                 optional: list a named route group defined at the pool level"
+    echo "                                 optional: list a named route group defined in"
+    echo "                                           /etc/ozmt/network/{template}.routes"
     echo "                                 (repeatable for each vIP)"
     echo "        -g {gateway}             Gateway for specified route"
-    echo "                                 (Manditory for each route)"
+    echo "                                 (Manditory for each route, unless a template is used)"
     echo
     echo "    [-i {hostname}/{interface}]  {interface} to attach vIP while on {hostname}"
     echo "                                   {hostname} can be '*' for any host"
@@ -107,6 +108,10 @@ while getopts p:f:d:v:r:g:i:R:T: opt; do
             target_pool="$OPTARG"
             debug "Replication target set to: $target_pool"
             ;;
+        S)  # Don't leave replication suspended
+            suspend='false'
+            debug "Replication will be resumed after setup."
+            ;;
 
         ?)  # Show program usage and exit
             show_usage
@@ -125,6 +130,11 @@ folder="$dataset"
 zfs list $pool/$folder 2>/dev/null 1>/dev/null
 if [ $? -ne 0 ]; then
     zfs create -o mountpoint=/${dataset} $pool/$folder
+else
+    echo
+    echo "ZFS folder $pool/$folder already exists."
+    echo -n "Press enter to continue with reconfigure...."
+    read nothing
 fi
 
 zfs set ${zfs_dataset_property}=${dataset} $pool/$folder
@@ -155,6 +165,13 @@ done
 template="/etc/ozmt/replication/${replication}.template"
 
 if [ -f "$template" ]; then
+    ssh $target_pool "echo Verified pool $target_pool" 
+    if [ $? -ne 0 ]; then
+        echo
+        echo "Could not connect to $target_pool"
+        echo "Aborting replication configuration"
+        exit 1
+    fi
     touch /$pool/zfs_tools/var/replication/jobs/suspend_all_jobs
     mkdir -p "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset"
     cp "$template" "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
@@ -192,15 +209,10 @@ if [ -f "$template" ]; then
     rm ${TMP}/${dataset}_target_definition
     
     # Start replication
-    rm "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
+    if [ "$suspend" == 'false' ]; then
+        rm "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
+    fi
 
 fi
 
-zfs get all $pool/$folder | sort    
-            
-
-
-
-
-
-
+zfs get all $pool/$folder | sort
