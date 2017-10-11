@@ -246,34 +246,52 @@ activate_vip () {
     # Set static routes
     IFS=','
     for route in $routes; do
-        if [ "${route:0:1}" == "H" ]; then
-            # Host route
-            route="${route:1}"
-            IFS='/'
-            read -r host gateway <<< "$route"
+        if [ -f /etc/ozmt/network/${route}.routes ]; then
+            # Template of routes
+            while IFS='' read -r line || [[ -n "$line" ]]; do
+                IFS='/'
+                read -r net mask gateway <<< "$line"
+                IFS=','
+                case $os in
+                    'Linux')
+                        route add -net ${net}/${mask} $gateway dev ${ip_if}
+                        ;;
+                    'SunOS')
+                        route add -net ${net}/${mask} $gateway -ifp ${ip_if}
+                        ;;
+                esac
+                IFS=''
+            done < "/etc/ozmt/network/${route}.routes"
             IFS=','
-            case $os in
-                'Linux')
-                    route add -host ${host} $gateway dev ${ip_if}
-                    ;;
-                'SunOS')
-                    route add -host $host $gateway -ifp ${ip_if} 
-                    ;;
-            esac
-        else
-            # Net route
-            IFS='/'
-            read -r net mask gateway <<< "$route"
-            IFS=',' 
-            case $os in
-                'Linux')
-                    route add -net ${net}/${mask} $gateway dev ${ip_if}
-                    ;;
-                'SunOS')
-                    route add -net ${net}/${mask} $gateway -ifp ${ip_if}
-                    ;;
-            esac
-
+        else 
+            if [ "${route:0:1}" == "H" ]; then
+                # Host route
+                route="${route:1}"
+                IFS='/'
+                read -r host gateway <<< "$route"
+                IFS=','
+                case $os in
+                    'Linux')
+                        route add -host ${host} $gateway dev ${ip_if}
+                        ;;
+                    'SunOS')
+                        route add -host $host $gateway -ifp ${ip_if} 
+                        ;;
+                esac
+            else
+                # Net route
+                IFS='/'
+                read -r net mask gateway <<< "$route"
+                IFS=',' 
+                case $os in
+                    'Linux')
+                        route add -net ${net}/${mask} $gateway dev ${ip_if}
+                        ;;
+                    'SunOS')
+                        route add -net ${net}/${mask} $gateway -ifp ${ip_if}
+                        ;;
+                esac
+            fi
         fi
     done  
     unset IFS 
@@ -347,38 +365,59 @@ deactivate_vip () {
     
     IFS=','
     for route in $routes; do
-        if [ "${route:0:1}" == "H" ]; then
-            # Host route
-            route="${route:1}"
-            IFS='/'
-            read -r host gateway <<< "$route"
+        if [ -f /etc/ozmt/network/${route}.routes ]; then
+            # Template of routes
+            while IFS='' read -r line || [[ -n "$line" ]]; do
+                IFS='/'
+                read -r net mask gateway <<< "$line"
+                IFS=','
+                case $os in
+                    'Linux')
+                        #route delete ${net}/${mask} $gateway
+                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        ;;
+                    'SunOS')
+                        #route delete ${net}/${mask} $gateway
+                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        ;;
+                esac
+                IFS=''
+            done < "/etc/ozmt/network/${route}.routes"
             IFS=','
-            case $os in
-                'Linux')
-                    # route delete ${host} $gateway
-                    debug "Route deletion disabled: route delete ${host} $gateway"
-                    ;;
-                'SunOS')
-                    #route delete $host $gateway
-                    debug "Route deletion disabled: route delete ${host} $gateway"
-                    ;;
-            esac
         else
-            # Net route
-            IFS='/'
-            read -r net mask gateway <<< "$route"
-            IFS=','
-            case $os in
-                'Linux')
-                    #route delete ${net}/${mask} $gateway
-                    debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
-                    ;;
-                'SunOS')
-                    #route delete ${net}/${mask} $gateway 
-                    debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
-                    ;;
-            esac
+            if [ "${route:0:1}" == "H" ]; then
+                # Host route
+                route="${route:1}"
+                IFS='/'
+                read -r host gateway <<< "$route"
+                IFS=','
+                case $os in
+                    'Linux')
+                        # route delete ${host} $gateway
+                        debug "Route deletion disabled: route delete ${host} $gateway"
+                        ;;
+                    'SunOS')
+                        #route delete $host $gateway
+                        debug "Route deletion disabled: route delete ${host} $gateway"
+                        ;;
+                esac
+            else
+                # Net route
+                IFS='/'
+                read -r net mask gateway <<< "$route"
+                IFS=','
+                case $os in
+                    'Linux')
+                        #route delete ${net}/${mask} $gateway
+                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        ;;
+                    'SunOS')
+                        #route delete ${net}/${mask} $gateway 
+                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        ;;
+                esac
 
+            fi
         fi
     done
     unset IFS

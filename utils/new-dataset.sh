@@ -101,8 +101,13 @@ while getopts p:f:d:v:r:g:i:R:T: opt; do
             ;;
 
         R)  # Replication template
-            replication="$OPTARG"
-            debug "Replication enabled with ${replication}.template"
+            if [ -f /etc/ozmt/replication/${OPTARG}.template ]; then
+                replication="$OPTARG"
+                debug "Replication enabled with ${replication}.template"
+            else
+                echo "Replication template does not exist: /etc/ozmt/replication/${OPTARG}.template"
+                exit 1
+            fi
             ;;
         T)  # Replication target
             target_pool="$OPTARG"
@@ -146,7 +151,11 @@ while [ $vip -le $vips ]; do
     if [ "$routes" != '' ]; then
         route=1
         while [ $route -le $routes ]; do
-            route_prop="${vip[${vip},route,${route}]}/${vip[${vip},gw,${route}]}"
+            if [ -f "/etc/ozmt/network/${vip[${vip},route,${route}]}.routes" ]; then
+                route_prop="${vip[${vip},route,${route}]}"
+            else
+                route_prop="${vip[${vip},route,${route}]}/${vip[${vip},gw,${route}]}"
+            fi
             if [ $route -eq 1 ]; then
                 vip_property="${vip[${vip},addr]}|${route_prop}"
             else
