@@ -314,4 +314,152 @@ collect_disk_info () {
     
 
 }
+
+locate_in_use_disks () {
+
+    local host=
+    local execute=
+    local pool=
+    local pools=
+    local disk_start=
+    local vdev=
+    local line=
+    local pool_state=
+    local pool_read_err=
+    local pool_write_err=
+    local pool_cksum_err=
+    local disk_osname=
+    local disk_state= 
+    local disk_read_err= 
+    local disk_write_err=
+    local disk_cksum_err=
+    local disk_wwn=
+    local slot=
+
+
+    if [ "$cluster_hosts" == '' ]; then
+        cluster_hosts="$HOSTNAME"
+    fi
+    
+    
+    # Collect active disks in the cluster
+    for host in $cluster_hosts; do
+        notice "Collecting disk mappings for $host"
+        if [ "$host" == "$HOSTNAME" ]; then
+            # Excute locally
+            execute=""
+        else
+            execute="${SSH} ${host}"
+        fi
+
+        pools=`${execute} zpool list -H -o name`
+        for pool in $pools; do
+            debug "Mapping disks for $pool"
+    
+            ${execute} zpool status ${pool} > ${myTMP}/${pool}_status
+            echo "offline spares:" >> ${myTMP}/${pool}_status
+            ${execute} cat /${pool}/zfs_tools/etc/spare-disks >> ${myTMP}/${pool}_status
+    
+            # Parse zpool status
+            disk_start='false'
+            vdev=
+    
+            while IFS='' read -r line || [[ -n "$line" ]]; do
+                # Remove leading spaces
+                line="${line#"${line%%[![:space:]]*}"}"
+    
+                if [ "$disk_start" != 'true' ]; then
+                    if [[ "$line" == *"state: "* ]]; then
+                        # Pool state
+                        pool_state=`echo $line | $AWK -F ' ' '{print $2}'`
+                        echo "pool["${pool}_status"]=\"${pool_state}\"" >> ${myTMP}/pools
+                        if [ -z "$execute" ]; then
+                            echo "pool["${pool}_host"]=\"$host\"" >> ${myTMP}/pools
+                        fi
+                        continue
+                    fi
+                    if [[ "$line" == *"NAME"*"STATE"*"READ"*"WRITE"*"CKSUM"* ]]; then
+                        disk_start='true'
+                        continue
+                    fi
+                    continue
+                else
+                    if [ "$line" == '' ]; then
+                        continue
+                    fi
+                    if [[ "$line" == *"$pool"*"$pool_state"* ]];then
+                        # Collect pool errors
+                        IFS=' '
+                        read junk1 junk2 pool_read_err pool_write_err pool_cksum_err <<< "$line"
+                        IFS=''
+                        continue
+                    fi
+                    if [[ "$line" == *"raidz"* || "$line" == *"mirror"* ]]; then
+                        # Starting raidz or mirror vdev
+                        vdev=`echo $line | $AWK -F ' ' '{print $1}'`
+                        debug "Mapping $pool vdev $vdev"
+                        continue
+                    fi
+                    if [[ "$line" == *"logs"* ]]; then
+                        # Starting logs
+                        debug "Mapping $pool logs"
+                        vdev='log'
+                        continue
+                    fi
+                    if [[ "$line" == *"spares"* ]]; then
+                        # Starting spares
+                        debug "Mapping $pool spares"
+                        vdev='spare'
+                        continue
+                    fi
+                    if [ "$line" == "offline spares:" ]; then
+                        # Starting offline spares
+                        debug "Mapping $pool offline spares"
+                        vdev='offlinespare'
+                        continue
+                    fi
+                    if [ "${line:0:7}" == "errors:" ]; then
+                        errors=`echo $line | $AWK -F 'errors: ' '{print $2}'`
+                        continue
+                    fi
+    
+                    # By process of elimination this should be a disk line
+                    IFS=' '
+                    read disk_osname disk_state disk_read_err disk_write_err disk_cksum_err <<< "$line"
+                    IFS=''
+    
+                    debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
+    
+                    disk_wwn="${disk["${disk_osname}_wwn"]}"
+                    if [ "${disk_wwn}" != "" ]; then
+                        # Disk is known
+                        echo "disk[${disk_wwn}_pool]=\"${pool}\"" >> ${myTMP}/disks
+                        echo "disk[${disk_wwn}_vdev]=\"${vdev}\"" >> ${myTMP}/disks
+                        if [ "$vdev" == 'offlinespare' ]; then
+                            disk_state='SPARE'
+                        fi
+                        echo "disk[${disk_wwn}_status]=\"${disk_state}\"" >> ${myTMP}/disks
+                        if [ "$vdev" != 'spare' ]; then
+                            echo "disk[${disk_wwn}_readerr]=\"${disk_read_err}\"" >> ${myTMP}/disks
+                            echo "disk[${disk_wwn}_writeerr]=\"${disk_write_err}\"" >> ${myTMP}/disks
+                            echo "disk[${disk_wwn}_cksumerr]=\"${disk_cksum_err}\"" >> ${myTMP}/disks
+                        fi
+    
+                        expander="${disk["${disk_wwn}_expander"]}"
+                        if [ "${expander}" != "" ]; then
+                            # Add info at expander maping
+                            slot="${disk["${disk_wwn}_slot"]}"
+                            echo "expander[${expander}_pool_${slot}]=\"${pool}\"" >> ${myTMP}/expanders
+                        fi
+                    fi
+                fi # $disk_start
+    
+            done < ${myTMP}/${pool}_status
+    
+        done # for pool
+    
+    done # for host
+
+}
+
     

@@ -172,7 +172,7 @@ for host in $cluster_hosts; do
 
                 debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
 
-               disk_wwn="${disk["${disk_osname}_wwn"]}"
+                disk_wwn="${disk["${disk_osname}_wwn"]}"
                 if [ "${disk_wwn}" != "" ]; then
                     # Disk is known
                     debug "Disk; $disk_osname: $disk_wwn"

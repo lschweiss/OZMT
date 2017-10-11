@@ -50,6 +50,10 @@ if [ ! -f $myTMP/expanders ]; then
     collect_expander_info
 fi
 
+if [ ! -f $myTMP/pools ]; then
+    locate_in_use_disks
+fi
+
 source $myTMP/disks
 source $myTMP/expanders
 
