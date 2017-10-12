@@ -226,13 +226,21 @@ collect_disk_info () {
 
     debug "Collecting disk information"
 
+    mkdir $myTMP/disk_info
+
+    
+    for dev in $devs; do
+        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.tmp 2> /dev/null; 
+            echo $? > $myTMP/disk_info/${dev}_disk_info.result ; ) &
+    done
+
+    wait
+
     for dev in $devs; do
         addrs=0
-        ${TIMEOUT} 3s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info.tmp  2> /dev/null
-        result=$?
+        result=`cat $myTMP/disk_info/${dev}_disk_info.result`
         if [ $result -ne 0 ]; then
             # Not a useful disk link
-            rm -f $myTMP/disk_info.tmp
             if [ $result -eq 124 ]; then
                 debug "$dev is not responding"
                 echo "disk["${dev}_wwn"]=\"UNAVAILABLE\"" >> $myTMP/disks
@@ -250,7 +258,7 @@ collect_disk_info () {
                     wwn="${line:4:16}"
                     wwn="${wwn,,}"
                 fi
-            done < $myTMP/disk_info.tmp
+            done < $myTMP/disk_info/${dev}_disk_info.tmp
         fi
 
         vendor=
@@ -358,7 +366,7 @@ locate_in_use_disks () {
     
             ${execute} zpool status ${pool} > ${myTMP}/${pool}_status
             echo "offline spares:" >> ${myTMP}/${pool}_status
-            ${execute} cat /${pool}/zfs_tools/etc/spare-disks >> ${myTMP}/${pool}_status
+            ${execute} cat /${pool}/zfs_tools/etc/spare-disks 2>/dev/null >> ${myTMP}/${pool}_status
     
             # Parse zpool status
             disk_start='false'
