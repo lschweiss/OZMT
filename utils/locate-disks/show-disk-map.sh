@@ -87,27 +87,28 @@ output_map () {
 
     # Output header
     if [ "${expander["${wwn}_name"]}" != "" ]; then
-        name="${expander["${wwn}_name"]} $wwn"
+        name="${expander["${wwn}_name"]}, WWN: $wwn"
     else
-        name="$wwn"
+        name="WWN: $wwn"
     fi
-    echo
-    echo "JBOD: $name"
-    printf '%-20s | %3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
-        "Paths" "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
+    
+    paths="${expander["${wwn}_paths"]}"
+   
+    echo "JBOD: $name, Model: ${expander["${wwn}_model"]}, FW: ${expander["${wwn}_fwrev"]}, Paths (${paths}):"
+    path=1
+    while [ $path -le $paths ]; do
+        echo "   ${expander["${wwn}_path_${path}"]}"
+        path=$(( path + 1 ))
+    done
+    
+    printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+        "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
     
     bays="${expander["${wwn}_slots"]}"
-    paths="${expander["${wwn}_paths"]}"
 
     bay=0
-    path=1
 
     while [ $bay -lt $bays ]; do
-        if [ $path -le $paths ]; then
-            show_path="${expander["${wwn}_path_${path}"]}"
-        else
-            show_path=""
-        fi
         disk_osname="${expander["${wwn}_diskosname_${bay}"]}"
         disk_wwn="${expander["${wwn}_diskwwn_${bay}"]}"
         disk_serial="${disk["${disk_wwn}_serial"]}"
@@ -117,11 +118,12 @@ output_map () {
         disk_status="${disk["${disk_wwn}_status"]}"
         disk_pool="${disk["${disk_wwn}_pool"]}"
         disk_vdev="${disk["${disk_wwn}_vdev"]}"
-        printf '%-20s | %3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
-            "$show_path" "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+            "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
         bay=$(( bay + 1 ))
-        path=$(( path + 1 ))
     done
+
+    echo
     
 #    cat "$myTMP/disk_to_location" | ${GREP} "$1" | ${SORT} -k 4g | \
 #    while IFS='' read -r line || [[ -n "$line" ]]; do
