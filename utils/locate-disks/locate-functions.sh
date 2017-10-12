@@ -348,8 +348,14 @@ locate_in_use_disks () {
     if [ "$cluster_hosts" == '' ]; then
         cluster_hosts="$HOSTNAME"
     fi
+
+    if [ ! -f $myTMP/expanders ]; then
+        collect_expander_info
+    fi
     
-    
+    source $myTMP/disks
+    source $myTMP/expanders
+
     # Collect active disks in the cluster
     for host in $cluster_hosts; do
         notice "Collecting disk mappings for $host"
