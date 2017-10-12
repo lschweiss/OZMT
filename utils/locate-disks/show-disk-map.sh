@@ -173,7 +173,7 @@ output_map () {
 #    done
 
 }
-
+unset IFS
 for wwn in $expander_list; do
     output_map $wwn
 done
