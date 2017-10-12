@@ -317,11 +317,11 @@ collect_disk_info () {
         echo "disk["${wwn}_osname"]=\"$dev\"" >> $myTMP/disks
         echo "disk["${dev}_wwn"]=\"$wwn\"" >> $myTMP/disks
         echo "disk["${wwn}_sasaddrs"]=\"$addrs\"" >> $myTMP/disks
-        [ -n $vendor ] && echo "disk["${wwn}_vendor"]=\"${vendor//[[:space:]]}\"" >> $myTMP/disks
-        [ -n $model ] && echo "disk["${wwn}_model"]=\"${model//[[:space:]]}\"" >> $myTMP/disks
-        [ -n $fwrev ] && echo "disk["${wwn}_fwrev"]=\"${fwrev//[[:space:]]}\"" >> $myTMP/disks
-        [ -n $serial ] && echo "disk["${wwn}_serial"]=\"${serial//[[:space:]]}\"" >> $myTMP/disks
-        [ -n $unitserial ] && echo "disk["${wwn}_unitserial"]=\"${unitserial//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$vendor" ] && echo "disk["${wwn}_vendor"]=\"${vendor//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$model" ] && echo "disk["${wwn}_model"]=\"${model//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$fwrev" ] && echo "disk["${wwn}_fwrev"]=\"${fwrev//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$serial" ] && echo "disk["${wwn}_serial"]=\"${serial//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$unitserial" ] && echo "disk["${wwn}_unitserial"]=\"${unitserial//[[:space:]]}\"" >> $myTMP/disks
 
         addr=1
         while [ $addr -le $addrs ]; do
@@ -493,6 +493,7 @@ locate_in_use_disks () {
                             echo "disk[${disk_wwn}_readerr]=\"${disk_read_err}\"" >> ${myTMP}/disks
                             echo "disk[${disk_wwn}_writeerr]=\"${disk_write_err}\"" >> ${myTMP}/disks
                             echo "disk[${disk_wwn}_cksumerr]=\"${disk_cksum_err}\"" >> ${myTMP}/disks
+                        fi
                         echo "disk[${disk_wwn}_status]=\"${disk_state}\"" >> ${myTMP}/disks
     
                         expander="${disk["${disk_wwn}_expander"]}"
