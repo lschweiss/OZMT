@@ -87,14 +87,14 @@ output_map () {
 
     # Output header
     if [ "${expander["${wwn}_name"]}" != "" ]; then
-        name="${expander["${wwn}_name"]}"
+        name="${expander["${wwn}_name"]} $wwn"
     else
         name="$wwn"
     fi
     echo
     echo "JBOD: $name"
-    printf '%-24s | %3s | %-22s | %20s | %-9s | %-15s | %-4s | %-8s | %-15s\n' \
-        "Paths" "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool"
+    printf '%-20s | %3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+        "Paths" "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
     
     bays="${expander["${wwn}_slots"]}"
     paths="${expander["${wwn}_paths"]}"
@@ -116,8 +116,9 @@ output_map () {
         disk_fwrev="${disk["${disk_wwn}_fwrev"]}"
         disk_status="${disk["${disk_wwn}_status"]}"
         disk_pool="${disk["${disk_wwn}_pool"]}"
-        printf '%-24s | %3s | %-22s | %20s | %-9s | %-15s | %-4s | %-8s | %-15s\n' \
-            "$show_path" "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool"
+        disk_vdev="${disk["${disk_wwn}_vdev"]}"
+        printf '%-20s | %3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+            "$show_path" "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
         bay=$(( bay + 1 ))
         path=$(( path + 1 ))
     done

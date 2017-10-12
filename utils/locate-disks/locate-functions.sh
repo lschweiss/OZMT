@@ -70,6 +70,7 @@ collect_expander_info () {
     local slots=
     local this_sasaddr=
     local wwn=
+    local disk_wwn=
     local jbod_name=
     local slot_des='false'
     declare -A expander
@@ -170,18 +171,20 @@ collect_expander_info () {
                 this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
                     $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 echo "expander["${wwn}_sasaddr_${slot}_${paths}"]=\"$this_sasaddr\"" >> $myTMP/expanders
+                
+                if [ "$this_sasaddr" != '0' ]; then
+                    disk_wwn="${sasaddr["${this_sasaddr}_wwn"]}"
+                    if [ "${disk_wwn}" != '' ]; then
+                        #echo "addr: $this_sasaddr wwn: $disk_wwn"
+                        echo "expander["${wwn}_diskwwn_${slot}"]=\"$disk_wwn\"" >> $myTMP/expanders
+                        echo "disk["${disk_wwn}_expander"]=\"$wwn\"" >> $myTMP/disks
+                        echo "disk["${disk_wwn}_slot"]=\"$slot\"" >> $myTMP/disks
+                    fi
 
-                this_wwn="${sasaddr["${this_sasaddr}_wwn"]}"
-                if [ "${this_wwn}" != '' ]; then
-                    #echo "addr: $this_sasaddr wwn: $this_wwn"
-                    echo "expander["${wwn}_diskwwn_${slot}"]=\"$this_wwn\"" >> $myTMP/expanders
-                    echo "disk["${this_wwn}_expander"]=\"$wwn\"" >> $myTMP/disks
-                    echo "disk["${this_wwn}_slot"]=\"$slot\"" >> $myTMP/disks
-                fi
-
-                if [ "${disk["${this_wwn}_osname"]}" != "" ]; then
-                    #echo "addr: $this_sasaddr osname: ${disk["${this_wwn}_osname"]}"
-                    echo "expander["${wwn}_diskosname_${slot}"]=\"${disk["${this_wwn}_osname"]}\"" >> $myTMP/expanders
+                    if [ "${disk["${disk_wwn}_osname"]}" != "" ]; then
+                        #echo "addr: $this_sasaddr osname: ${disk["${disk_wwn}_osname"]}"
+                        echo "expander["${wwn}_diskosname_${slot}"]=\"${disk["${disk_wwn}_osname"]}\"" >> $myTMP/expanders
+                    fi
                 fi
             
                 slot=$(( slot + 1 ))
@@ -230,13 +233,14 @@ collect_disk_info () {
 
     
     for dev in $devs; do
-        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.tmp 2> /dev/null; 
+        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.sdparm 2> /dev/null; 
             echo $? > $myTMP/disk_info/${dev}_disk_info.result ; ) &
     done
 
     wait
 
     for dev in $devs; do
+        wwn=
         addrs=0
         result=`cat $myTMP/disk_info/${dev}_disk_info.result`
         if [ $result -ne 0 ]; then
@@ -258,7 +262,7 @@ collect_disk_info () {
                     wwn="${line:4:16}"
                     wwn="${wwn,,}"
                 fi
-            done < $myTMP/disk_info/${dev}_disk_info.tmp
+            done < $myTMP/disk_info/${dev}_disk_info.sdparm
         fi
 
         vendor=
@@ -267,10 +271,10 @@ collect_disk_info () {
         serial=
         unitserial=
 
-        $SG_INQ -s /dev/rdsk/${dev}s0 1> $myTMP/disk_info.tmp  2> /dev/null
+        $SG_INQ -s /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.sginq  2> /dev/null
         if [ $? -ne 0 ]; then
             # Not a useful disk link
-            rm -f $myTMP/disk_info.tmp
+            echo "UNKNOWN" > $myTMP/disk_info/${dev}_disk_info.sginq
         else
             while IFS='' read -r line || [[ -n "$line" ]]; do
                 if [[ "${line}" == *"Vendor identification"* ]]; then
@@ -293,8 +297,22 @@ collect_disk_info () {
                     unitserial="${line:22}"
                 fi
                 
-            done < $myTMP/disk_info.tmp
+            done < $myTMP/disk_info/${dev}_disk_info.sginq
         fi
+
+        if [ "$wwn" == '' ]; then
+            [ -n "$unitserial" ] && wwn="nowwn.${unitserial}" 
+        fi
+
+        if [ "$wwn" == '' ]; then
+            [ -n "$serial" ] && wwn="nowwn.${serial}" 
+        fi
+
+        if [ "$wwn" == '' ]; then
+            warning "Could not collect or assign a WWN to disk at ${dev}"
+            continue
+        fi
+
 
         echo "disk["${wwn}_osname"]=\"$dev\"" >> $myTMP/disks
         echo "disk["${dev}_wwn"]=\"$wwn\"" >> $myTMP/disks
@@ -319,7 +337,7 @@ collect_disk_info () {
     rm -f $myTMP/disk_info.tmp
 
     source $myTMP/disks
-    
+    source $myTMP/sasaddresses
 
 }
 
@@ -345,6 +363,8 @@ locate_in_use_disks () {
     local slot=
 
 
+    debug "Collecting in use disk information"
+
     if [ "$cluster_hosts" == '' ]; then
         cluster_hosts="$HOSTNAME"
     fi
@@ -359,20 +379,23 @@ locate_in_use_disks () {
     # Collect active disks in the cluster
     for host in $cluster_hosts; do
         notice "Collecting disk mappings for $host"
+
         if [ "$host" == "$HOSTNAME" ]; then
             # Excute locally
             execute=""
         else
             execute="${SSH} ${host}"
         fi
-
-        pools=`${execute} zpool list -H -o name`
+        
+        eval ${execute} zpool list -H -o name > ${myTMP}/${host}_pools
+        pools=`cat ${myTMP}/${host}_pools`
+        unset IFS 
         for pool in $pools; do
             debug "Mapping disks for $pool"
     
-            ${execute} zpool status ${pool} > ${myTMP}/${pool}_status
+            eval ${execute} zpool status ${pool} > ${myTMP}/${pool}_status
             echo "offline spares:" >> ${myTMP}/${pool}_status
-            ${execute} cat /${pool}/zfs_tools/etc/spare-disks 2>/dev/null >> ${myTMP}/${pool}_status
+            eval ${execute} cat /${pool}/zfs_tools/etc/spare-disks 2>/dev/null >> ${myTMP}/${pool}_status
     
             # Parse zpool status
             disk_start='false'
@@ -414,50 +437,63 @@ locate_in_use_disks () {
                         debug "Mapping $pool vdev $vdev"
                         continue
                     fi
+                    if [[ "$line" == *"cache"* ]]; then
+                        # Starting logs
+                        debug "Mapping $pool cache"
+                        vdev='cache'
+                        continue
+                    fi
                     if [[ "$line" == *"logs"* ]]; then
                         # Starting logs
                         debug "Mapping $pool logs"
                         vdev='log'
                         continue
                     fi
-                    if [[ "$line" == *"spares"* ]]; then
-                        # Starting spares
-                        debug "Mapping $pool spares"
-                        vdev='spare'
-                        continue
-                    fi
                     if [ "$line" == "offline spares:" ]; then
                         # Starting offline spares
                         debug "Mapping $pool offline spares"
-                        vdev='offlinespare'
+                        vdev='cldSPARE'
+                        continue
+                    fi
+                    if [[ "$line" == *"spares"* ]]; then
+                        # Starting spares
+                        debug "Mapping $pool spares"
+                        vdev='hotSPARE'
                         continue
                     fi
                     if [ "${line:0:7}" == "errors:" ]; then
                         errors=`echo $line | $AWK -F 'errors: ' '{print $2}'`
                         continue
                     fi
+
+                    disk_osname=
+                    disk_state=
+                    disk_read_err=
+                    disk_write_err=
+                    disk_cksum_err=
     
                     # By process of elimination this should be a disk line
-                    IFS=' '
-                    read disk_osname disk_state disk_read_err disk_write_err disk_cksum_err <<< "$line"
-                    IFS=''
+                    if [ "$vdev" == 'cldSPARE' ]; then
+                        disk_osname="$line"
+                        disk_state=''
+                    else
+                        IFS=' '
+                        read disk_osname disk_state disk_read_err disk_write_err disk_cksum_err <<< "$line"
+                        IFS=''
+                    fi
     
                     debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
-    
+
                     disk_wwn="${disk["${disk_osname}_wwn"]}"
                     if [ "${disk_wwn}" != "" ]; then
                         # Disk is known
                         echo "disk[${disk_wwn}_pool]=\"${pool}\"" >> ${myTMP}/disks
                         echo "disk[${disk_wwn}_vdev]=\"${vdev}\"" >> ${myTMP}/disks
-                        if [ "$vdev" == 'offlinespare' ]; then
-                            disk_state='SPARE'
-                        fi
-                        echo "disk[${disk_wwn}_status]=\"${disk_state}\"" >> ${myTMP}/disks
-                        if [ "$vdev" != 'spare' ]; then
+                        if [[ "$vdev" != 'hotSPARE' && "$vdev" != 'coldSPARE' ]]; then
                             echo "disk[${disk_wwn}_readerr]=\"${disk_read_err}\"" >> ${myTMP}/disks
                             echo "disk[${disk_wwn}_writeerr]=\"${disk_write_err}\"" >> ${myTMP}/disks
                             echo "disk[${disk_wwn}_cksumerr]=\"${disk_cksum_err}\"" >> ${myTMP}/disks
-                        fi
+                        echo "disk[${disk_wwn}_status]=\"${disk_state}\"" >> ${myTMP}/disks
     
                         expander="${disk["${disk_wwn}_expander"]}"
                         if [ "${expander}" != "" ]; then
@@ -466,6 +502,9 @@ locate_in_use_disks () {
                             echo "expander[${expander}_pool_${slot}]=\"${pool}\"" >> ${myTMP}/expanders
                         fi
                     fi
+
+                    set +x 
+
                 fi # $disk_start
     
             done < ${myTMP}/${pool}_status
