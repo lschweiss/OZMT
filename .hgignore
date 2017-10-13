@@ -16,6 +16,7 @@ logsurfer/logsurfer-1.8/*
 root.save
 etc.save
 tmp/*
+.ssh/*
 3rdparty/sg3_utils-*
 3rdparty/parallel-*
 3rdparty/arping/*
