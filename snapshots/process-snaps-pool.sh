@@ -67,11 +67,8 @@ for folder in $folders; do
     replication=`zfs_cache get -H -o value $zfs_replication_property ${folder} 3>/dev/null`
     if [ "$replication" == "on" ]; then
         #debug "Replication: on"
-        replication_dataset=`zfs_cache get -H -o value $zfs_replication_dataset_property ${folder} 3>/dev/null`
-        if [ "replication_dataset" == '-' ]; then
-            replication_dataset=`zfs_cache get -H -o value $zfs_dataset_property ${folder} 3>/dev/null`
-        fi
-        replication_folder_point=`zfs_cache get -H -o source $zfs_replication_dataset_property ${folder} 3>/dev/null`
+        replication_dataset=`zfs_cache get -H -o value $zfs_dataset_property ${folder} 3>/dev/null`
+        replication_folder_point=`zfs_cache get -H -o source $zfs_dataset_property ${folder} 3>/dev/null`
         # This could be a child folder, handle appropriately
         if [[ "$replication_folder_point" == "local" || "$replication_folder_point" == "received" ]]; then
             replication_folder="${folder#*/}"

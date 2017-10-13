@@ -208,6 +208,8 @@ gnu_source () {
 
 [ -z "$SDPARM" ] && SDPARM=`gnu_source sdparm`
 
+[ -z "$COLUMN" ] && COLUMN=`gnu_source column`
+
 
 
 

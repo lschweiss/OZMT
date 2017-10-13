@@ -96,16 +96,18 @@ show_snap_job () {
             existing=`zfs get -o value -H -s local,received ${zfs_snapshot_property}:${snaptype} $folder`
             if [ "$existing" != '' ]; then
                 has_snaps='true'
-                echo -E "${folder} ${snaptype} ${existing}" >> ${TMP}/snapjobs_$$
+                printf '%-50s | %-10s | %5s\n'  ${folder} ${snaptype} ${existing}
+                #echo -E "${folder} ${snaptype} ${existing}" >> ${TMP}/snapjobs_$$
             fi
         done
         if [ "$has_snaps" == 'false' ]; then
-            echo -E "${folder} no snapshots" >> ${TMP}/snapjobs_$$
+            printf '%-50s | %-10s | %5s\n'  ${folder} "" "no snapshots" 
+            #echo -E "${folder} no snapshots" >> ${TMP}/snapjobs_$$
         fi
     done 
 
-    column -t ${TMP}/snapjobs_$$
-    rm ${TMP}/snapjobs_$$    
+    #$COLUMN -t ${TMP}/snapjobs_$$
+    #rm ${TMP}/snapjobs_$$    
 
 }
 
