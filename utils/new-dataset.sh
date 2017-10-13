@@ -55,6 +55,10 @@ show_usage() {
     echo "    [-i {hostname}/{interface}]  {interface} to attach vIP while on {hostname}"
     echo "                                   {hostname} can be '*' for any host"
     echo "                                   (repeatable for each vIP)"
+    echo 
+    echo "    [ -R {template_name} ]       Setup replication using template in /etc/ozmt/replication"
+    echo "       -T {target_pool}          Target pool for replication.  Mandatory if replication specified."
+    echo
 }
 
 vips=0
@@ -66,8 +70,8 @@ declare -A vip
 while getopts p:f:d:v:r:g:i:R:T: opt; do
     case $opt in
         p)  # Pool
-            pool="$OPTARG"
-            debug "pool: $pool"
+            source_pool="$OPTARG"
+            debug "pool: $source_pool"
             ;;
         d)  # Dataset name
             dataset="$OPTARG"
@@ -132,21 +136,21 @@ done
 
 folder="$dataset"
 
-zfs list $pool/$folder 2>/dev/null 1>/dev/null
+zfs list $source_pool/$folder 2>/dev/null 1>/dev/null
 if [ $? -ne 0 ]; then
-    zfs create -o mountpoint=/${dataset} $pool/$folder
+    zfs create -o mountpoint=/${dataset} $source_pool/$folder
 else
     echo
-    echo "ZFS folder $pool/$folder already exists."
+    echo "ZFS folder $source_pool/$folder already exists."
     echo -n "Press enter to continue with reconfigure...."
     read nothing
 fi
 
-zfs set ${zfs_dataset_property}=${dataset} $pool/$folder
+zfs set ${zfs_dataset_property}=${dataset} $source_pool/$folder
 
 vip=1
 while [ $vip -le $vips ]; do
-    zfs set ${zfs_vip_property}=$vips $pool/$folder
+    zfs set ${zfs_vip_property}=$vips $source_pool/$folder
     routes=${vip[${vip},routes]}
     if [ "$routes" != '' ]; then
         route=1
@@ -167,7 +171,7 @@ while [ $vip -le $vips ]; do
         vip_property="${vip[${vip},addr]}|"
     fi
     vip_property="${vip_property}|${vip[${vip},interfaces]}"
-    zfs set ${zfs_vip_property}:${vip}="$vip_property" $pool/$folder
+    zfs set ${zfs_vip_property}:${vip}="$vip_property" $source_pool/$folder
     vip=$(( vip + 1 ))
 done
 
@@ -181,47 +185,47 @@ if [ -f "$template" ]; then
         echo "Aborting replication configuration"
         exit 1
     fi
-    touch /$pool/zfs_tools/var/replication/jobs/suspend_all_jobs
-    mkdir -p "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset"
-    cp "$template" "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
-        ${SED} "s,#SOURCEPOOL#,${pool},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
-        ${SED} "s,#TARGETPOOL#,${target_pool},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
-        ${SED} "s,#DATASET#,${dataset},g" --in-place "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+    touch /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
+    mkdir -p "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset"
+    cp "$template" "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#SOURCEPOOL#,${source_pool},g" --in-place "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#TARGETPOOL#,${target_pool},g" --in-place "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+        ${SED} "s,#DATASET#,${dataset},g" --in-place "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
 
-    cat "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
-    source "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+    cat "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
+    source "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
     touch $job_status
-    mv "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool" \
-        "/$pool/zfs_tools/var/replication/jobs/definitions/$dataset/$target_pool"
-    zfs set ${zfs_replication_property}="on" $pool/$folder
-    echo "${pool}:${folder}" > $source_tracker
-    echo "${pool}:${folder}" > $dataset_targets
+    mv "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool" \
+        "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/$target_pool"
+    zfs set ${zfs_replication_property}="on" $source_pool/$folder
+    echo "${source_pool}:${folder}" > $source_tracker
+    echo "${source_pool}:${folder}" > $dataset_targets
     echo "${target_pool}:${folder}" >> $dataset_targets 
-    zfs set ${zfs_replication_property}:endpoints="2" $pool/$folder
-    zfs set ${zfs_replication_property}:endpoint:1="${pool}:${folder}" $pool/$folder
-    zfs set ${zfs_replication_property}:endpoint:2="${target_pool}:${folder}" $pool/$folder
-    ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
-    ssh $target_pool "echo ${pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
+    zfs set ${zfs_replication_property}:endpoints="2" $source_pool/$folder
+    zfs set ${zfs_replication_property}:endpoint:1="${source_pool}:${folder}" $source_pool/$folder
+    zfs set ${zfs_replication_property}:endpoint:2="${target_pool}:${folder}" $source_pool/$folder
+    ssh $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
+    ssh $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
     ssh $target_pool "echo ${target_pool}:${folder} >> /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
-    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${pool}:${dataset}"
-    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${pool}:${dataset}.unlock"
+    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}"
+    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}.unlock"
     ssh $target_pool "mkdir -p /${target_pool}/zfs_tools/var/replication/jobs/definitions/$dataset"
     #ssh $target_pool "zfs create ${target_pool}/${folder}"
 
     cp "$template" ${TMP}/${dataset}_target_definition
-        ${SED} "s,#TARGETPOOL#,${pool},g" --in-place ${TMP}/${dataset}_target_definition
+        ${SED} "s,#TARGETPOOL#,${source_pool},g" --in-place ${TMP}/${dataset}_target_definition
         ${SED} "s,#SOURCEPOOL#,${target_pool},g" --in-place ${TMP}/${dataset}_target_definition
         ${SED} "s,#DATASET#,${dataset},g" --in-place ${TMP}/${dataset}_target_definition
 
-    scp ${TMP}/${dataset}_target_definition ${target_pool}:/${target_pool}/zfs_tools/var/replication/jobs/definitions/${dataset}/${pool}
+    scp ${TMP}/${dataset}_target_definition ${target_pool}:/${target_pool}/zfs_tools/var/replication/jobs/definitions/${dataset}/${source_pool}
 
     rm ${TMP}/${dataset}_target_definition
     
     # Start replication
     if [ "$suspend" == 'false' ]; then
-        rm "/$pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
+        rm "/$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs"
     fi
 
 fi
 
-zfs get all $pool/$folder | sort
+zfs get all $source_pool/$folder | sort
