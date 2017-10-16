@@ -77,14 +77,19 @@ clean_up () {
                 done
             done
         done
+        # Find any remaining child processes
+        this_pid=$$
+        pids=`pidtree $this_pid | $SED -n '1!p'`
+        for pid in $pids; do
+            kill $pid
+        done
+
         if [ "$remote_host" != "" ]; then
-            #DEBUG set -x
             pids=`$remote_ssh "cat $remote_tmp/*.pid 2>/dev/null"`
             for pid in $pids; do
                 notice "Killing remote process PID $pid"
                 $remote_ssh "kill $pid &> /dev/null"
             done
-            #DEBUG set +x
         fi
     else
         # Clean up temp space
