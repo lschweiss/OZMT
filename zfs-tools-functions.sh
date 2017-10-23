@@ -369,8 +369,8 @@ MKDIR () {
     local mytmp="${TMP}/new_folders_$$_$RANDOM"
 
     mkdir -p ${TMP}
-    chmod 2770 ${TMP}
-    chgrp ozmt ${TMP}
+    chmod 2770 ${TMP} 2>/dev/null
+    chgrp ozmt ${TMP} 2>/dev/null
 
     # Not all versions of GNU mkdir use the same characters around the directory names.
     # This solution seems to be fairly universal.
@@ -378,8 +378,8 @@ MKDIR () {
     if [ -f $mytmp ]; then
         new_folders=`cat $mytmp`
         for new_folder in $new_folders; do
-            chmod 2770 $new_folder
-            chgrp ozmt $new_folder
+            chmod 2770 $new_folder 2>/dev/null
+            chgrp ozmt $new_folder 2>/dev/null
         done    
         rm -f $mytmp
     fi
@@ -430,7 +430,9 @@ cluster_pools () {
 
     IFS=':'
     for host in $zfs_replication_host_list;do 
-        timeout 20s ssh $host zpool list -H -o name >>${TMP}/pools_$$
+        debug "Collecting pools on host $host"
+        unset IFS
+        timeout 20s $SSH $host zpool list -H -o name 2>/dev/null >>${TMP}/pools_$$
         # Strip explicitly declared "skip_pools"
         IFS=" "
         for ex in $skip_pools; do
@@ -439,7 +441,8 @@ cluster_pools () {
             mv ${TMP}/poolsx_$$ ${TMP}/pools_$$
         done
         cat ${TMP}/pools_$$
-        rm ${TMP}/pools_$$        
+        rm ${TMP}/pools_$$
+        IFS=':'
     done
     unset IFS
 
@@ -497,19 +500,19 @@ dataset_source () {
 
     # For next gen replication only.  Relies on zfs property configured replication.
 
-    # Can receive a dataset name or pool/zfs_folder
+    # Can receive a {dataset} name or {pool} {zfs_folder}
     # If a dataset name is provided, function may be slow while finding the dataset in the cluster
 
     local dataset_name=
     local pool_folder=
     local pool=
     local folder=
-    local dataset_list="${RTMP}/datasets_source_$$"
+    local dataset_list="${TMP}/datasets_source_$$"
     local replication=
     local replication_source=
     local endpoints=
-    local endpoint=()
-    local endpoint_source=()
+    local endpoint=
+    local endpoint_source=
     local endpoint_pool=
     local endpoint_folder=
     local endpoint_timestamp=
@@ -521,75 +524,85 @@ dataset_source () {
         # Find the dataset
         pools="$(cluster_pools)"
         for pool in $pools; do
-            ssh $pool zfs get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null | \
-                ${GREP} "^${dataset_name}" > $dataset_list
+            remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
+                ${GREP} "^${dataset_name}\s" > $dataset_list
             if [ $? -eq 0 ]; then
                 # Dataset found
-                pool_folder=`cat $dataset_list | head -1 | ${CUT} -f 2`
+                pool_folder=`cat $dataset_list | ${HEAD} -1 | ${CUT} -f 2`
                 pool=`echo $pool_folder | ${CUT} -d '/' -f 1`
                 folder=`echo $pool_folder | ${CUT} -d '/' -f 2`
                 break                   
             fi
         done
-
+        if [ -z "$pool_folder" ]; then
+            debug "Dataset $dataset_name not found!"
+            return 1
+        fi
     else
         pool=`echo $1 | ${AWK} -F '/' '{print $1}'`
         folder=`echo $1 | ${AWK} -F '/' '{print $2}'`
         pool_folder="${pool}/${folder}"
+        dataset_name=`remote_zfs_cache get -s local,received -o value -H ${zfs_dataset_property} 3>/dev/null`
     fi
 
+    debug "Found dataset at $pool_folder"
+
     # Collect replication information
-    replicaton=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${pool_folder}`
+    replication=`remote_zfs_cache get -s local,received -o value -H ${zfs_replication_property} ${pool_folder} 3>/dev/null`
     
     if [ "$replication" == 'on' ]; then
+        debug "Replication is on.  Checking for actual source"
+
         # Get the source, strip the timestamp
-        replication_source=`zfs get -s local,received -o value -H ${zfs_replication_property}:source ${pool_folder} | \
-            ${CUT} -d '|' -f 1`
+        replication_source=`$SSH ${pool} cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+        debug "Tentative replication source: $replication_source"
+        #replication_source=`zfs get -s local,received -o value -H ${zfs_replication_property}:source ${pool_folder} | \
+        #    ${CUT} -d '|' -f 1`
       
         
         # Check all the endpoints to make sure the source is in agreement
-        endpoints=`zfs get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder}`
+        endpoints=`remote_zfs_cache get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder} 3>/dev/null`
         
         if [[ $endpoints =~ ^-?[0-9]+$ ]]; then
             count=1
             while [ $count -le $endpoints ]; do
-                endpoint[$count]=`zfs get -s local,received -o value \
-                    -H ${zfs_replication_property}:endpoint:${count} ${pool_folder}`
-                endpoint_pool=`echo $endpoint[$count] | ${CUT} -d ':' -f 1`
-                endpoint_folder=`echo $endpoint[$count] | ${CUT} -d ':' -f 2` 
+                endpoint=`remote_zfs_cache get -s local,received -o value \
+                    -H ${zfs_replication_property}:endpoint:${count} ${pool_folder} 3>/dev/null`
+                endpoint_pool=`echo $endpoint | ${CUT} -d ':' -f 1`
+                endpoint_folder=`echo $endpoint | ${CUT} -d ':' -f 2` 
                 debug "Checking source on ${endpoint_pool}/${endpoint_folder}"
-                endpoint_source[$count]=`ssh $endpoint_pool zfs get -s local,received -o value \
-                    -H ${zfs_replication_property}:source ${endpoint_pool}/${endpoint_folder}`
+                endpoint_source=`$SSH ${endpoint_pool} cat /${endpoint_pool}/zfs_tools/var/replication/source/${dataset_name}`
+                    #$endpoint_pool zfs get -s local,received -o value \
+                    #-H ${zfs_replication_property}:source ${endpoint_pool}/${endpoint_folder}`
+                if [ "$endpoint_source" != "$replication_source" ]; then
+                    error "Sources not in agreement between ${pool}/${folder} and ${endpoint_pool}/${endpoint_folder}"
+                    return 1
+                fi
+                
                 count=$(( count + 1 ))
-                if [ "$endpoint_source[$count]" != '' ]; then
-                    endpoint_timestamp=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 2`
-                    if [ $endpoint_timestamp -gt $newest ]; then
-                        replication_source=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 1`
-                        newest="$endpoint_timestamp"
-                        debug "Newest so far ${endpoint_pool}/${endpoint_folder}"
-                    fi
-                fi                   
+                #if [ "$endpoint_source[$count]" != '' ]; then
+                #    endpoint_timestamp=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 2`
+                #    if [ $endpoint_timestamp -gt $newest ]; then
+                #        replication_source=`echo $endpoint_source[$count] | ${CUT} -d ':' -f 1`
+                #        newest="$endpoint_timestamp"
+                #        debug "Newest so far ${endpoint_pool}/${endpoint_folder}"
+                #    fi
+                #fi                   
             done
+            echo "$endpoint_source"
         else
             # No endpoints 
-            debug "No endpoints defined for $pool_folder"
+            error "No endpoints defined for $pool_folder however replication is on"
             echo "${pool}:${folder}"
-            return 0
+            return 1
         fi
 
-        
-
-
-
-
-
-
-
-
-
-
-  
+    else
+        echo "${pool}:${folder}"
+        return 0
     fi
+
+    rm -f $dataset_list
     
 
 }
@@ -1170,8 +1183,13 @@ remote_zfs_cache () {
         fi
     else
         echo "zfs $*" > $cache_file
-        ssh $pool "zfs $*" | tee -a $cache_file
+        $SSH $pool "zfs $*" | tee -a $cache_file
         result=$?
+    fi
+
+    if [ $result -ne 0 ]; then
+        # Command failed, don't save the cache
+        rm -f $cache_file
     fi
 
     # Allow capture of the cache file associated with this request

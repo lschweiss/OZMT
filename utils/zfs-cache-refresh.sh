@@ -35,18 +35,72 @@ cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 pools="$(pools)"
 
 
-
-# Mark caches stale
+# Build a list of cache directories and mark the caches stale
+cache_dirs=
 for pool in $pools; do
-
-    if [ -d /$pool/zfs_tools/var/cache/zfs_cache ]; then
-        debug "Marking cache stale on pool $pool"
-        touch /$pool/zfs_tools/var/cache/zfs_cache/.cache_stale
+    cache_dir="/$pool/zfs_tools/var/cache/zfs_cache"
+    if [ ! -d $cache_dir ]; then
+        continue
     fi
-
+    cache_dirs="/$pool/zfs_tools/var/cache/zfs_cache $cache_dirs"
+    touch /$pool/zfs_tools/var/cache/zfs_cache/.cache_stale
 done
 
+remote_caches=`ls -1A /var/zfs_tools/cache/zfs_cache | $GREP -v lock`
+for remote_cache in $remote_caches; do
+    touch /var/zfs_tools/cache/zfs_cache/${remote_cache}/.cache_stale
+done
+
+
+update_cache () {
+    local cache_dir="$1"
+    local remote="$2"
+
+    debug "Updating cache: $cache_dir"
+    
+    wait_for_lock "$cache_dir"
+
+    next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
+    cache_file="$cache_dir/$next_cache"
+    while [ "$next_cache" != "" ]; do
+        debug "$next_cache is out of date"
+        zfs_command=`head -1 "$cache_file"`
+        $remote $zfs_command > ${TMP}/cache_update_$$ 2>/dev/null
+        if [ $? -ne 0 ]; then
+            # Cache command is no longer valid.  Remove the cache file."
+            debug "ZFS command \"$zfs_command\" is not valid.  Removing cache."
+            rm -f "$cache_file"
+        else
+            debug "Updating cache file for \"$zfs_command\""
+            echo "$zfs_command" > "$cache_file"
+            cat ${TMP}/cache_update_$$ >> "$cache_file"
+        fi
+
+        rm -f ${TMP}/cache_update_$$
+
+        next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
+        cache_file="$cache_dir/$next_cache"
+
+    done
+
+    release_lock "$cache_dir"
+
+}
+
 # Update all the existing caches
+
+for cache_dir in $cache_dirs; do
+    update_cache "$cache_dir" ''
+done
+
+for remote_cache in $remote_caches; do
+    update_cache "/var/zfs_tools/cache/zfs_cache/${remote_cache}" "$SSH $remote_cache"
+done
+
+exit 0
+
+
+# Old loop
 
 for pool in $pools; do
 

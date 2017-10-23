@@ -151,6 +151,9 @@ gnu_source () {
 [ -z "$RSYNC" ] && RSYNC=`gnu_source rsync`
 
 [ -z "$SSH" ] && SSH=`gnu_source ssh`
+    [ -f /var/ozmt/private_ssh_key ] && SSH="$SSH -i /var/ozmt/private_ssh_key"
+    [ -f $HOME/.ssh/id_rsa ] && SSH="$SSH -i $HOME/.ssh/id_rsa"
+    [ -f $HOME/.ssh/id_dsa ] && SSH="$SSH -i $HOME/.ssh/id_dsa"
 
 [ -z "$TIMEOUT" ] &&TIMEOUT=`gnu_source timeout`
 
