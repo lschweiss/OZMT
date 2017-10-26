@@ -70,6 +70,8 @@ while getopts d:D:s: opt; do
     esac
 done
 
+declare -A o_source
+
 
 find_snap () {
 
@@ -89,10 +91,63 @@ find_snap () {
     fi
 }
 
+process_reparse () {
+
+    local origin_path="$2"
+    local clone_path="$3"
+    local clone_dataset="$4"
+    local link_path=
+    local link_target=
+    local link_name=
+    local link_target_dataset=
+    local target_link=
+    local target_target=
+    local o_pool=
+    local this_source=
+    local o_folder=
+
+    local target_script="${TMP}/dataset_reparse_run_$$"
+
+    while IFS=$(echo -e '\t\n') read -r link_path link_target; do
+        unset IFS
+
+        link_name=`basename $link_path`
+        # Strip origin
+        link_path="${link_path:$(( ${#origin_path} + 1 ))}"
+        link_target_dataset=`echo $link_target | $AWK -F '/' '{print $2}'`
+        
+
+        target_link="${clone_path}/${link_path}"
+        target_target="zfs-${link_target_dataset}:/${link_target_dataset}/dev/${dev_name}/${clone_folder}/${link_path}"
+        
+
+        # Replace reparse point        
+        echo "rm $target_link" >> $target_script
+        echo "nfsref add ${target_link} ${target_target}" >> $target_script
+
+        IFS=$(echo -e '\t\n')
+    done < "$1"
+    unset IFS
+
+    this_source="${o_source["$ozmt_dataset"]}"
+            o_pool=`echo $this_source | $CUT -d ':' -f 1`
+            o_folder=`echo $this_source | $CUT -d ':' -f 2`
+    
+    # Execute reparse fix-up
+    if [ -f ${target_script} ]; then
+        #cat $target_script
+        $SSH $o_pool "bash -s " < ${target_script}
+    fi
+    
+    rm -f $target_script
+ 
+}
+
 # Locate dataset info
 clone_pool=
 debug "Finding dataset source for $clone_dataset"
 dataset_source=`dataset_source $clone_dataset`
+o_source["${clone_dataset}"]="$dataset_source"
 if [ "$dataset_source" == '' ]; then
     error "Cannot locate source for $clone_dataset"
     exit 1
@@ -118,8 +173,9 @@ fi
 # Create the clone(s)
 ##
 
-clone_folders=`$SSH $clone_pool cat /${clone_dataset}/.ozmt-folders 2>/dev/null`
-debug "Cloning the following folders: $clone_folders"
+$SSH $clone_pool cat /${clone_dataset}/.ozmt-folders >${TMP}/dataset_folders_$$ 2>/dev/null
+
+debug "Cloning the following folders: $(cat ${TMP}/dataset_folders_$$)"
 
 snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
 if [ "$snap" == '' ]; then
@@ -129,79 +185,76 @@ else
     debug "Found snapshot $snap"
 fi
 
+# Create the primary clone
+debug "Creating primary clone: ${clone_pool}/${clone_dataset}/dev/${dev_name}"
 $SSH $clone_pool zfs clone ${clone_pool}/${clone_dataset}@${snap} ${clone_pool}/${clone_dataset}/dev/${dev_name}
+$SSH $clone_pool zfs snapshot ${clone_pool}/${clone_dataset}/dev/${dev_name}@clone
+
 ozmt_datasets=`$SSH $clone_pool cat /${clone_dataset}/.ozmt-datasets 2>/dev/null`
 if [ "$ozmt_datasets" != '' ]; then
     # Create stub clones
     for ozmt_dataset in $ozmt_datasets; do
-        o_source=`dataset_source $ozmt_dataset`
-        o_pool=`echo $o_source | $CUT -d ':' -f 1`
-        o_folder=`echo $o_source | $CUT -d ':' -f 2`
+        debug "Finding dataset source for $ozmt_dataset"
+        this_source=`dataset_source $ozmt_dataset`
+        debug "Found source as: $this_source"
+        o_source["$ozmt_dataset"]="$this_source"
+        o_pool=`echo $this_source | $CUT -d ':' -f 1`
+        o_folder=`echo $this_source | $CUT -d ':' -f 2`
         # Clone it
         debug "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
         $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
+        $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
     done
 fi
 
 
-for clone_folder in $clone_folders; do
-    debug "Cloning folder: $clone_folder"
-
-    # Clone the primary dataset folder
-    $SSH $clone_pool zfs clone ${clone_pool}/${clone_dataset}/${clone_folder}@${snap} \
-        ${clone_pool}/${clone_dataset}/dev/${dev_name}/${clone_folder}
-
+NUM=1
+line=`$SED "${NUM}q;d" ${TMP}/dataset_folders_$$`
+while [ "$line" != '' ]; do 
+    clone_folder=`echo $line | $CUT -d ' ' -f 1`
+    ozmt_datasets=`echo $line | $CUT -d ' ' -f 2`
+    
     origin_path="/${clone_dataset}/${clone_folder}"
-
-    ozmt_datasets=`$SSH $clone_pool cat ${origin_path}/.ozmt-datasets 2>/dev/null`
-    $SSH $clone_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
-        $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > ${TMP}/dataset_reparse_${clone_folder}_$$
+    debug "Coning folder: $clone_folder origin: $origin_path datasets: $ozmt_datasets"
+    
+    #$SSH $clone_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
+    #    $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > ${TMP}/dataset_reparse_${clone_folder}_$$
 
     if [ "$ozmt_datasets" != '' ]; then
+        IFS=','
         for ozmt_dataset in $ozmt_datasets; do
-            o_source=`dataset_source $ozmt_dataset`
-            o_pool=`echo $o_source | $CUT -d ':' -f 1`
-            o_folder=`echo $o_source | $CUT -d ':' -f 2`
+        unset IFS
+            
+            this_source="${o_source["$ozmt_dataset"]}"
+            o_pool=`echo $this_source | $CUT -d ':' -f 1`
+            o_folder=`echo $this_source | $CUT -d ':' -f 2`
+
+            origin_path="/${ozmt_dataset}/${clone_folder}"
+            debug "Origin: $origin_path"
+
             # Clone it
             debug "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
+            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
 
             # Fix up any reparse points
-            cat ${TMP}/dataset_reparse_${clone_folder}_$$ | $GREP ":zfs-${ozmt_dataset}:" > ${TMP}/dataset_reparse_${ozmt_dataset}_$$
-    
-            target_script="${TMP}/dataset_reparse_run_$$"
+            $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
+                $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > \
+                ${TMP}/dataset_reparse_${ozmt_dataset}_$$ 
 
-            while IFS=$(echo -e '\t\n') read -r link_path link_target || [[ -n "$line" ]]; do
-                unset IFS
 
-                link_name=`basename $link_path`
-                # Strip origin
-                link_path="${link_path:$(( ${#origin_path} + 1 ))}"
 
-                target_link="/${clone_dataset}/dev/${dev_name}/${clone_folder}/${link_path}"
-                target_target="zfs-${ozmt_dataset}:/${ozmt_dataset}/dev/${dev_name}/${clone_folder}/${link_path}"
-                
-        
-                # Replace reparse point        
-                echo "rm $target_link" >> $target_script
-                echo "nfsref add ${target_link} ${target_target}" >> $target_script
-        
-                IFS=$(echo -e '\t\n')
-            done < "${TMP}/dataset_reparse_${ozmt_dataset}_$$"
-            unset IFS
-            
-            # Execute reparse fix-up
-            chmod +x $target_script
-            $SSH $o_pool "bash -s " < ${target_script}
-            
-            rm $target_script
-            rm ${TMP}/dataset_reparse_${ozmt_dataset}_$$
-            
+            debug "Found reparse points: $(wc -l ${TMP}/dataset_reparse_${ozmt_dataset}_$$)"
+            clone_path="/${o_folder}/dev/${dev_name}/${clone_folder}"
+
+            process_reparse "${TMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
+           
+            IFS=','
         done
         
-        rm ${TMP}/dataset_reparse_${clone_folder}_$$
-
     fi
+    NUM=$(( NUM + 1 ))
+    line=`$SED "${NUM}q;d" ${TMP}/dataset_folders_$$`
 done
 
 
