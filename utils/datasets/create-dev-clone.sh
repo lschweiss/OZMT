@@ -235,7 +235,6 @@ while [ "$line" != '' ]; do
             # Clone it
             debug "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
-            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
 
             # Fix up any reparse points
             $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
@@ -248,6 +247,9 @@ while [ "$line" != '' ]; do
             clone_path="/${o_folder}/dev/${dev_name}/${clone_folder}"
 
             process_reparse "${TMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
+
+            # Snapshot the folder
+            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
            
             IFS=','
         done
