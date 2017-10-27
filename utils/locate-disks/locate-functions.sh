@@ -54,6 +54,9 @@ locate_hbas () {
 
 }
 
+sd_map () {
+    paste -d= <(iostat -x | $AWK '{print $1}') <(iostat -xn | $AWK '{print $NF}') | $TAIL -n +3
+}
 
 collect_expander_info () {
     local devs=
