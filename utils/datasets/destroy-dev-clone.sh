@@ -37,17 +37,17 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
 
-myTMP="${myTMP}/datasets"
+myTMP="${TMP}/datasets"
 MKDIR $myTMP
 
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name}"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-t]"
     echo
 }
 
-while getopts d:n: opt; do
+while getopts d:n:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -56,7 +56,11 @@ while getopts d:n: opt; do
         n)  # Dev name
             dev_name="$OPTARG"
             debug "instance_name: $dev_name"
-            ;;        
+            ;;
+        t)  # Test mode
+            test='true'
+            debug "Running in test mode"
+            ;;
         ?)  # Show program usage and exit
             show_usage
             exit 0
@@ -137,7 +141,13 @@ if [ "$ozmt_datasets" != '' ]; then
                 continue
             fi
             debug "Destroying ${o_pool}/${o_folder}/dev/${dev_name}"
-            $SSH $o_pool zfs destroy -r -f ${o_pool}/${o_folder}/dev/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
+            if [ "$test" != 'true' ]; then
+                $SSH $o_pool zfs destroy -r -f ${o_pool}/${o_folder}/dev/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
+                result=$?
+            else
+                echo "TEST MODE.  Would run:"
+                echo "$SSH $o_pool zfs destroy -r -f ${o_pool}/${o_folder}/dev/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt"
+            fi
             result=$?
             if [ $result -ne 0 ]; then
                 debug "Failed to destroy ${o_pool}/${o_folder}/dev/${dev_name}"

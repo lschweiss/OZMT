@@ -37,18 +37,18 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
 
-myTMP="${myTMP}/datasets"
+myTMP="${TMP}/datasets"
 MKDIR $myTMP
 
 
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname}"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-t]"
     echo
 }
 
-while getopts d:n:s: opt; do
+while getopts d:n:s:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -61,6 +61,10 @@ while getopts d:n:s: opt; do
         s)  # Snapshot name / type
             snap_name="$OPTARG"
             debug "snap name: $snap_name"
+            ;;
+        t)  # Test mode
+            test='true'
+            debug "Running in test mode"
             ;;
         ?)  # Show program usage and exit
             show_usage
@@ -142,7 +146,12 @@ process_reparse () {
     # Execute reparse fix-up
     if [ -f ${target_script} ]; then
         #cat $target_script
-        $SSH $o_pool "bash -s " < ${target_script}
+        if [ "$test" != 'true' ]; then
+            $SSH $o_pool "bash -s " < ${target_script}
+        else
+            echo "TEST MODE.  Would run:"
+            echo "$o_pool "bash -s " < ${target_script}"
+        fi
     fi
     
     rm -f $target_script
@@ -190,8 +199,6 @@ if [ "$folders" != ' - ' ]; then
     done
 fi
 
-#$SSH $clone_pool cat /${clone_dataset}/.ozmt-folders >${myTMP}/dataset_folders_$$ 2>/dev/null
-
 debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
 
 snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
@@ -201,11 +208,6 @@ if [ "$snap" == '' ]; then
 else
     debug "Found snapshot $snap"
 fi
-
-# Create the primary clone
-#debug "Creating primary clone: ${clone_pool}/${clone_dataset}/dev/${dev_name}"
-#$SSH $clone_pool zfs clone ${clone_pool}/${clone_dataset}@${snap} ${clone_pool}/${clone_dataset}/dev/${dev_name}
-#$SSH $clone_pool zfs snapshot ${clone_pool}/${clone_dataset}/dev/${dev_name}@clone
 
 rm -f ${myTMP}/dataset_datasets_$$
 datasets=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
@@ -229,8 +231,14 @@ if [ "$ozmt_datasets" != '' ]; then
         o_folder=`echo $this_source | $CUT -d ':' -f 2`
         # Clone it
         debug "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
-        $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
-        $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
+        if [ "$test" != 'true' ]; then
+            $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
+            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
+        else
+            echo "TEST MODE.  Would run:"
+            echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}"
+            echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone"
+        fi
     done
 fi
 
@@ -242,7 +250,7 @@ while [ "$line" != '' ]; do
     ozmt_datasets=`echo $line | $CUT -d ' ' -f 2`
     
     origin_path="/${clone_dataset}/${clone_folder}"
-    debug "Coning folder: $clone_folder origin: $origin_path datasets: $ozmt_datasets"
+    debug "Cloning folder: $clone_folder origin: $origin_path datasets: $ozmt_datasets"
     
     if [ "$ozmt_datasets" != '' ]; then
         IFS=','
@@ -258,7 +266,12 @@ while [ "$line" != '' ]; do
 
             # Clone it
             debug "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
-            $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
+            if [ "$test" != 'true' ]; then
+                $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
+            else
+                echo "TEST MODE.  Would run:"
+                echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
+            fi
 
             # Fix up any reparse points
             $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
@@ -273,7 +286,12 @@ while [ "$line" != '' ]; do
             process_reparse "${myTMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
 
             # Snapshot the folder
-            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
+            if [ "$test" != 'true' ]; then
+                $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
+            else
+                echo "TEST MODE.  Would run:"
+                echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
+            fi
            
             IFS=','
         done

@@ -536,6 +536,7 @@ dataset_source () {
         done
         if [ -z "$pool_folder" ]; then
             debug "Dataset $dataset_name not found!"
+            rm -f $dataset_list
             return 1
         fi
     else
@@ -576,6 +577,7 @@ dataset_source () {
                     #-H ${zfs_replication_property}:source ${endpoint_pool}/${endpoint_folder}`
                 if [ "$endpoint_source" != "$replication_source" ]; then
                     error "Sources not in agreement between ${pool}/${folder} and ${endpoint_pool}/${endpoint_folder}"
+                    rm -f $dataset_list
                     return 1
                 fi
                 
@@ -594,11 +596,13 @@ dataset_source () {
             # No endpoints 
             error "No endpoints defined for $pool_folder however replication is on"
             echo "${pool}:${folder}"
+            rm -f $dataset_list
             return 1
         fi
 
     else
         echo "${pool}:${folder}"
+        rm -f $dataset_list
         return 0
     fi
 
