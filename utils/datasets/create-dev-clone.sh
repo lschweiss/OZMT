@@ -37,24 +37,26 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 
 pools="$(pools)"
 
+myTMP="${myTMP}/datasets"
+MKDIR $myTMP
 
 
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -D {dev_instance_name} -s {snapname}"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname}"
     echo
 }
 
-while getopts d:D:s: opt; do
+while getopts d:n:s: opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
             debug "dataset name: $clone_dataset"
             ;;
-        D)  # Dev name
+        n)  # Dev name
             dev_name="$OPTARG"
-            debug "dev instance_name: $dev_name"
+            debug "instance_name: $dev_name"
             ;;
         s)  # Snapshot name / type
             snap_name="$OPTARG"
@@ -72,6 +74,10 @@ done
 
 declare -A o_source
 
+die () {
+    rm -f ${myTMP}/dataset*_$$
+    exit $1
+}
 
 find_snap () {
 
@@ -106,7 +112,7 @@ process_reparse () {
     local this_source=
     local o_folder=
 
-    local target_script="${TMP}/dataset_reparse_run_$$"
+    local target_script="${myTMP}/dataset_reparse_run_$$"
 
     while IFS=$(echo -e '\t\n') read -r link_path link_target; do
         unset IFS
@@ -150,7 +156,7 @@ dataset_source=`dataset_source $clone_dataset`
 o_source["${clone_dataset}"]="$dataset_source"
 if [ "$dataset_source" == '' ]; then
     error "Cannot locate source for $clone_dataset"
-    exit 1
+    die 1
 fi
 debug "Found source at $dataset_source"
 clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
@@ -160,7 +166,7 @@ clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
 $SSH ${clone_pool} zfs list ${clone_pool}/${clone_dataset}/dev/${dev_name}  1>/dev/null 2>/dev/null
 if [ $? -eq 0 ]; then
     error "Clone already exists for $dev_name"
-    exit 1
+    die 1
 else
     debug "Safe to create ${clone_pool}/dev/${dev_name}"
 fi
@@ -173,24 +179,45 @@ fi
 # Create the clone(s)
 ##
 
-$SSH $clone_pool cat /${clone_dataset}/.ozmt-folders >${TMP}/dataset_folders_$$ 2>/dev/null
+# Collect folders
+rm -f ${myTMP}/dataset_folders_$$
+folders=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}` 
+if [ "$folders" != ' - ' ]; then
+    NUM=1
+    while [ $NUM -le $folders ]; do
+        $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${myTMP}/dataset_folders_$$
+        NUM=$(( NUM + 1 ))
+    done
+fi
 
-debug "Cloning the following folders: $(cat ${TMP}/dataset_folders_$$)"
+#$SSH $clone_pool cat /${clone_dataset}/.ozmt-folders >${myTMP}/dataset_folders_$$ 2>/dev/null
+
+debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
 
 snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
 if [ "$snap" == '' ]; then
     error "Could not find snapshot: $snap_name"
-    exit 1
+    die 1
 else
     debug "Found snapshot $snap"
 fi
 
 # Create the primary clone
-debug "Creating primary clone: ${clone_pool}/${clone_dataset}/dev/${dev_name}"
-$SSH $clone_pool zfs clone ${clone_pool}/${clone_dataset}@${snap} ${clone_pool}/${clone_dataset}/dev/${dev_name}
-$SSH $clone_pool zfs snapshot ${clone_pool}/${clone_dataset}/dev/${dev_name}@clone
+#debug "Creating primary clone: ${clone_pool}/${clone_dataset}/dev/${dev_name}"
+#$SSH $clone_pool zfs clone ${clone_pool}/${clone_dataset}@${snap} ${clone_pool}/${clone_dataset}/dev/${dev_name}
+#$SSH $clone_pool zfs snapshot ${clone_pool}/${clone_dataset}/dev/${dev_name}@clone
 
-ozmt_datasets=`$SSH $clone_pool cat /${clone_dataset}/.ozmt-datasets 2>/dev/null`
+rm -f ${myTMP}/dataset_datasets_$$
+datasets=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
+if [ "$datasets" != ' - ' ]; then
+    NUM=1
+    while [ $NUM -le $datasets ]; do
+        $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${myTMP}/dataset_datasets_$$
+        NUM=$(( NUM + 1 ))
+    done
+fi
+
+ozmt_datasets=`cat ${myTMP}/dataset_datasets_$$ 2>/dev/null`
 if [ "$ozmt_datasets" != '' ]; then
     # Create stub clones
     for ozmt_dataset in $ozmt_datasets; do
@@ -209,7 +236,7 @@ fi
 
 
 NUM=1
-line=`$SED "${NUM}q;d" ${TMP}/dataset_folders_$$`
+line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 while [ "$line" != '' ]; do 
     clone_folder=`echo $line | $CUT -d ' ' -f 1`
     ozmt_datasets=`echo $line | $CUT -d ' ' -f 2`
@@ -217,9 +244,6 @@ while [ "$line" != '' ]; do
     origin_path="/${clone_dataset}/${clone_folder}"
     debug "Coning folder: $clone_folder origin: $origin_path datasets: $ozmt_datasets"
     
-    #$SSH $clone_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
-    #    $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > ${TMP}/dataset_reparse_${clone_folder}_$$
-
     if [ "$ozmt_datasets" != '' ]; then
         IFS=','
         for ozmt_dataset in $ozmt_datasets; do
@@ -239,14 +263,14 @@ while [ "$line" != '' ]; do
             # Fix up any reparse points
             $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
                 $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > \
-                ${TMP}/dataset_reparse_${ozmt_dataset}_$$ 
+                ${myTMP}/dataset_reparse_${ozmt_dataset}_$$ 
 
 
 
-            debug "Found reparse points: $(wc -l ${TMP}/dataset_reparse_${ozmt_dataset}_$$)"
+            debug "Found reparse points: $(wc -l ${myTMP}/dataset_reparse_${ozmt_dataset}_$$)"
             clone_path="/${o_folder}/dev/${dev_name}/${clone_folder}"
 
-            process_reparse "${TMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
+            process_reparse "${myTMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
 
             # Snapshot the folder
             $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
@@ -256,10 +280,10 @@ while [ "$line" != '' ]; do
         
     fi
     NUM=$(( NUM + 1 ))
-    line=`$SED "${NUM}q;d" ${TMP}/dataset_folders_$$`
+    line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 done
 
-
+die 0
 
 
 
