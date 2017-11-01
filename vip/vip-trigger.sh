@@ -247,11 +247,14 @@ activate_vip () {
     IFS=','
     for route in $routes; do
         if [ -f /etc/ozmt/network/${route}.routes ]; then
+            debug "Using routes from: ${route}.routes"
             # Template of routes
             while IFS='' read -r line || [[ -n "$line" ]]; do
                 IFS='/'
                 read -r net mask gateway <<< "$line"
                 IFS=','
+
+                debug "Adding route: $net / $mask  gw: $gateway"
                 case $os in
                     'Linux')
                         route add -net ${net}/${mask} $gateway dev ${ip_if}
@@ -270,6 +273,7 @@ activate_vip () {
                 IFS='/'
                 read -r host gateway <<< "$route"
                 IFS=','
+                debug "Adding route: $net / $mask  gw: $gateway"
                 case $os in
                     'Linux')
                         route add -host ${host} $gateway dev ${ip_if}
@@ -283,6 +287,7 @@ activate_vip () {
                 IFS='/'
                 read -r net mask gateway <<< "$route"
                 IFS=',' 
+                debug "Adding route: $net / $mask  gw: $gateway"
                 case $os in
                     'Linux')
                         route add -net ${net}/${mask} $gateway dev ${ip_if}
