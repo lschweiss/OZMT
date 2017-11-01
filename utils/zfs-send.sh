@@ -404,7 +404,7 @@ if [ "$remote_host" != "" ]; then
         error "${job_name} Remote host specified, but no viable transport selected."    
         verify='fail'
     fi 
-    #TODO: Need to check for $remote_tmp folder collisions and compensate.       
+    ${TIMEOUT} 30s ${SSH} root@${remote_host} rm -rf $remote_tmp
     ${TIMEOUT} 30s ${SSH} root@${remote_host} mkdir -p $remote_tmp
     result=$?
     if [ $result -ne 0 ]; then
