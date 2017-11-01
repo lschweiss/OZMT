@@ -235,10 +235,10 @@ if [ $? -eq 0 ]; then
         target_source_reference=`$SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -2|tail -1`
     fi
     if [ "$target_source_reference" != "${pool}:${folder}" ]; then
-        error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source ${target_source_reference}.  Replication suspended."
-        # Suspend replication
-        update_job_status "$job_status" suspended true
-        mv "$job_definition" "${replication_dir}/suspended/"
+        error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source ${target_source_reference}.  Failing job"
+        # Fail job
+        update_job_status "$job_status" failures +1
+        mv "$job_definition" "${replication_dir}/failed/"
         die 1
     fi
 else 
@@ -246,6 +246,7 @@ else
     mv "${job_definition}" "${replication_dir}/failed/"
     notice "Cannot connect to host for ${target_pool}.  Marking job failed. $job_definition"
     update_job_status "$job_status" failures +1
+    mv "$job_definition" "${replication_dir}/failed/"
     die 1
 fi
 
