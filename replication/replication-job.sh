@@ -223,16 +223,16 @@ die () {
 # Remote replication
 
 # Test ssh connectivity
-timeout 30s ssh ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
+timeout 30s $SSH ${target_pool} "echo \"Hello world.\"" >/dev/null 2> /dev/null
 if [ $? -eq 0 ]; then
     debug "Connection validated to ${target_pool}"
     # Confirm on the target host that this is truely the source
-    target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -1`
+    target_source_reference=`$SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -1`
     if [ "$target_source_reference" == "migrating" ]; then
         migrating='true'
         debug "Active endpoint is being migrated"
         # collect the current active pool
-        target_source_reference=`ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -2|tail -1`
+        target_source_reference=`$SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name}|head -2|tail -1`
     fi
     if [ "$target_source_reference" != "${pool}:${folder}" ]; then
         error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source ${target_source_reference}.  Replication suspended."
@@ -279,7 +279,7 @@ else
 
     debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
 
-    ssh $target_pool "ozmt-zfs-rollback-folders.sh ${target_pool}/${target_folder} ${previous_snapshot}"
+    $SSH $target_pool "ozmt-zfs-rollback-folders.sh ${target_pool}/${target_folder} ${previous_snapshot}"
     result=$?
 
     if [ $result -ne 0 ]; then
@@ -293,7 +293,7 @@ else
 
     # Remove quotas on the target folder(s)
     if [ "$zfs_replication_remove_quotas" == 'true' ]; then
-        ssh $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
+        $SSH $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
     fi
 
    
@@ -309,7 +309,7 @@ else
 
     # Remove quotas a second time incase a quota change was transmitted via the send.
     if [ "$zfs_replication_remove_quotas" == 'true' ]; then
-        ssh $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
+        $SSH $target_pool "ozmt-remove-quota.sh ${target_pool}/${target_folder}"
     fi
 
     

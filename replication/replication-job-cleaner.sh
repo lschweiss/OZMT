@@ -368,7 +368,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 ##
                 clean='true'
                 if [ "$DEBUG" != 'true' ]; then
-                    ssh $target_pool "zfs destroy -d -r \"${target_pool}/${target_folder}@${previous_snapshot}\"" 2> ${CTMP}/destroy_target_snap_$$.txt
+                    $SSH $target_pool "zfs destroy -d -r \"${target_pool}/${target_folder}@${previous_snapshot}\"" 2> ${CTMP}/destroy_target_snap_$$.txt
                     if [ $? -ne 0 ]; then
                         clean='false'
                         error "Failed to destroy target snapshot ${target_pool}/${target_folder}@${previous_snapshot}" ${CTMP}/destroy_target_snap_$$.txt

@@ -464,7 +464,7 @@ process_vip () {
         else
             debug "No source reference for dataset ${dataset_name}"
             # Get the zfs folder for the dataset
-            zfs_folder=`zfs get -o value,name -s local,received -r -H ${zfs_dataset_property} | \
+            zfs_folder=`zfs_cache get -o value,name -s local,received -r -H ${zfs_dataset_property} | \
                 ${GREP} "^${dataset_name}"`
             replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
             if [ "$replication" == 'on' ]; then

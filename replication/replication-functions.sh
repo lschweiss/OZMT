@@ -57,7 +57,7 @@ load_replication_data () {
     unset replication_job_suspended
 
     # Test if zfs_folder exists
-    ssh $pool zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
+    $SSH $pool zfs list -o name $zfs_folder 1>/dev/null 2>/dev/null
     if [ $? -ne 0 ]; then
         debug "get_replication_data called for unknown zfs_folder $zfs_folder"
         return 1
@@ -66,10 +66,10 @@ load_replication_data () {
     z_cache="${RCACHE}/${z_folder}"
     MKDIR ${z_cache}
 
-    replication=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${zfs_folder}`
+    replication=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${zfs_folder}`
     if [ "$replication" == 'on' ]; then
         # Get the source, strip the timestamp
-        replication_source=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property}:source ${zfs_folder} | \
+        replication_source=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property}:source ${zfs_folder} | \
             ${CUT} -d '|' -f 1`
         if [ "$replication_source" == "$zfs_folder" ]; then
             replication_source_local='true'
@@ -83,7 +83,7 @@ load_replication_data () {
             # or if there is a conflict, or simply out of date.
 
             # Replication suspended
-            replication_suspended=`ssh $pool zfs get -s local,inherited -o value \
+            replication_suspended=`$SSH $pool zfs get -s local,inherited -o value \
                 -H ${zfs_replication_property}:suspended ${zfs_folder}`
 
 
@@ -137,19 +137,19 @@ load_replication_data () {
                             
                     # Realtime status, no caching
                     # Queued jobs
-                    replication_job_queued_jobs[$count]=`ssh $pool zfs get -s local,received -o value \
+                    replication_job_queued_jobs[$count]=`$SSH $pool zfs get -s local,received -o value \
                         -H ${zfs_replication_property}:job:${count}:queued_jobs ${zfs_folder}`
                     # Last run time
-                    replication_job_last_run[$count]=`ssh $pool zfs get -s local,received -o value \
+                    replication_job_last_run[$count]=`$SSH $pool zfs get -s local,received -o value \
                         -H ${zfs_replication_property}:job:${count}:last_run ${zfs_folder}`
                     # Last completion time
-                    replication_job_last_complete[$count]=`ssh $pool zfs get -s local,received -o value \
+                    replication_job_last_complete[$count]=`$SSH $pool zfs get -s local,received -o value \
                         -H ${zfs_replication_property}:job:${count}:last_complete ${zfs_folder}`
                     # Job failures
-                    replication_job_failures[$count]=`ssh $pool zfs get -s local,received -o value \
+                    replication_job_failures[$count]=`$SSH $pool zfs get -s local,received -o value \
                         -H ${zfs_replication_property}:job:${count}:failures ${zfs_folder}`
                     # Job suspended
-                    replication_job_suspended[$count]=`ssh $pool zfs get -s local,inherited -o value \
+                    replication_job_suspended[$count]=`$SSH $pool zfs get -s local,inherited -o value \
                         -H ${zfs_replication_property}:job:${count}:suspended ${zfs_folder}`
 
                     count=$(( count + 1 ))
@@ -246,7 +246,7 @@ Press SPACE to toggle an option on/off. \n\n\
         count=$(( count + 1 ))
         ar+=( "$count" "$folder" )
         echo "$folder" >> $scratch
-    done < <(ssh $pool zfs list -t filesystem -o name -H -r $pool |tail -n+2 | sed 's,^\w*/,,g')
+    done < <($SSH $pool zfs list -t filesystem -o name -H -r $pool |tail -n+2 | sed 's,^\w*/,,g')
 
     $DIALOG --colors --backtitle "$back_title" \
         --title "Select folder on pool $pool" --clear \
@@ -345,7 +345,7 @@ dataset_source_folder () {
 
     for folder in $folders; do
         pool=`echo $folder | ${CUT} -d '/' -f 1`
-        replication=`ssh $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${folder}`
+        replication=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${folder}`
         if [ "$replication" == 'on' ]; then
             # Find all endpoints and determine the source
             

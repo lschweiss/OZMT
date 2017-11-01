@@ -521,7 +521,7 @@ for dataset in $datasets; do
                 target_folder=`echo $ds_target| ${CUT} -d ":" -f2`
                 # Collect snapshots
                 debug "Collecting snapshots from ${target_pool}/${target_folder}"
-                target_snaps=`ssh $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null | \
+                target_snaps=`$SSH $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null | \
                               ${GREP} "@$zfs_replication_snapshot_name"`
                 if [ "$target_snaps" == "" ]; then
                     error "Could not collect snapshots from ${target_pool}/${target_folder}"
@@ -611,7 +611,7 @@ for dataset in $datasets; do
             target_folder=`echo $ds_target| ${CUT} -d ":" -f2`
             # Collect snapshots
             debug "Collecting snapshots from ${target_pool}/${target_folder}"
-            target_snaps=`ssh $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null |
+            target_snaps=`$SSH $target_pool zfs list -H -r -t snapshot -o name ${target_pool}/${target_folder} 2>/dev/null |
                           ${GREP} "@$zfs_replication_snapshot_name"`
             if [ "$target_snaps" == "" ]; then
                 error "Could not collect snapshots from ${target_pool}/${target_folder}"
@@ -622,7 +622,7 @@ for dataset in $datasets; do
                 if [ $? -ne 0 ]; then
                     debug "Destroying target snapshot $snap"
                     if [ "$DEBUG" != 'true' ]; then
-                        ssh $target_pool "zfs destroy -d $snap"
+                        $SSH $target_pool "zfs destroy -d $snap"
                     fi
                 fi
             done

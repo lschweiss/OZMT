@@ -96,7 +96,7 @@ fi
 
 # Confirm on the target host that this is truely the source
 
-timeout 1m ssh $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name} \
+timeout 1m $SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name} \
     > ${TMP}/target_check_$$ \
     2> ${TMP}/target_check_error_$$
 errorcode=$?
