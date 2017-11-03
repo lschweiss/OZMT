@@ -155,6 +155,11 @@ gnu_source () {
     [ -f $HOME/.ssh/id_rsa ] && SSH="$SSH -i $HOME/.ssh/id_rsa"
     [ -f $HOME/.ssh/id_dsa ] && SSH="$SSH -i $HOME/.ssh/id_dsa"
 
+[ -z "$SCP" ] && SCP=`gnu_source scp`
+    [ -f /var/ozmt/private_ssh_key ] && SCP="$SCP -i /var/ozmt/private_ssh_key"
+    [ -f $HOME/.ssh/id_rsa ] && SCP="$SCP -i $HOME/.ssh/id_rsa"
+    [ -f $HOME/.ssh/id_dsa ] && SCP="$SCP -i $HOME/.ssh/id_dsa"
+
 [ -z "$TIMEOUT" ] &&TIMEOUT=`gnu_source timeout`
 
 [ -z "$MD5SUM" ] && MD5SUM=`gnu_source md5sum`

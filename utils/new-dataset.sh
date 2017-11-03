@@ -178,7 +178,7 @@ done
 template="/etc/ozmt/replication/${replication}.template"
 
 if [ -f "$template" ]; then
-    ssh $target_pool "echo Verified pool $target_pool" 
+    $SSH $target_pool "echo Verified pool $target_pool" 
     if [ $? -ne 0 ]; then
         echo
         echo "Could not connect to $target_pool"
@@ -195,6 +195,7 @@ if [ -f "$template" ]; then
     cat "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
     source "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
     touch $job_status
+    touch ${job_status}.unlock
     mv "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool" \
         "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/$target_pool"
     zfs set ${zfs_replication_property}="on" $source_pool/$folder
@@ -204,20 +205,19 @@ if [ -f "$template" ]; then
     zfs set ${zfs_replication_property}:endpoints="2" $source_pool/$folder
     zfs set ${zfs_replication_property}:endpoint:1="${source_pool}:${folder}" $source_pool/$folder
     zfs set ${zfs_replication_property}:endpoint:2="${target_pool}:${folder}" $source_pool/$folder
-    ssh $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
-    ssh $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
-    ssh $target_pool "echo ${target_pool}:${folder} >> /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
-    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}"
-    ssh $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}.unlock"
-    ssh $target_pool "mkdir -p /${target_pool}/zfs_tools/var/replication/jobs/definitions/$dataset"
-    #ssh $target_pool "zfs create ${target_pool}/${folder}"
+    $SSH $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/source/${dataset}"
+    $SSH $target_pool "echo ${source_pool}:${folder} > /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
+    $SSH $target_pool "echo ${target_pool}:${folder} >> /${target_pool}/zfs_tools/var/replication/targets/${dataset}"
+    $SSH $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}"
+    $SSH $target_pool "touch /${target_pool}/zfs_tools/var/replication/jobs/status/${dataset}#${source_pool}:${dataset}.unlock"
+    $SSH $target_pool "mkdir -p /${target_pool}/zfs_tools/var/replication/jobs/definitions/$dataset"
 
     cp "$template" ${TMP}/${dataset}_target_definition
         ${SED} "s,#TARGETPOOL#,${source_pool},g" --in-place ${TMP}/${dataset}_target_definition
         ${SED} "s,#SOURCEPOOL#,${target_pool},g" --in-place ${TMP}/${dataset}_target_definition
         ${SED} "s,#DATASET#,${dataset},g" --in-place ${TMP}/${dataset}_target_definition
 
-    scp ${TMP}/${dataset}_target_definition ${target_pool}:/${target_pool}/zfs_tools/var/replication/jobs/definitions/${dataset}/${source_pool}
+    $SCP ${TMP}/${dataset}_target_definition ${target_pool}:/${target_pool}/zfs_tools/var/replication/jobs/definitions/${dataset}/${source_pool}
 
     rm ${TMP}/${dataset}_target_definition
     
