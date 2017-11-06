@@ -842,7 +842,7 @@ case $transport_selected in
         local_fifo bbcp
         target_bbcp_fifo="$result"
         debug "${job_name}: Starting bbcp pipe transport from local $target_bbcp_fifo to remote $target_fifo"
-        ( $BBCP -V -T "ssh root@${remote_host} $BBCP" -o -s $bbcp_streams -P 60 --port 5201:5500 \
+        ( $BBCP -V -T "$remote_ssh $BBCP" -o -s $bbcp_streams -P 60 --port 5201:5500 \
             -b 5 -b +5 -B 8m -N io "$target_bbcp_fifo" "root@${remote_host}:${target_fifo}" \
             1> $tmpdir/bbcp.log \
             2> $tmpdir/bbcp.error ; echo $? > $tmpdir/bbcp.errorlevel ) &
