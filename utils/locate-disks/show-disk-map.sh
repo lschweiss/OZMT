@@ -101,12 +101,13 @@ output_map () {
         path=$(( path + 1 ))
     done
     
-    printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+    printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-8s\n' \
         "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
     
     bays="${expander["${wwn}_slots"]}"
 
     bay=0
+    highlight=0
 
     while [ $bay -lt $bays ]; do
         disk_osname="${expander["${wwn}_diskosname_${bay}"]}"
@@ -118,63 +119,20 @@ output_map () {
         disk_status="${disk["${disk_wwn}_status"]}"
         disk_pool="${disk["${disk_wwn}_pool"]}"
         disk_vdev="${disk["${disk_wwn}_vdev"]}"
-        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-9s | %-8s\n' \
+        if [ $highlight -eq 1 ]; then
+            echo -n "$(color bd cyan )"
+            highlight=0
+        else
+            echo -n "$(color bd yellow )"
+            highlight=1
+        fi
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-8s\n' \
             "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
         bay=$(( bay + 1 ))
     done
 
-    echo
+    echo "$(color)"
     
-#    cat "$myTMP/disk_to_location" | ${GREP} "$1" | ${SORT} -k 4g | \
-#    while IFS='' read -r line || [[ -n "$line" ]]; do
-#        # Collect possible disk like
-#        possible_disk=`echo $line | ${AWK} -F ' ' '{print $1}'`
-#        if [ "$possible_disk" != '' ]; then
-#            cat ${myTMP}/disk_to_location 2>/dev/null| ${GREP} "$possible_disk" > ${myTMP}/mapping
-#        else
-#            rm -f ${myTMP}/mapping
-#        fi
-#        wwn=''
-#        bay=''
-#        serial=''
-#        if [ -f ${myTMP}/mapping ]; then
-#            wwn=`cat ${myTMP}/mapping | ${CUT} -f 3`
-#            bay=`cat ${myTMP}/mapping | ${CUT} -f 4`
-#            serial=`cat ${myTMP}/mapping | ${CUT} -f 2`
-#            vendor=`cat ${myTMP}/mapping | ${CUT} -f 5`
-#            model=`cat ${myTMP}/mapping | ${CUT} -f 6`
-#            firmware=`cat ${myTMP}/mapping | ${CUT} -f 7`
-#            jbod=''
-#            show_wwn="$show_dev"
-#            show_jbod=
-#            if [ -f /etc/ozmt/jbod-map ]; then
-#                jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$wwn" | ${CUT} -d ' ' -f 2`
-#            fi
-#    
-#            if [ "$wwn" != "$last_wwn" ]; then
-#                echo
-#                last_wwn="$wwn"
-#                show_wwn="$wwn"
-#                show_jbod="$jbod"
-#                show_ses=1
-#            fi
-#    
-#            printf '%-24s | %-12s | %3s | %-22s | %20s | %-9s | %-15s | %-4s\n' \
-#                "$show_wwn" "$show_jbod" "$bay" "$possible_disk" "$serial" "$vendor" "$model" "$firmware"
-#
-#            # TODO:  This logic will fail to show all device paths if there are more device paths than connected disks
-#            if [[ "$show_wwn" != '' && $show_ses -gt 0 ]]; then
-#                show_dev=`cat ${myTMP}/enclosure-data | ${GREP} "$last_wwn" | ${CUT} -f 6 | ${SED} -n -e ${show_ses}p`
-#                show_ses=$(( show_ses + 1 ))
-#            fi
-#                
-#
-#        else
-#            #echo -n ''
-#            echo "${line}"
-#        fi
-#    done
-
 }
 unset IFS
 for wwn in $expander_list; do
