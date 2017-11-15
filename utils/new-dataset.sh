@@ -188,7 +188,10 @@ if [ -f "$template" ]; then
         exit 1
     fi
     touch /$source_pool/zfs_tools/var/replication/jobs/suspend_all_jobs
+    mkdir -p /$source_pool/zfs_tools/var/replication/{source,targets}
+    mkdir -p /$source_pool/zfs_tools/var/replication/jobs/{cleaning,complete,definitions,failed,pending,running,status,suspended,synced}
     mkdir -p "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset"
+    
     cp "$template" "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
         ${SED} "s,#SOURCEPOOL#,${source_pool},g" --in-place "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
         ${SED} "s,#TARGETPOOL#,${target_pool},g" --in-place "/$source_pool/zfs_tools/var/replication/jobs/definitions/$dataset/targetpool"
