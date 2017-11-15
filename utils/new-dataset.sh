@@ -148,6 +148,8 @@ fi
 
 zfs set ${zfs_dataset_property}=${dataset} $source_pool/$folder
 
+echo "${HOSTNAME}:${source_pool}:${folder}" > ${data_dir}/dataset.${dataset}
+
 vip=1
 while [ $vip -le $vips ]; do
     zfs set ${zfs_vip_property}=$vips $source_pool/$folder

@@ -29,8 +29,10 @@ cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 
 . ../zfs-tools-init.sh
 
+
 #
 # Refresh the zfs_cache command's cache on each pool.   Meant to be a background process.
+#
 
 pools="$(pools)"
 

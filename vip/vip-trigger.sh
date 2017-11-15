@@ -462,6 +462,7 @@ process_vip () {
             if [ $? -eq 0 ]; then
                 debug "Local pool $pool is the active pool, activating vIP: $vIP"
                 activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                echo "${HOSTNAME}:${pool}:${active_folder}" > ${data_dir}/dataset.${dataset_name}
             else
                 debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
                 deactivate_vip "$vIP"
@@ -469,7 +470,7 @@ process_vip () {
         else
             debug "No source reference for dataset ${dataset_name}"
             # Get the zfs folder for the dataset
-            zfs_folder=`zfs_cache get -o value,name -s local,received -r -H ${zfs_dataset_property} | \
+            zfs_folder=`zfs_cache get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
                 ${GREP} "^${dataset_name}"`
             replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
             if [ "$replication" == 'on' ]; then
@@ -478,6 +479,9 @@ process_vip () {
             else
                 debug "Replication not defined for dataset.  Activating vip."
                 activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                if [ "$dataset_name" != ' - ' ]; then
+                    echo "${HOSTNAME}:${pool}:${zfs_folder}" > ${data_dir}/dataset.${dataset_name}
+                fi
             fi
         fi
     }   

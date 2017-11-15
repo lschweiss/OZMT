@@ -100,6 +100,7 @@ process_message() {
     local skip=
     local this_month=`${DATE} +"%Y-%m"`
 
+
     case $this_message_level in
         '0')
             this_message="DEBUG: $(now): $message"
@@ -170,6 +171,10 @@ process_message() {
 
     if [ "x${report_name}" == "x" ]; then
         report_name="$default_report_name"
+    fi
+
+    if [ "x${logfile}" == "x" ]; then
+        logfile="$default_logfile"
     fi
             
     MKDIR "${report_spool}"

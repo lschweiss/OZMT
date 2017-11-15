@@ -227,6 +227,8 @@ gnu_source () {
 
 [ -z "$log_dir" ] && log_dir="/var/zfs_tools/log"
 
+[ -z "$data_dir" ] && data_dir="/var/ozmt/data"
+
 [ -z "$minimum_report_frequency" ] && minmum_report_frequency=1800
 
 [ -z "$QUOTA_REPORT_TEMPLATE" ] && QUOTA_REPORT_TEMPLATE="$TOOLS_ROOT/reporting/quota-report.html"
@@ -384,6 +386,9 @@ source $TOOLS_ROOT/zfs-tools-functions.sh
 
 
 MKDIR $log_dir
+MKDIR $data_dir
+
+zfs_replication_sync_file_list="${data_dir}:${zfs_replication_sync_file_list}"
 
 
 # Skip pools default requires rpool function, sourced above

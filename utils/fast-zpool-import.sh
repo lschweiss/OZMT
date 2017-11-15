@@ -77,10 +77,15 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-
+##
 # mount zfs folders
 ##
 
+# Mount zfs_tools first
+zfs mount ${import_pool} 
+zfs mount ${import_pool}/zfs_tools 1>/dev/null 2>/dev/null
+
+# List unmounted folders
 /usr/sbin/zfs list -o mounted,name -r ${import_pool} | ${GREP} "   no" | \
     ${AWK} -F " " '{print $2}' | \
     ${GREP} -v "^${import_pool}$" > ${TMP}/zpool_import_zfs.$$
@@ -96,5 +101,17 @@ else
 fi
 
 start_cron
+
+##
+# Start vIPs
+##
+
+${TOOLS_ROOT}/vip/vip_trigger.sh activate ${import_pool}
+
+##
+# Start Samba
+##
+
+${TOOLS_ROOT}/samba/samba-service.sh start ${import_pool}
 
 exit 0
