@@ -524,7 +524,7 @@ dataset_source () {
         # Find the dataset
         pools="$(cluster_pools)"
         for pool in $pools; do
-            remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
+            remote_zfs_cache get -d2 -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
                 ${GREP} "^${dataset_name}\s" > $dataset_list
             if [ $? -eq 0 ]; then
                 # Dataset found
