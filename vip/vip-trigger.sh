@@ -228,6 +228,8 @@ activate_vip () {
             
             # Assign the ip
 
+            notice "Activating ${ip_if}:${alias} ${ip}${nm_def}"
+
             case $os in
                 'Linux')
                     ifconfig ${ip_if}:${alias} ${ip}${nm_def} up
@@ -471,8 +473,8 @@ process_vip () {
             debug "No source reference for dataset ${dataset_name}"
             # Get the zfs folder for the dataset
             zfs_folder=`zfs_cache get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
-                ${GREP} "^${dataset_name}"`
-            replication=`zfs_cache get $zfs_replication_property ${pool}/${zfs_folder} 3>/dev/null`
+                ${GREP} "^${dataset_name}" | $CUT -f2`
+            replication=`zfs get -H -o value $zfs_replication_property ${zfs_folder} 3>/dev/null`
             if [ "$replication" == 'on' ]; then
                 error "Replication is on, no source set.  Deactivating vip."
                 deactivate_vip "$vIP"
