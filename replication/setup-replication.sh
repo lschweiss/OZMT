@@ -121,7 +121,7 @@ load_datasets () {
     rm -f $dataset_list
 
     for pool in $(cluster_pools); do
-        remote_zfs_cache get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>>$dataset_cache >> $dataset_list
+        remote_zfs_cache get -d2 -t filesystem -s local,received -o value,name -H ${zfs_dataset_property} $pool 3>>$dataset_cache >> $dataset_list
     done
 
     datasets=`cat ${dataset_list} | ${CUT} -f 1 | ${SORT} -u`

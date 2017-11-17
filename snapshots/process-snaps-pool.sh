@@ -55,7 +55,7 @@ command_max=$(( $(getconf ARG_MAX) - 1024 ))
 
 rm -f ${TMP}/snapshots/${snaptype}_${pool}.* 2>/dev/null
 
-folders=`zfs_cache get -H -o name -s local,received -r ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
+folders=`zfs_cache get -H -o name -s local,received -r -t filesystem ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
 
 debug "Pool: $pool Folders: $folders"
 

@@ -106,17 +106,17 @@ activate_smb () {
     if [ $? -eq 0 ]; then
         debug "Activating pool: $smb_target"
         pool="$smb_target"
-        zfs_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+        zfs_folders=`zfs_cache get -H -o name -s local,received -r -t filesystem ${zfs_cifs_property} ${pool}`
     else
         # smb_target is a dataset 
         # Find the pool with this dataset
         debug "Locating dataset: $smb_target"
         for pool in $pools; do
             debug "Checking pool: $pool"
-            test_folders=`zfs_cache get -H -o name -s local -r ${zfs_cifs_property} ${pool}`
+            test_folders=`zfs_cache get -H -o name -s local,recieved -r -t filesystem ${zfs_cifs_property} ${pool}`
             for zfs_folder in $test_folders; do
                 debug "    Checking folder: $zfs_folder"
-                dataset_name=`zfs_cache get -H -o value -s local $zfs_replication_dataset_property ${zfs_folder}`
+                dataset_name=`zfs_cache get -H -o value -s local,received $zfs_replication_dataset_property ${zfs_folder}`
                 if [ "$dataset_name" == "$smb_target" ]; then
                     zfs_folders="$zfs_folder"
                     debug "  Found dataset folder: $zfs_folder"

@@ -54,13 +54,13 @@ for pool in $pools; do
     fi
 
     zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
-    zfs_cache list -H -r -o name,$zfs_replication_property,$zfs_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
+    zfs_cache list -H -r -t filesystem -o name,$zfs_replication_property,$zfs_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
             /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 3>/dev/null
 
     for snaptype in $types; do
 
         #rm -f ${TMP}/snapshots/clean/$snaptype/* 2>/dev/null
-        folders=`zfs_cache get -H -o name -s local,received -r ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
+        folders=`zfs_cache get -H -o name -s local,received -r -t filesystem ${zfs_snapshot_property}:${snaptype} $pool 3>/dev/null`
         
         # sort folders  
         for folder in $folders; do

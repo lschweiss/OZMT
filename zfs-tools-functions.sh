@@ -524,7 +524,7 @@ dataset_source () {
         # Find the dataset
         pools="$(cluster_pools)"
         for pool in $pools; do
-            remote_zfs_cache get -d2 -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
+            remote_zfs_cache get -d2 -t dataset -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
                 ${GREP} "^${dataset_name}\s" > $dataset_list
             if [ $? -eq 0 ]; then
                 # Dataset found
@@ -659,7 +659,7 @@ vip_folders () {
         return 1
     fi
 
-    folders=`zfs_cache list -o name,${zfs_vip_property} -r -H $pool 3>/dev/null | ${GREP} -v -P '\t-' | ${CUT} -f 1`
+    folders=`zfs_cache list -o name,${zfs_vip_property} -d2 -t filesystem -H $pool 3>/dev/null | ${GREP} -v -P '\t-' | ${CUT} -f 1`
 
     for folder in $folders; do
         if [ "$(zfs get -s local,received -o name -H ${zfs_vip_property} ${folder})" == "$folder" ]; then

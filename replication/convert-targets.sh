@@ -44,7 +44,7 @@ fi
 pools="$(pools)"
 
 for pool in $pools;do
-    replication_folders=`zfs_cache get -r -H -o name -s local,received $zfs_replication_property $pool 3>/dev/null`
+    replication_folders=`zfs_cache get -r -t filesystem -H -o name -s local,received $zfs_replication_property $pool 3>/dev/null`
     for replication_folder in $replication_folders; do
         dataset=`zfs_cache get -H -o value -s local,received $zfs_dataset_property $replication_folder 3>/dev/null`
         target_file="/$pool/zfs_tools/var/replication/targets/$dataset"
