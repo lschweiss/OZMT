@@ -106,7 +106,7 @@ start_cron
 # Start vIPs
 ##
 
-${TOOLS_ROOT}/vip/vip_trigger.sh activate ${import_pool}
+${TOOLS_ROOT}/vip/vip-trigger.sh activate ${import_pool}
 
 ##
 # Start Samba
