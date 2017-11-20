@@ -31,6 +31,8 @@ cd $( cd -P "$( dirname "${my_source}" )" && pwd )
 
 logfile="$default_logfile"
 
+logging_level="0"
+
 report_name="$default_report_name"
 
 now=`${DATE} +"%F %H:%M:%S%z"`
@@ -44,11 +46,11 @@ MKDIR $myTMP
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-q {quota}] [-t]"
     echo
 }
 
-while getopts d:n:s:t opt; do
+while getopts d:n:s:q:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -61,6 +63,10 @@ while getopts d:n:s:t opt; do
         s)  # Snapshot name / type
             snap_name="$OPTARG"
             debug "snap name: $snap_name"
+            ;;
+        q)  # Clone quota
+            clone_quota="$OPTARG"
+            debug "clone quota: $clone_quota"
             ;;
         t)  # Test mode
             test='true'
@@ -233,6 +239,9 @@ if [ "$ozmt_datasets" != '' ]; then
         debug "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
         if [ "$test" != 'true' ]; then
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
+            if [ "$clone_quota" != "" ]; then
+                $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}
+            fi
             $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
         else
             echo "TEST MODE.  Would run:"

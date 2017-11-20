@@ -524,10 +524,12 @@ dataset_source () {
         # Find the dataset
         pools="$(cluster_pools)"
         for pool in $pools; do
-            remote_zfs_cache get -d2 -t dataset -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
+            debug "Checking pool $pool"
+            $SSH $pool zfs get -d2 -t filesystem -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
                 ${GREP} "^${dataset_name}\s" > $dataset_list
             if [ $? -eq 0 ]; then
                 # Dataset found
+                debug "Found dataset $dataset_name"
                 pool_folder=`cat $dataset_list | ${HEAD} -1 | ${CUT} -f 2`
                 pool=`echo $pool_folder | ${CUT} -d '/' -f 1`
                 folder=`echo $pool_folder | ${CUT} -d '/' -f 2`
@@ -543,13 +545,13 @@ dataset_source () {
         pool=`echo $1 | ${AWK} -F '/' '{print $1}'`
         folder=`echo $1 | ${AWK} -F '/' '{print $2}'`
         pool_folder="${pool}/${folder}"
-        dataset_name=`remote_zfs_cache get -s local,received -o value -H ${zfs_dataset_property} 3>/dev/null`
+        dataset_name=`$SSH $pool zfs get -s local,received -o value -H ${zfs_dataset_property} $pool_folder 3>/dev/null`
     fi
 
     debug "Found dataset at $pool_folder"
 
     # Collect replication information
-    replication=`remote_zfs_cache get -s local,received -o value -H ${zfs_replication_property} ${pool_folder} 3>/dev/null`
+    replication=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${pool_folder} 3>/dev/null`
     
     if [ "$replication" == 'on' ]; then
         debug "Replication is on.  Checking for actual source"
@@ -562,12 +564,12 @@ dataset_source () {
       
         
         # Check all the endpoints to make sure the source is in agreement
-        endpoints=`remote_zfs_cache get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder} 3>/dev/null`
+        endpoints=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder} 3>/dev/null`
         
         if [[ $endpoints =~ ^-?[0-9]+$ ]]; then
             count=1
             while [ $count -le $endpoints ]; do
-                endpoint=`remote_zfs_cache get -s local,received -o value \
+                endpoint=`$SSH $pool zfs get -s local,received -o value \
                     -H ${zfs_replication_property}:endpoint:${count} ${pool_folder} 3>/dev/null`
                 endpoint_pool=`echo $endpoint | ${CUT} -d ':' -f 1`
                 endpoint_folder=`echo $endpoint | ${CUT} -d ':' -f 2` 
