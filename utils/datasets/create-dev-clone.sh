@@ -236,7 +236,7 @@ if [ "$ozmt_datasets" != '' ]; then
         o_pool=`echo $this_source | $CUT -d ':' -f 1`
         o_folder=`echo $this_source | $CUT -d ':' -f 2`
         # Clone it
-        debug "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
+        notice "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
         if [ "$test" != 'true' ]; then
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
             if [ "$clone_quota" != "" ]; then
@@ -274,7 +274,7 @@ while [ "$line" != '' ]; do
             debug "Origin: $origin_path"
 
             # Clone it
-            debug "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
+            notice "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
             if [ "$test" != 'true' ]; then
                 $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
             else
