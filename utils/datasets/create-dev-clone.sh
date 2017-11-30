@@ -50,7 +50,7 @@ show_usage() {
     echo
 }
 
-while getopts d:n:s:q:t opt; do
+while getopts d:n:s:q:i:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -67,6 +67,10 @@ while getopts d:n:s:q:t opt; do
         q)  # Clone quota
             clone_quota="$OPTARG"
             debug "clone quota: $clone_quota"
+            ;;
+        i)  # IP address of instance
+            dev_ip="$OPTARG"
+            debug "Instance IP: $dev_ip"
             ;;
         t)  # Test mode
             test='true'
@@ -241,6 +245,9 @@ if [ "$ozmt_datasets" != '' ]; then
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
             if [ "$clone_quota" != "" ]; then
                 $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}
+            fi
+            if [ "$dev_ip" != "" ]; then
+                $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}
             fi
             $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
         else
