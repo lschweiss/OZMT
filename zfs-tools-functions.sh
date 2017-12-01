@@ -428,27 +428,33 @@ cluster_pools () {
     local ex=
     local host=
 
+    set +m
+
     IFS=':'
     for host in $zfs_replication_host_list; do 
-        debug "Collecting pools on host $host"
-        ( unset IFS;timeout 20s $SSH $host zpool list -H -o name 2>/dev/null >>${TMP}/pools_$$_$host ) &
+        #debug "Collecting pools on host $host"
+        { ( unset IFS;timeout 20s $SSH $host zpool list -H -o name 2>/dev/null >>${TMP}/pools_$$_$host ) & } 2>/dev/null
         IFS=":"
     done
     wait 
     IFS=':'
     for host in $zfs_replication_host_list; do
-        # Strip explicitly declared "skip_pools"
-        IFS=" "
-        for ex in $skip_pools; do
-            cat ${TMP}/pools_$$_$host | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$_$host
+        if [ -f ${TMP}/pools_$$_$host ]; then
+            # Strip explicitly declared "skip_pools"
+            IFS=" "
+            for ex in $skip_pools; do
+                cat ${TMP}/pools_$$_$host | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$_$host
+                rm ${TMP}/pools_$$_$host
+                mv ${TMP}/poolsx_$$_$host ${TMP}/pools_$$_$host
+            done
+            cat ${TMP}/pools_$$_$host
             rm ${TMP}/pools_$$_$host
-            mv ${TMP}/poolsx_$$_$host ${TMP}/pools_$$_$host
-        done
-        cat ${TMP}/pools_$$_$host
-        rm ${TMP}/pools_$$_$host
+        fi
         IFS=':'
     done
     unset IFS
+    
+    set -m
 
 }
 
@@ -523,6 +529,8 @@ dataset_source () {
     local newest=0
     local count=
 
+    set +m
+
     if [ "$2" == '' ]; then
         dataset_name="$1"
         # Find the dataset
@@ -534,12 +542,12 @@ dataset_source () {
             if [[ "$pool" == "dump"* ]]; then
                 continue
             fi
-            debug "Checking pool $pool"
+            #debug "Checking pool $pool"
             ping -c 1 $pool 1>/dev/null 2> /dev/null 
             if [ $? -eq 0 ]; then
-                ( timeout 20s $SSH $pool zfs get -d2 -t filesystem -s local,received -o value,name \
+                { (  timeout 20s $SSH $pool zfs get -d2 -t filesystem -s local,received -o value,name \
                     -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
-                    ${GREP} "^${dataset_name}\s" > ${dataset_list}_${pool} ) &
+                    ${GREP} "^${dataset_name}\s" > ${dataset_list}_${pool} ) & } 2>/dev/null
             else
                 warning "Pool $pool cannot be reached"
             fi
@@ -562,47 +570,48 @@ dataset_source () {
         done
         if [ -z "$pool_folder" ]; then
             debug "Dataset $dataset_name not found!"
+            set -m
             return 1
         fi
     else
         pool=`echo $1 | ${AWK} -F '/' '{print $1}'`
         folder=`echo $1 | ${AWK} -F '/' '{print $2}'`
         pool_folder="${pool}/${folder}"
-        dataset_name=`$SSH $pool zfs get -s local,received -o value -H ${zfs_dataset_property} $pool_folder 3>/dev/null`
+        dataset_name=`$SSH $pool zfs get -s local,received -o value -H ${zfs_dataset_property} $pool_folder 2>/dev/null 3>/dev/null`
     fi
 
     debug "Found dataset at $pool_folder"
 
     # Collect replication information
-    replication=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${pool_folder} 3>/dev/null`
+    replication=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property} ${pool_folder} 2>/dev/null 3>/dev/null`
     
     if [ "$replication" == 'on' ]; then
         debug "Replication is on.  Checking for actual source"
 
         # Get the source, strip the timestamp
-        replication_source=`$SSH ${pool} cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+        replication_source=`$SSH ${pool} cat /${pool}/zfs_tools/var/replication/source/${dataset_name} 2>/dev/null`
         debug "Tentative replication source: $replication_source"
         #replication_source=`zfs get -s local,received -o value -H ${zfs_replication_property}:source ${pool_folder} | \
         #    ${CUT} -d '|' -f 1`
       
         
         # Check all the endpoints to make sure the source is in agreement
-        endpoints=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder} 3>/dev/null`
+        endpoints=`$SSH $pool zfs get -s local,received -o value -H ${zfs_replication_property}:endpoints ${pool_folder} 2>/dev/null 3>/dev/null`
         
         if [[ $endpoints =~ ^-?[0-9]+$ ]]; then
             count=1
             while [ $count -le $endpoints ]; do
                 endpoint=`$SSH $pool zfs get -s local,received -o value \
-                    -H ${zfs_replication_property}:endpoint:${count} ${pool_folder} 3>/dev/null`
+                    -H ${zfs_replication_property}:endpoint:${count} ${pool_folder} 2>/dev/null 3>/dev/null`
                 endpoint_pool=`echo $endpoint | ${CUT} -d ':' -f 1`
                 endpoint_folder=`echo $endpoint | ${CUT} -d ':' -f 2` 
                 debug "Checking source on ${endpoint_pool}/${endpoint_folder}"
-                endpoint_source=`$SSH ${endpoint_pool} cat /${endpoint_pool}/zfs_tools/var/replication/source/${dataset_name}`
+                endpoint_source=`$SSH ${endpoint_pool} cat /${endpoint_pool}/zfs_tools/var/replication/source/${dataset_name} 2>/dev/null`
                     #$endpoint_pool zfs get -s local,received -o value \
                     #-H ${zfs_replication_property}:source ${endpoint_pool}/${endpoint_folder}`
                 if [ "$endpoint_source" != "$replication_source" ]; then
                     error "Sources not in agreement between ${pool}/${folder} and ${endpoint_pool}/${endpoint_folder}"
-                    rm -f $dataset_list
+                    set -m
                     return 1
                 fi
                 
@@ -621,17 +630,17 @@ dataset_source () {
             # No endpoints 
             error "No endpoints defined for $pool_folder however replication is on"
             echo "${pool}:${folder}"
-            rm -f $dataset_list
+            set -m
             return 1
         fi
 
     else
         echo "${pool}:${folder}"
-        rm -f $dataset_list
+        set -m
         return 0
     fi
 
-    rm -f $dataset_list
+    set -m
     
 
 }

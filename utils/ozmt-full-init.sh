@@ -393,7 +393,7 @@ zfs_replication_sync_file_list="${data_dir}:${zfs_replication_sync_file_list}"
 
 # Skip pools default requires rpool function, sourced above
 if [ "$skip_pools" == "" ]; then
-    skip_pools="$(rpool) dump"
+    skip_pools="$(rpool) dump dumps"
 fi  
 
 
