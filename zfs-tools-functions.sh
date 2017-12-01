@@ -429,19 +429,23 @@ cluster_pools () {
     local host=
 
     IFS=':'
-    for host in $zfs_replication_host_list;do 
+    for host in $zfs_replication_host_list; do 
         debug "Collecting pools on host $host"
-        unset IFS
-        timeout 20s $SSH $host zpool list -H -o name 2>/dev/null >>${TMP}/pools_$$
+        ( unset IFS;timeout 20s $SSH $host zpool list -H -o name 2>/dev/null >>${TMP}/pools_$$_$host ) &
+        IFS=":"
+    done
+    wait 
+    IFS=':'
+    for host in $zfs_replication_host_list; do
         # Strip explicitly declared "skip_pools"
         IFS=" "
         for ex in $skip_pools; do
-            cat ${TMP}/pools_$$ | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$
-            rm ${TMP}/pools_$$
-            mv ${TMP}/poolsx_$$ ${TMP}/pools_$$
+            cat ${TMP}/pools_$$_$host | ${GREP} -v "^${ex}$" > ${TMP}/poolsx_$$_$host
+            rm ${TMP}/pools_$$_$host
+            mv ${TMP}/poolsx_$$_$host ${TMP}/pools_$$_$host
         done
-        cat ${TMP}/pools_$$
-        rm ${TMP}/pools_$$
+        cat ${TMP}/pools_$$_$host
+        rm ${TMP}/pools_$$_$host
         IFS=':'
     done
     unset IFS
@@ -524,21 +528,40 @@ dataset_source () {
         # Find the dataset
         pools="$(cluster_pools)"
         for pool in $pools; do
+            if [[ "$pool" == "rpool"* ]]; then
+                continue
+            fi
+            if [[ "$pool" == "dump"* ]]; then
+                continue
+            fi
             debug "Checking pool $pool"
-            $SSH $pool zfs get -d2 -t filesystem -s local,received -o value,name -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
-                ${GREP} "^${dataset_name}\s" > $dataset_list
+            ping -c 1 $pool 1>/dev/null 2> /dev/null 
             if [ $? -eq 0 ]; then
-                # Dataset found
-                debug "Found dataset $dataset_name"
-                pool_folder=`cat $dataset_list | ${HEAD} -1 | ${CUT} -f 2`
-                pool=`echo $pool_folder | ${CUT} -d '/' -f 1`
-                folder=`echo $pool_folder | ${CUT} -d '/' -f 2`
-                break                   
+                ( timeout 20s $SSH $pool zfs get -d2 -t filesystem -s local,received -o value,name \
+                    -H ${zfs_dataset_property} $pool 2>/dev/null 3>/dev/null | \
+                    ${GREP} "^${dataset_name}\s" > ${dataset_list}_${pool} ) &
+            else
+                warning "Pool $pool cannot be reached"
+            fi
+        done
+        wait
+        for pool in $pools; do
+            if [ -f ${dataset_list}_${pool} ]; then
+                cat ${dataset_list}_${pool} | ${GREP} -q "^${dataset_name}\s"
+                if [ $? -eq 0 ]; then
+                    # Dataset found
+                    debug "Found dataset $dataset_name"
+                    pool_folder=`cat ${dataset_list}_${pool} | ${HEAD} -1 | ${CUT} -f 2`
+                    pool=`echo $pool_folder | ${CUT} -d '/' -f 1`
+                    folder=`echo $pool_folder | ${CUT} -d '/' -f 2`
+                    rm ${dataset_list}_${pool}
+                    break                   
+                fi
+                rm ${dataset_list}_${pool}
             fi
         done
         if [ -z "$pool_folder" ]; then
             debug "Dataset $dataset_name not found!"
-            rm -f $dataset_list
             return 1
         fi
     else
