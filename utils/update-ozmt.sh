@@ -41,10 +41,19 @@ set +m
 IFS=':'
 for host in $zfs_replication_host_list; do
     #debug "Collecting pools on host $host"
-    { ( unset IFS;timeout 20s $SSH $host cd /opt/ozmt; hg pull -u; ./setup-ozmt-links.sh 2>/dev/null ) & } 2>/dev/null
+    debug "Updating $host"
+    { ( unset IFS;timeout 20s $SSH $host "cd /opt/ozmt; /usr/bin/hg pull -u ; /opt/csw/bin/hg pull -u; ./setup-ozmt-links.sh" 1> ${TMP}/update_${host} ) & } 2>/dev/null
     IFS=":"
 done
 wait
+
+sleep 5
+
+for host in $zfs_replication_host_list; do
+    echo "${host}: "
+    cat ${TMP}/update_${host}
+    rm ${TMP}/update_${host}
+done
 
 set -m
 
