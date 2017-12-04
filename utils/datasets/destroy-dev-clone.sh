@@ -140,7 +140,7 @@ if [ "$ozmt_datasets" != '' ]; then
                 result=0
                 continue
             fi
-            debug "Destroying ${o_pool}/${o_folder}/dev/${dev_name}"
+            notice "Destroying ${o_pool}/${o_folder}/dev/${dev_name}"
             if [ "$test" != 'true' ]; then
                 $SSH $o_pool zfs destroy -r -f ${o_pool}/${o_folder}/dev/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
                 result=$?
@@ -150,7 +150,7 @@ if [ "$ozmt_datasets" != '' ]; then
             fi
             result=$?
             if [ $result -ne 0 ]; then
-                debug "Failed to destroy ${o_pool}/${o_folder}/dev/${dev_name}"
+                warning "Failed to destroy ${o_pool}/${o_folder}/dev/${dev_name}"
                 if [ $SECONDS -gt $timeout ]; then
                     error "Could not destroy ${o_pool}/${o_folder}/dev/${dev_name} aborting destroy-dev-clone." ${TMP}/dataset_dev_destroy_$$.txt
                     die 1 
