@@ -64,8 +64,14 @@ stop_cron
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then
-    zpool import -N $@ 
-    result=$?
+    # Error code 134 is a core dump cause by bad symlinks in /dev/rdsk
+    # Repeatedly trying will get a successful run.
+    result=134
+    while [ $result -eq 134 ]; do
+        zpool import -N $@ 
+        result=$?
+        [ -f core ] && rm core
+    done
 else
     warning "Pool is already imported: $import_pool"
 fi
