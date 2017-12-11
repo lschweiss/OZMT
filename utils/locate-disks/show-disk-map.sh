@@ -58,6 +58,11 @@ source $myTMP/disks
 source $myTMP/expanders
 
 
+if [ "$1" == '-w' ]; then
+    wide='true'
+fi
+
+
 #jbods=`cat /etc/ozmt/jbod-map 2> /dev/null | ${AWK} -F ' ' '{print $2}' | ${SORT} `
 #
 #cat $myTMP/disk_to_location 2> /dev/null | ${CUT} -f 3 | ${SORT} -u > ${myTMP}/unnamed_jbod.txt
@@ -100,9 +105,14 @@ output_map () {
         echo "   ${expander["${wwn}_path_${path}"]}"
         path=$(( path + 1 ))
     done
-    
-    printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-8s\n' \
-        "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
+
+    if [ "$wide" == 'true' ]; then    
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
+            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "wwn" "Addr 1" "Addr 2"
+    else
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s\n' \
+            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
+    fi 
     
     bays="${expander["${wwn}_slots"]}"
 
@@ -112,6 +122,8 @@ output_map () {
     while [ $bay -lt $bays ]; do
         disk_osname="${expander["${wwn}_diskosname_${bay}"]}"
         disk_wwn="${expander["${wwn}_diskwwn_${bay}"]}"
+        disk_addr1="${expander["${wwn}_sasaddr_${bay}_1"]}"
+        disk_addr2="${expander["${wwn}_sasaddr_${bay}_2"]}"
         disk_serial="${disk["${disk_wwn}_serial"]}"
         disk_vendor="${disk["${disk_wwn}_vendor"]}"
         disk_model="${disk["${disk_wwn}_model"]}"
@@ -126,8 +138,13 @@ output_map () {
             echo -n "$(color bd yellow )"
             highlight=1
         fi
-        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-8s\n' \
-            "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
+        if [ "$wide" == 'true' ]; then
+            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
+                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev" "$disk_wwn" "$disk_addr1" "$disk_addr2"
+        else
+            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s\n' \
+                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
+        fi
         bay=$(( bay + 1 ))
     done
 
