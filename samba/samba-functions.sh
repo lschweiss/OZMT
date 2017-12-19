@@ -48,7 +48,7 @@ samba_populate_datasets () {
     for pool in $pools; do
         debug "Collecting datasets for pool: $pool"
         # Collect zfs_folders with cifs property set
-        zfs_folders=`zfs_cache get -r -H -o name -s local,received $zfs_cifs_property $pool 3>/dev/null`
+        zfs_folders=`zfs_cache get -d2 -t filesystem -H -o name -s local,received $zfs_cifs_property $pool 3>/dev/null`
         for folder in $zfs_folders; do
             debug "Checking folder: $folder"
             # Dataset is in this pool
