@@ -453,38 +453,45 @@ process_vip () {
     local replication=
 
     vip_operation () {
-        # pool and dataset_name must already be set
-        if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
-            active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
-            IFS=':'
-            read -r active_pool active_folder <<< "$active_source"
-            unset IFS
-            debug "active_pool: $active_pool active_folder: $active_folder"
-            zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
-            if [ $? -eq 0 ]; then
-                debug "Local pool $pool is the active pool, activating vIP: $vIP"
-                activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                echo "${HOSTNAME}:${pool}:${active_folder}" > ${data_dir}/dataset.${dataset_name}
+        if [ "$dataset_name" != '-' ]; then 
+            # pool and dataset_name must already be set
+            if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
+                active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+                IFS=':'
+                read -r active_pool active_folder <<< "$active_source"
+                unset IFS
+                debug "active_pool: $active_pool active_folder: $active_folder"
+                zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
+                if [ $? -eq 0 ]; then
+                    debug "Local pool $pool is the active pool, activating vIP: $vIP"
+                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                    echo "${HOSTNAME}:${pool}:${active_folder}" > ${data_dir}/dataset.${dataset_name}
+                else
+                    debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
+                    deactivate_vip "$vIP"
+                fi
             else
-                debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
-                deactivate_vip "$vIP"
-            fi
-        else
-            debug "No source reference for dataset ${dataset_name}"
-            # Get the zfs folder for the dataset
-            zfs_folder=`zfs_cache get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
-                ${GREP} "^${dataset_name}" | $CUT -f2`
-            replication=`zfs get -H -o value $zfs_replication_property ${zfs_folder} 3>/dev/null`
-            if [ "$replication" == 'on' ]; then
-                error "Replication is on, no source set.  Deactivating vip."
-                deactivate_vip "$vIP"
-            else
-                debug "Replication not defined for dataset.  Activating vip."
-                activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                if [ "$dataset_name" != ' - ' ]; then
-                    echo "${HOSTNAME}:${pool}:${zfs_folder}" > ${data_dir}/dataset.${dataset_name}
+                debug "No source reference for dataset ${dataset_name}"
+                # Get the zfs folder for the dataset
+                zfs_folder=`zfs_cache get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
+                    ${GREP} "^${dataset_name}" | $CUT -f2`
+                replication=`zfs get -H -o value $zfs_replication_property ${zfs_folder} 3>/dev/null`
+                if [ "$replication" == 'on' ]; then
+                    error "Replication is on, no source set.  Deactivating vip."
+                    deactivate_vip "$vIP"
+                else
+                    debug "Replication not defined for dataset.  Activating vip."
+                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                    if [ "$dataset_name" != '-' ]; then
+                        echo "${HOSTNAME}:${pool}:${zfs_folder}" > ${data_dir}/dataset.${dataset_name}
+                    fi
                 fi
             fi
+        else
+            # Folder defined vIP
+            debug "Folder defined vIP"
+            activate_vip "$vIP" "$routes" "$ipifs" "$zfs_folder"
+    
         fi
     }   
 
