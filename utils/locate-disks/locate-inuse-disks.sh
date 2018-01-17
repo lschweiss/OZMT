@@ -36,6 +36,7 @@
 # http://www.avagotech.com/docs-and-downloads/host-bus-adapters/host-bus-adapters-common-files/sas_sata_6g_p20/SAS2IRCU_P20.zip
 # https://stackoverflow.com/questions/555427/map-sd-sdd-names-to-solaris-disk-names
 # https://openindiana.org/pipermail/openindiana-discuss/2017-May/020729.html  <--- Maping "Log info received for target" messages
+# https://www.redhat.com/archives/dm-devel/2008-March/msg00102.html
 
 # sd mapping:
 # paste -d= <(iostat -x | awk 'NR>2{print $1}') <(iostat -nx | awk 'NR>2{print "/dev/dsk/"$11}')

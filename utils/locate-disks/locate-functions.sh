@@ -297,7 +297,7 @@ collect_disk_info () {
                     continue
                 fi
                 if [[ "${line}" == *"Unit serial number"* ]]; then
-                    unitserial="${line:22}"
+                    unitserial="$($SED -e 's/[[:space:]]*$//' <<<${line:22})"
                 fi
                 
             done < $myTMP/disk_info/${dev}_disk_info.sginq
