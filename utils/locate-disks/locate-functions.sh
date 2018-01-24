@@ -490,6 +490,10 @@ locate_in_use_disks () {
                         read disk_osname disk_state disk_read_err disk_write_err disk_cksum_err <<< "$line"
                         IFS=''
                     fi
+
+                    if [[ "$disk_osname" == *"d0p"* ]] || [[ "$disk_osname" == *"d0s"* ]]; then
+                        disk_osname="${disk_osname::-2}"
+                    fi
     
                     debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
 

@@ -76,6 +76,9 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     # Collect possible disk like
     possible_disk=`echo $line | ${AWK} -F ' ' '{print $1}'`
     if [ "$possible_disk" != '' ]; then
+        if [[ "$possible_disk" == *"d0p"* ]] || [[ "$possible_disk" == *"d0s"* ]]; then
+            possible_disk="${possible_disk::-2}"
+        fi
         diskwwn="${disk["${possible_disk}_wwn"]}"
         if [ "$diskwwn" != '' ]; then
             bay="${disk["${diskwwn}_slot"]}"
