@@ -211,6 +211,7 @@ collect_disk_info () {
 
     local devs=
     local dev=
+    local tdev=
     local addr=
     local addrs=
     local wwns=
@@ -225,7 +226,9 @@ collect_disk_info () {
 
     pushd . 1>/dev/null
     cd /dev/rdsk
-    devs=`ls -1 *d0`
+    # Not all devices get a *d0 link
+
+    devs=`ls -1 *d0s0`
     popd 1>/dev/null
     echo "declare -A disk" > $myTMP/disks
     echo "declare -A sasaddr" > $myTMP/sasaddresses
@@ -236,21 +239,23 @@ collect_disk_info () {
 
     
     for dev in $devs; do
-        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.sdparm 2> /dev/null; 
-            echo $? > $myTMP/disk_info/${dev}_disk_info.result ; ) &
+        tdev="${dev::-2}"
+        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sdparm 2> /dev/null; 
+            echo $? > $myTMP/disk_info/${tdev}_disk_info.result ; ) &
     done
 
     wait
 
     for dev in $devs; do
+        tdev="${dev::-2}"
         wwn=
         addrs=0
-        result=`cat $myTMP/disk_info/${dev}_disk_info.result`
+        result=`cat $myTMP/disk_info/${tdev}_disk_info.result`
         if [ $result -ne 0 ]; then
             # Not a useful disk link
             if [ $result -eq 124 ]; then
-                debug "$dev is not responding"
-                echo "disk["${dev}_wwn"]=\"UNAVAILABLE\"" >> $myTMP/disks
+                debug "$tdev is not responding"
+                echo "disk["${tdev}_wwn"]=\"UNAVAILABLE\"" >> $myTMP/disks
             fi
             continue
         else
@@ -265,7 +270,7 @@ collect_disk_info () {
                     wwn="${line:4:16}"
                     wwn="${wwn,,}"
                 fi
-            done < $myTMP/disk_info/${dev}_disk_info.sdparm
+            done < $myTMP/disk_info/${tdev}_disk_info.sdparm
         fi
 
         vendor=
@@ -274,10 +279,10 @@ collect_disk_info () {
         serial=
         unitserial=
 
-        $SG_INQ -s /dev/rdsk/${dev}s0 1> $myTMP/disk_info/${dev}_disk_info.sginq  2> /dev/null
+        $SG_INQ -s /dev/rdsk/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sginq  2> /dev/null
         if [ $? -ne 0 ]; then
             # Not a useful disk link
-            echo "UNKNOWN" > $myTMP/disk_info/${dev}_disk_info.sginq
+            echo "UNKNOWN" > $myTMP/disk_info/${tdev}_disk_info.sginq
         else
             while IFS='' read -r line || [[ -n "$line" ]]; do
                 if [[ "${line}" == *"Vendor identification"* ]]; then
@@ -300,7 +305,7 @@ collect_disk_info () {
                     unitserial="$($SED -e 's/[[:space:]]*$//' <<<${line:22})"
                 fi
                 
-            done < $myTMP/disk_info/${dev}_disk_info.sginq
+            done < $myTMP/disk_info/${tdev}_disk_info.sginq
         fi
 
         if [ "$wwn" == '' ]; then
@@ -312,13 +317,13 @@ collect_disk_info () {
         fi
 
         if [ "$wwn" == '' ]; then
-            warning "Could not collect or assign a WWN to disk at ${dev}"
+            warning "Could not collect or assign a WWN to disk at ${tdev}"
             continue
         fi
 
 
-        echo "disk["${wwn}_osname"]=\"$dev\"" >> $myTMP/disks
-        echo "disk["${dev}_wwn"]=\"$wwn\"" >> $myTMP/disks
+        echo "disk["${wwn}_osname"]=\"$tdev\"" >> $myTMP/disks
+        echo "disk["${tdev}_wwn"]=\"$wwn\"" >> $myTMP/disks
         echo "disk["${wwn}_sasaddrs"]=\"$addrs\"" >> $myTMP/disks
         [ -n "$vendor" ] && echo "disk["${wwn}_vendor"]=\"${vendor//[[:space:]]}\"" >> $myTMP/disks
         [ -n "$model" ] && echo "disk["${wwn}_model"]=\"${model//[[:space:]]}\"" >> $myTMP/disks
@@ -333,6 +338,7 @@ collect_disk_info () {
             addr=$(( addr + 1 ))
         done
         wwns="$wwn $wwns"
+
     done
 
     echo "disk_list=\"$wwns\"" >> $myTMP/disks
