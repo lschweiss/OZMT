@@ -87,7 +87,7 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
             fi
             jbodwwn="${disk["${diskwwn}_expander"]}"
             jbod=''
-            if [ -f /etc/ozmt/jbod-map ]; then
+            if [[ "$jbodwwn" != '' ]] && [[ -f /etc/ozmt/jbod-map ]]; then
                 jbod=`cat /etc/ozmt/jbod-map 2>/dev/null| ${GREP}  "$jbodwwn" | ${CUT} -d ' ' -f 2`
             fi
             if [ "$jbod" != '' ]; then
