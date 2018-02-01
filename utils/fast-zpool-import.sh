@@ -112,11 +112,13 @@ start_cron
 # Start vIPs
 ##
 
-${TOOLS_ROOT}/vip/vip-trigger.sh activate ${import_pool}
+${TOOLS_ROOT}/vip/vip-trigger.sh start ${import_pool}
 
 ##
 # Start Samba
 ##
+
+export BACKGROUND='true'
 
 ${TOOLS_ROOT}/samba/samba-service.sh start ${import_pool}
 

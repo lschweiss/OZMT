@@ -50,7 +50,7 @@ if [ "$1" == "LOG_INFO" ]; then
             vip=`echo $5| ${CUT} -d '=' -f 2`
             service=`cat /opt/HAC/RSF-1/etc/config | ${GREP} "^SERVICE" | ${GREP} "${vip}" | ${CUT} -d ' ' -f 2`
             echo "Activating VIPs and samba for $service"
-            $TOOLS_ROOT/vip/vip-trigger.sh activate $service
+            $TOOLS_ROOT/vip/vip-trigger.sh start $service
             $TOOLS_ROOT/samba/samba-service.sh start $service &
             ;;
         "RSF_NETIF_DOWN")
@@ -60,7 +60,7 @@ if [ "$1" == "LOG_INFO" ]; then
             vip=`echo $5| ${CUT} -d '=' -f 2`
             service=`cat /opt/HAC/RSF-1/etc/config | ${GREP} "^SERVICE" | ${GREP} "${vip}" | ${CUT} -d ' ' -f 2`
             echo "Deactivating VIPs and samba for $service"
-            $TOOLS_ROOT/vip/vip-trigger.sh deactivate $service
+            $TOOLS_ROOT/vip/vip-trigger.sh stop $service
             $TOOLS_ROOT/samba/samba-service.sh stop $service &
             ;;
     esac
