@@ -352,12 +352,12 @@ deactivate_vip () {
     case $os in
         'Linux')
             ipif=`ifconfig | ${GREP} -B 1 -F "inet addr:${ip}"|head -1|${AWK} -F ": " '{print $1}'`
-            debug "Shutting down $ipif"
+            notice "Shutting down $vIP_dataset $ip on $ipif"
             ifconfig $ipif down
             ;;
         'SunOS')
             ipif=`ifconfig -a | ${GREP} -B 1 -F "inet ${ip}"|head -1|${AWK} -F ": " '{print $1}'`
-            debug "Shutting down $ipif"
+            notice "Shutting down $vIP_dataset $ip on $ipif"
             ifconfig $ipif unplumb
             ;;
     esac
@@ -453,27 +453,40 @@ process_vip () {
     local replication=
 
     vip_operation () {
-        if [ "$dataset_name" != '-' ]; then 
-            # pool and dataset_name must already be set
-            if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
-                active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
-                IFS=':'
-                read -r active_pool active_folder <<< "$active_source"
-                unset IFS
-                debug "active_pool: $active_pool active_folder: $active_folder"
-                zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
-                if [ $? -eq 0 ]; then
-                    debug "Local pool $pool is the active pool, activating vIP: $vIP"
-                    activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                    echo "${HOSTNAME}:${pool}:${active_folder}" > ${data_dir}/dataset.${dataset_name}
-                else
-                    debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
-                    deactivate_vip "$vIP"
-                fi
+        # pool and dataset_name must already be set
+        if [ -f "/${pool}/zfs_tools/var/replication/source/${dataset_name}" ]; then
+            active_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset_name}`
+            IFS=':'
+            read -r active_pool active_folder <<< "$active_source"
+            unset IFS
+            debug "active_pool: $active_pool active_folder: $active_folder"
+            zfs get name ${active_pool}/${active_folder} 1> /dev/null 2> /dev/null
+            if [ $? -eq 0 ]; then
+                # TODO: A very fast check to make sure all targets agree should be done first
+                # Possible approaches
+                #   * Check every target with a short timeout
+                #   * Do an arp test to make sure the vIP is not active already
+                #     (This would require a interface already be enabled)
+                #   * Central database would be best
+                # Illumos will detect a duplicate IP and disable if it is activated anyway, but 
+                # this is a problem if a receiving target brought up the IP first.
+                # Untested in a Linux environment.
+                
+                debug "Local pool $pool is the active pool, activating vIP: $vIP"
+                activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
+                echo "${HOSTNAME}:${pool}:${active_folder}" > ${data_dir}/dataset.${dataset_name}
             else
+                debug "pool $pool is NOT the active pool, deactivating vIP: $vIP"
+                deactivate_vip "$vIP"
+            fi
+        else
+            if [ "$dataset_name" == '-' ]; then
+                debug "Folder defined VIP"
+                activate_vip "$vIP" "$routes" "$ipifs" "$vip_object"
+            else 
                 debug "No source reference for dataset ${dataset_name}"
                 # Get the zfs folder for the dataset
-                zfs_folder=`zfs_cache get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
+                zfs_folder=`zfs get -o value,name -s local,received -d2 -H ${zfs_dataset_property} 3>/dev/null | \
                     ${GREP} "^${dataset_name}" | $CUT -f2`
                 replication=`zfs get -H -o value $zfs_replication_property ${zfs_folder} 3>/dev/null`
                 if [ "$replication" == 'on' ]; then
@@ -482,16 +495,11 @@ process_vip () {
                 else
                     debug "Replication not defined for dataset.  Activating vip."
                     activate_vip "$vIP" "$routes" "$ipifs" "$dataset_name"
-                    if [ "$dataset_name" != '-' ]; then
+                    if [ "$dataset_name" != ' - ' ]; then
                         echo "${HOSTNAME}:${pool}:${zfs_folder}" > ${data_dir}/dataset.${dataset_name}
                     fi
                 fi
             fi
-        else
-            # Folder defined vIP
-            debug "Folder defined vIP"
-            activate_vip "$vIP" "$routes" "$ipifs" "$zfs_folder"
-    
         fi
     }   
 
@@ -561,7 +569,7 @@ process_vip () {
 ###
 
 case $1 in
-    "deactivate")
+    'deactivate'|'stop')
         # Deactive all vIPs on a specified pool or dataset
         active_vips=`ls -1 ${active_ip_dir} | sort `
         for vip in $active_vips; do
@@ -575,7 +583,7 @@ case $1 in
         done
     ;;
 
-    "activate")
+    'activate'|'start')
         pool="$2"
         zpool list $pool 1>/dev/null 2>/dev/null
         if [ $? -eq 0 ]; then 
