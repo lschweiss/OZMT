@@ -167,6 +167,9 @@ collect_expander_info () {
 
             # Collect attached sas addresses 
 
+            # TODO : This can be significantly sped up by using 'sg_ses -p 10 ${ses_path}/${dev}' 
+            #        and parsing the output instead of reading each slot
+
             source $myTMP/expanders
             slot=0
             while [ $slot -lt $slots ]; do
