@@ -294,7 +294,7 @@ gnu_source () {
 
 [ -z "$zfs_cifs_default_share_template" ] && zfs_cifs_default_share_template="$TOOLS_ROOT/samba/default_share.conf.template"
 
-[ -z "$zfs_samba_default_version" ] && zfs_samba_default_version='4.4.2'
+[ -z "$zfs_samba_default_version" ] && zfs_samba_default_version='4.4.16'
 
 [ -z "$zfs_vip_property" ] && zfs_vip_property="${zfs_property_tag}:vip"
 
