@@ -1146,15 +1146,18 @@ zfs_cache () {
 
     if [ "$use_cache" == 'true' ]; then
         tail -n+2 $cache_file
+        touch "${cache_file}.lastused"
     else
         if [ -f "${cache_path}.lock" ]; then
             # Cache is being refeshed, don't risk colision.
             zfs $*
             result=$?
+            touch "${cache_file}.lastused"
         else
             echo "zfs $*" > $cache_file
             zfs $* | tee -a $cache_file
             result=$?
+            touch "${cache_file}.lastused"
         fi
     fi
 
@@ -1218,16 +1221,19 @@ remote_zfs_cache () {
         else
             debug "Using cache file"
             tail -n+2 $cache_file
+            touch "${cache_file}.lastused"
         fi
     else
         echo "zfs $*" > $cache_file
         $SSH $pool "zfs $*" | tee -a $cache_file
         result=$?
+        touch "${cache_file}.lastused"
     fi
 
     if [ $result -ne 0 ]; then
         # Command failed, don't save the cache
         rm -f $cache_file
+        rm -f "${cache_file}.lastused"
     fi
 
     # Allow capture of the cache file associated with this request

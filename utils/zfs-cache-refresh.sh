@@ -57,30 +57,54 @@ done
 update_cache () {
     local cache_dir="$1"
     local remote="$2"
+    
+    wait_for_lock "$cache_dir" 
+    if [ $? != 0 ]; then
+        error "Could not get lock for $cache_dir"
+        return 1
+    fi
 
     debug "Updating cache: $cache_dir"
-    
-    wait_for_lock "$cache_dir"
 
-    next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
+    next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${GREP} -v '.lastused$' | ${HEAD} -1`
     cache_file="$cache_dir/$next_cache"
     while [ "$next_cache" != "" ]; do
         debug "$next_cache is out of date"
         zfs_command=`head -1 "$cache_file"`
-        $remote $zfs_command > ${TMP}/cache_update_$$ 2>/dev/null
-        if [ $? -ne 0 ]; then
-            # Cache command is no longer valid.  Remove the cache file."
-            debug "ZFS command \"$zfs_command\" is not valid.  Removing cache."
-            rm -f "$cache_file"
-        else
-            debug "Updating cache file for \"$zfs_command\""
-            echo "$zfs_command" > "$cache_file"
-            cat ${TMP}/cache_update_$$ >> "$cache_file"
+        if [ -f ${cache_file}.lastused ]; then
+            age_f=`$DATE -r ${cache_file}.lastused +%s`
+            now_s=`$DATE +%s`
+            age_s=$(( now_s - age_f ))
+            age_d=$(( age_s / 86400 ))
+            debug "ZFS command \"$zfs_command\" last used $age_s seconds ago or $age_d days ago."
+            if [ $age_d -ge ${zfs_cache_max_age} ]; then
+                debug "ZFS command \"$zfs_command\" hasn't been used in $zfs_cache_max_age days.  Removing cache"
+                rm -f "$cache_file"
+                rm -f "${cache_file}.lastused"
+            fi
+        fi
+
+        if [ -f ${cache_file} ]; then
+            $remote $zfs_command > ${TMP}/cache_update_$$ 2>/dev/null
+            if [ $? -ne 0 ]; then
+                # Cache command is no longer valid.  Remove the cache file."
+                debug "ZFS command \"$zfs_command\" is not valid.  Removing cache."
+                rm -f "$cache_file"
+                rm -f "${cache_file}.lastused"
+            else
+                debug "Updating cache file for \"$zfs_command\""
+                echo "$zfs_command" > "$cache_file"
+                cat ${TMP}/cache_update_$$ >> "$cache_file"
+                if [ ! -f  ${cache_file}.lastused ]; then
+                    debug "Creating lastused reference for \"$zfs_command\""
+                    touch ${cache_file}.lastused
+                fi
+            fi    
         fi
 
         rm -f ${TMP}/cache_update_$$
 
-        next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
+        next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${GREP} -v '.lastused$' | ${HEAD} -1`
         cache_file="$cache_dir/$next_cache"
 
     done
@@ -99,49 +123,3 @@ for remote_cache in $remote_caches; do
     update_cache "/var/zfs_tools/cache/zfs_cache/${remote_cache}" "$SSH $remote_cache"
 done
 
-exit 0
-
-
-# Old loop
-
-for pool in $pools; do
-
-    debug "Updating cache on pool $pool"
-
-    cache_dir="/$pool/zfs_tools/var/cache/zfs_cache"
-
-    if [ ! -d $cache_dir ]; then
-        continue
-    fi
-
-    wait_for_lock "$cache_dir"
-
-    next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
-    cache_file="$cache_dir/$next_cache"
-    while [ "$next_cache" != "" ]; do
-        debug "$next_cache is out of date"
-        zfs_command=`head -1 "$cache_file"`
-        $zfs_command > ${TMP}/cache_update_$$ 2>/dev/null
-        if [ $? -ne 0 ]; then
-            # Cache command is no longer valid.  Remove the cache file."
-            debug "ZFS command \"$zfs_command\" is not valid.  Removing cache." 
-            rm -f "$cache_file"
-        else
-            debug "Updating cache file for \"$zfs_command\""
-            echo "$zfs_command" > "$cache_file"
-            cat ${TMP}/cache_update_$$ >> "$cache_file"
-        fi
-        
-        rm -f ${TMP}/cache_update_$$
-
-        next_cache=`ls -1tA $cache_dir | ${SED} -n -e '/\.cache_stale/,$p' | ${GREP} -v '\.cache_stale' | ${HEAD} -1`
-        cache_file="$cache_dir/$next_cache"
-
-    done
-
-    release_lock "$cache_dir"
-
-done
-    
-        
-    

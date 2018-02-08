@@ -219,6 +219,8 @@ gnu_source () {
 
 [ -z "$COLUMN" ] && COLUMN=`gnu_source column`
 
+[ -z "$TEST" ] && TEST=`gnu_source test`
+
 
 
 
@@ -315,6 +317,8 @@ gnu_source () {
 [ -z "$zfs_replication_job_cleaner_cycle" ] &&  zfs_replication_job_cleaner_cycle="60"
 
 [ -z "$suspend_all_jobs_timeout" ] && suspend_all_jobs_timeout=60
+
+[ -z "$zfs_cache_max_age" ] && zfs_cache_max_age=30
 
 
 # Test essential binaries
