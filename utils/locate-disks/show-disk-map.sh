@@ -169,7 +169,7 @@ for jbod in $jbod_list; do
     fi
 done
 
-if [ -f ${TMP}/disk-map/wwn_sort]; then
+if [ -f ${TMP}/disk-map/wwn_sort ]; then
     for wwn in $(cat ${TMP}/disk-map/wwn_sort); do
         output_map $wwn
     done
