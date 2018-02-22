@@ -152,9 +152,28 @@ output_map () {
     
 }
 unset IFS
-for wwn in $expander_list; do
-    output_map $wwn
+
+rm -f ${TMP}/disk-map/wwn_sort
+jbod_list=`cat /etc/ozmt/jbod-map | ${GREP} -v "^\#" | ${GREP} -v "^$"| ${AWK} -F ' ' '{print $1}'`
+
+for jbod in $jbod_list; do
+    found=0
+    for wwn in $expander_list; do
+        if [ "$wwn" == "$jbod" ]; then
+            output_map $wwn
+            found=1
+        fi
+    done
+    if [ $found -eq 0 ]; then
+        echo $wwn >> ${TMP}/disk-map/wwn_sort
+    fi
 done
+
+if [ -f ${TMP}/disk-map/wwn_sort]; then
+    for wwn in $(cat ${TMP}/disk-map/wwn_sort); do
+        output_map $wwn
+    done
+fi
 
     
 
