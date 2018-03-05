@@ -96,7 +96,7 @@ for folder in $folders; do
 
     keepcount=`zfs_cache get -H -o value ${zfs_snapshot_property}:${snaptype} ${folder} 3>/dev/null`
     
-    if [ "${keepcount:0:1}" == "r" ]; then
+    if [ "${keepcount:${#keepcount}-1}" == "r" ]; then
         # This is a recursive job.  Enumerate all children folders instead of using two snapshot commands
         zfs list -o name -H -r ${folder} | $SED "s,$,@$stamp," >> ${TMP}/snapshots/${snaptype}_${pool}.standard
     else
