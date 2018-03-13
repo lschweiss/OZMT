@@ -128,7 +128,7 @@ usage_report () {
     # Send the report 
     debug "Emailing report for pool ${pool} to $email_to"
     subject="ZFS usage report ${pool}"
-    ./send_email.sh -s "$subject" -f "${TMP}/usage_${pool}.html" -r "chip.schweiss@wustl.edu" #"$email_to" 
+    ./send_email.sh -s "$subject" -f "${TMP}/usage_${pool}.html" -r "$email_to" 
     
     
 
