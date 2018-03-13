@@ -36,7 +36,8 @@ usage_report () {
 
     debug "Generating report for pool ${pool}"
 
-    cp usage-report/header.html ${TMP}/usage_${pool}.html
+    cat usage-report/header.html | \
+        ${SED} "s,#POOL#,$pool,g" > ${TMP}/usage_${pool}.html
 
     cat usage-report/table.header.html >> ${TMP}/usage_${pool}.html
 
@@ -48,7 +49,7 @@ usage_report () {
     zfs list -H -d1 -o name,used ${pool} > ${TMP}/usage_${pool}
     while read name used; do
         line=$(( line + 1 ))
-        [ $line > 2 ] && line=1
+        [ $line -gt 2 ] && line=1
         cat usage-report/summary-row${line}.html | \
             ${SED} "s,#NAME#,$name,g" | \
             ${SED} "s,#USED#,$used,g" >> ${TMP}/usage_${pool}.html
@@ -72,10 +73,10 @@ usage_report () {
         ${SED} "s,#QUOTA#,QUOTA,g" | \
         ${SED} "s,#REFQUOTA#,REFQUOTA,g" >> ${TMP}/usage_${pool}.html
 
-    zfs list -H -d2 -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} >> ${TMP}/usage_${pool}
+    zfs list -H -d2 -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} > ${TMP}/usage_${pool}
     while read name used avail refer compressratio logicalused quota refquota; do
         line=$(( line + 1 ))
-        [ $line > 2 ] && line=1
+        [ $line -gt 2 ] && line=1
         cat usage-report/detail-row${line}.html | \
             ${SED} "s,#NAME#,$name,g" | \
             ${SED} "s,#USED#,$used,g" | \
@@ -89,10 +90,10 @@ usage_report () {
     cat usage-report/table.footer.html >> ${TMP}/usage_${pool}.html
 
     line=1
-    zfs list -H -r -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} >> ${TMP}/usage_${pool}
+    zfs list -H -r -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} > ${TMP}/usage_${pool}
     
    
-    echo "<p>Top level folders:</p>" >> ${TMP}/usage_${pool}.html
+    echo "<p>All folders:</p>" >> ${TMP}/usage_${pool}.html
     cat usage-report/table.header.html >> ${TMP}/usage_${pool}.html
     line=1
     cat usage-report/detail-row1.html | \
@@ -107,9 +108,9 @@ usage_report () {
     
     while read name used avail refer compressratio logicalused quota refquota; do
         line=$(( line + 1 ))
-        [ $line > 2 ] && line=1
+        [ $line -gt 2 ] && line=1
         cat usage-report/detail-row${line}.html | \
-            ${SED} "s,#NAME,$name,g" | \
+            ${SED} "s,#NAME#,$name,g" | \
             ${SED} "s,#USED#,$used,g" | \
             ${SED} "s,#AVAIL#,$avail,g" | \
             ${SED} "s,#REFER#,$refer,g" | \
@@ -127,7 +128,7 @@ usage_report () {
     # Send the report 
     debug "Emailing report for pool ${pool} to $email_to"
     subject="ZFS usage report ${pool}"
-    ./send_email.sh -s "$subject" -f "${TMP}/usage_${pool}.html" -r "chip@nrg.wustl.edu" #"$email_to" 
+    ./send_email.sh -s "$subject" -f "${TMP}/usage_${pool}.html" -r "chip.schweiss@wustl.edu" #"$email_to" 
     
     
 
