@@ -28,24 +28,107 @@ report_name="$default_report_name"
 usage_report () {
 
     local pool="$1"
+    local line=1
 
     
     # Build the email report
    
 
+    debug "Generating report for pool ${pool}"
+
+    cp usage-report/header.html ${TMP}/usage_${pool}.html
+
+    cat usage-report/table.header.html >> ${TMP}/usage_${pool}.html
+
     # Summary report
-    zfs list -d2 -o name,used $pool > ${TMP}.usage_$pool
+    cat usage-report/summary-row1.html | \
+        ${SED} "s,#NAME#,NAME,g" | \
+        ${SED} "s,#USED#,USED,g" >> ${TMP}/usage_${pool}.html
+
+    zfs list -H -d1 -o name,used ${pool} > ${TMP}/usage_${pool}
+    while read name used; do
+        line=$(( line + 1 ))
+        [ $line > 2 ] && line=1
+        cat usage-report/summary-row${line}.html | \
+            ${SED} "s,#NAME#,$name,g" | \
+            ${SED} "s,#USED#,$used,g" >> ${TMP}/usage_${pool}.html
+    done < ${TMP}/usage_${pool}
+    cat usage-report/table.footer.html >> ${TMP}/usage_${pool}.html
+
+   
     # Detailed report
-    echo >> ${TMP}.usage_$pool
-    zfs list -o name,used,avail,refer,compressratio,logicalused,quota,refquota $pool >> ${TMP}.usage_$pool
 
+    echo "<p>Top level folders:</p>" >> ${TMP}/usage_${pool}.html
 
-    subject="ZFS usage report $pool"
+    cat usage-report/table.header.html >> ${TMP}/usage_${pool}.html
+    line=1
+    cat usage-report/detail-row1.html | \
+        ${SED} "s,#NAME#,NAME,g" | \
+        ${SED} "s,#USED#,USED,g" | \
+        ${SED} "s,#AVAIL#,AVAIL,g" | \
+        ${SED} "s,#REFER#,REFER,g" | \
+        ${SED} "s,#COMPRESSRATIO#,RATIO,g" | \
+        ${SED} "s,#LOGICALUSED#,LUSED,g" | \
+        ${SED} "s,#QUOTA#,QUOTA,g" | \
+        ${SED} "s,#REFQUOTA#,REFQUOTA,g" >> ${TMP}/usage_${pool}.html
+
+    zfs list -H -d2 -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} >> ${TMP}/usage_${pool}
+    while read name used avail refer compressratio logicalused quota refquota; do
+        line=$(( line + 1 ))
+        [ $line > 2 ] && line=1
+        cat usage-report/detail-row${line}.html | \
+            ${SED} "s,#NAME#,$name,g" | \
+            ${SED} "s,#USED#,$used,g" | \
+            ${SED} "s,#AVAIL#,$avail,g" | \
+            ${SED} "s,#REFER#,$refer,g" | \
+            ${SED} "s,#COMPRESSRATIO#,$compressratio,g" | \
+            ${SED} "s,#LOGICALUSED#,$logicalused,g" | \
+            ${SED} "s,#QUOTA#,$quota,g" | \
+            ${SED} "s,#REFQUOTA#,$refquota,g" >> ${TMP}/usage_${pool}.html
+    done < ${TMP}/usage_${pool}
+    cat usage-report/table.footer.html >> ${TMP}/usage_${pool}.html
+
+    line=1
+    zfs list -H -r -o name,used,avail,refer,compressratio,logicalused,quota,refquota ${pool} >> ${TMP}/usage_${pool}
+    
+   
+    echo "<p>Top level folders:</p>" >> ${TMP}/usage_${pool}.html
+    cat usage-report/table.header.html >> ${TMP}/usage_${pool}.html
+    line=1
+    cat usage-report/detail-row1.html | \
+        ${SED} "s,#NAME#,NAME,g" | \
+        ${SED} "s,#USED#,USED,g" | \
+        ${SED} "s,#AVAIL#,AVAIL,g" | \
+        ${SED} "s,#REFER#,REFER,g" | \
+        ${SED} "s,#COMPRESSRATIO#,RATIO,g" | \
+        ${SED} "s,#LOGICALUSED#,LUSED,g" | \
+        ${SED} "s,#QUOTA#,QUOTA,g" | \
+        ${SED} "s,#REFQUOTA#,REFQUOTA,g" >> ${TMP}/usage_${pool}.html
+    
+    while read name used avail refer compressratio logicalused quota refquota; do
+        line=$(( line + 1 ))
+        [ $line > 2 ] && line=1
+        cat usage-report/detail-row${line}.html | \
+            ${SED} "s,#NAME,$name,g" | \
+            ${SED} "s,#USED#,$used,g" | \
+            ${SED} "s,#AVAIL#,$avail,g" | \
+            ${SED} "s,#REFER#,$refer,g" | \
+            ${SED} "s,#COMPRESSRATIO#,$compressratio,g" | \
+            ${SED} "s,#LOGICALUSED#,$logicalused,g" | \
+            ${SED} "s,#QUOTA#,$quota,g" | \
+            ${SED} "s,#REFQUOTA#,$refquota,g" >> ${TMP}/usage_${pool}.html
+    done < ${TMP}/usage_${pool}
+    cat usage-report/table.footer.html >> ${TMP}/usage_${pool}.html
+ 
+    cat usage-report/footer.html >> ${TMP}/usage_${pool}.html
+
+    
     
     # Send the report 
-    if [ "$to" != "" ]; then
-        ./send_email.sh -s "$subject" -f "${TMP}.usage_$pool" -r "$email_to" $cc_list $email_bcc
-    fi
+    debug "Emailing report for pool ${pool} to $email_to"
+    subject="ZFS usage report ${pool}"
+    ./send_email.sh -s "$subject" -f "${TMP}/usage_${pool}.html" -r "chip@nrg.wustl.edu" #"$email_to" 
+    
     
 
 }
@@ -54,8 +137,9 @@ usage_report () {
 
 pools="$(pools)"
 
-for pool in $pools; do
+for pool in ${pools}; do
 
-    usage_report "$pool"
+    
+    usage_report "${pool}"
 
 done
