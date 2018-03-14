@@ -42,6 +42,8 @@ pools="$(pools)"
 myTMP="${TMP}/datasets"
 MKDIR $myTMP
 
+DEBUG='true'
+
 
 # show function usage
 show_usage() {
@@ -91,7 +93,7 @@ declare -A o_source
 die () {
     echo $1
     rm -f ${myTMP}/dataset*_$$
-    exit $1
+    exit 1
 }
 
 find_snap () {
@@ -323,7 +325,7 @@ while [ "$line" != '' ]; do
     line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 done
 
-die 0
+exit 0
 
 
 

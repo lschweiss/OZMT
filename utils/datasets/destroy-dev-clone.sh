@@ -40,6 +40,8 @@ pools="$(pools)"
 myTMP="${TMP}/datasets"
 MKDIR $myTMP
 
+DEBUG='true'
+
 # show function usage
 show_usage() {
     echo
