@@ -89,6 +89,7 @@ done
 declare -A o_source
 
 die () {
+    echo $1
     rm -f ${myTMP}/dataset*_$$
     exit $1
 }
@@ -244,12 +245,15 @@ if [ "$ozmt_datasets" != '' ]; then
         if [ "$test" != 'true' ]; then
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
             if [ "$clone_quota" != "" ]; then
-                $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}
+                $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name} || \
+                    die "FAILED: $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}"
             fi
             if [ "$dev_ip" != "" ]; then
-                $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}
+                $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name} || \
+                    die "FAILED: $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}"
             fi
-            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone
+            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone || \
+                die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone"
         else
             echo "TEST MODE.  Would run:"
             echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}"
@@ -283,7 +287,8 @@ while [ "$line" != '' ]; do
             # Clone it
             notice "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
             if [ "$test" != 'true' ]; then
-                $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}
+                $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} || \
+                    die "FAILED: $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
             else
                 echo "TEST MODE.  Would run:"
                 echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
@@ -303,7 +308,8 @@ while [ "$line" != '' ]; do
 
             # Snapshot the folder
             if [ "$test" != 'true' ]; then
-                $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone
+                $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone || \
+                    die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
             else
                 echo "TEST MODE.  Would run:"
                 echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
