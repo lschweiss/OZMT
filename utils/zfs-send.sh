@@ -81,7 +81,7 @@ clean_up () {
         this_pid=$$
         pids=`pidtree $this_pid | $SED -n '1!p'`
         for pid in $pids; do
-            kill $pid
+            kill $pid &>/dev/null
         done
 
         if [ "$remote_host" != "" ]; then
@@ -866,7 +866,7 @@ case $transport_selected in
                 break
             fi
         done
-        [ -f $tmpdir/bbcp.fail ] && cleanup 1
+        [ -f $tmpdir/bbcp.fail ] && clean_up 1
         debug "${job_name}: BBCP started $bbcp_started"
         sleep 10
     ;;
