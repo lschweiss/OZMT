@@ -45,6 +45,8 @@ else
     types="$1"
 fi
 
+
+
 for pool in $pools; do
 
     # Collect snapshot data
@@ -53,9 +55,11 @@ for pool in $pools; do
         init_lock /${pool}/zfs_tools/var/spool/snapshot/destroy_queue
     fi
 
-    zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
+    #zfs list -H -o name -r -t snapshot ${pool} > /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots
     zfs_cache list -H -r -t filesystem -o name,$zfs_replication_property,$zfs_dataset_property,${zfs_replication_property}:endpoints ${pool} > \
             /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties 3>/dev/null
+
+    rm -rf ${TMP}/snapshots/clean/${pool}
 
     for snaptype in $types; do
 
@@ -116,8 +120,14 @@ for pool in $pools; do
             fi
 
             if [[ "$keepcount" != "" && $keepcount -ne 0 ]]; then
+
+                if [ ! -f ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps ]; then
+                    MKDIR ${TMP}/snapshots/clean/${pool}
+                    zfs list -H -o name -d1 -t snapshot ${folder} > ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps
+                fi
+
                 # Queue snapshots for removal
-                delete_list=`cat /${pool}/zfs_tools/var/spool/snapshot/${pool}_snapshots | \
+                delete_list=`cat ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps | \
                     ${AWK} -F " " '{print $1}' | \
                     ${GREP} "${snap_grep}" | \
                     ${SORT} -r | \
