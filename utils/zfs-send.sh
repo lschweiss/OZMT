@@ -1100,8 +1100,19 @@ while [ "$running" == 'true' ]; do
     
         if [ "$remote_failed" != "" ]; then
             running='false'
+            success='false'
             touch ${tmpdir}/running.false
             touch ${tmpdir}/remote.failed
+
+            # Check if clones need destroyed remotely
+            failed_clone=`$remote_ssh "cat ${remote_tmp}/zfs_receive.error 2>/dev/null | \
+                grep 'cannot receive new filesystem stream: destination has snapshots'"`
+            if [ "$failed_clone" != '' ]; then
+                destroy_clone=`echo $failed_clone | ${GREP} -oP '(?<=eg. ).*?(?=@)'`
+                #TODO : Actually destroy the clone once we know this check is working properly all the time
+                error "Failed to replicated ${job_name}.  Remote clone $destroy_clone must be destroyed"
+            fi            
+            
         fi
     fi
 
