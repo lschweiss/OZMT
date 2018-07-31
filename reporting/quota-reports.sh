@@ -427,7 +427,7 @@ for pool in $pools; do
 
     #fi
 
-    report_folders=`zfs get -H -o name -s local,received -r $zfs_quota_reports_property $pool`
+    report_folders=`zfs_cache get -H -o name -s local,received -r $zfs_quota_reports_property $pool`
 
     for report_folder in $report_folders; do
         quota_report "$report_folder"
