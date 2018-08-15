@@ -51,7 +51,7 @@ end_watch () {
     quit='true'
 }
 
-resizee () {
+resize () {
     refresh='true'
 }
 
@@ -89,9 +89,9 @@ print_num () {
 
 while [ "$quit" != 'true' ]; do 
 
-    if [ "$resize" == 'true' ]; then
+    if [ "$refresh" == 'true' ]; then
         clear
-        resize='false'
+        refresh='false'
     fi
 
     echo -n "\033[0;0f"
