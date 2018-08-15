@@ -45,9 +45,14 @@ clear;
 
 trap end_watch SIGHUP SIGINT SIGTERM
 
+trap resize WINCH
+
 end_watch () {
-    
     quit='true'
+}
+
+resizee () {
+    refresh='true'
 }
 
 pools="$(pools)"
@@ -83,6 +88,12 @@ print_num () {
 }
 
 while [ "$quit" != 'true' ]; do 
+
+    if [ "$resize" == 'true' ]; then
+        clear
+        resize='false'
+    fi
+
     echo -n "\033[0;0f"
 
     echo -e "\e[?25l"
