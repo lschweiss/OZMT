@@ -76,6 +76,17 @@ RSYNC=$rsync
 SSH=$ssh
 TIMEOUT=$timeout
 
+# Function to test if a string is numeric
+is_numeric () {
+    local string="$1"
+    local re='^[0-9]+$'
+    if [[ $string =~ $re ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 
 case $os in
     'SunOS')
@@ -319,6 +330,15 @@ gnu_source () {
 [ -z "$suspend_all_jobs_timeout" ] && suspend_all_jobs_timeout=60
 
 [ -z "$zfs_cache_max_age" ] && zfs_cache_max_age=30
+
+[ -z "$default_nics" ] && default_nics='2'
+
+[ -z "$default_nic0" ] && default_nic0='ixgbe0'
+
+[ -z "$default_nic1" ] && default_nic1='ixgbe1'
+
+[ -z "$default_mtu" ] && default_mtu='1500'
+
 
 
 # Test essential binaries

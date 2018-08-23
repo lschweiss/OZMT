@@ -189,9 +189,19 @@ activate_vip () {
     for ipif in $ipifs_list; do
         ip_host=`echo "$ipif" | cut -d '/' -f 1`
         ip_if=`echo "$ipif" | cut -d '/' -f 2`
-        ifconfig ${ip_if} 1> /dev/null 2> /dev/null
-        if [ $? -ne 0 ]; then
+        if is_numeric $ip_if; then
+            ifconfig vlan${ip_if}i0 1>/dev/null 2>/dev/null
+            result=$?
+        else
+            ifconfig ${ip_if} 1>/dev/null 2>/dev/null
+            result=$?
+        fi
+        if [ $result -ne 0 ]; then
             activate_if $ip_if
+        fi
+        if is_numeric $ip_if; then
+            # Put numeric interface name into IPMP format
+            ip_if="vlan${ip_if}i0"
         fi
         if [[ "$ip_host" == "$HOSTNAME" || "$ip_host" == '*' ]]; then
             alias=1

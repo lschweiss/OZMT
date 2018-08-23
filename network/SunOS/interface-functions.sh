@@ -66,6 +66,7 @@ activate_if () {
     local if_type=
     local if_name=
     local override_persistent="$2"
+    local numeric="$3"
 
     debug "interface-functions.sh: activate_if $interface $override_persistent"
 
@@ -77,23 +78,40 @@ activate_if () {
             ifconfig $interface plumb up
         fi
     else
-        if_def="${interface_definition["$interface"]}"
-        if [ "${if_def}" != "" ]; then
-            if_type=`echo $if_def| ${CUT} -d ' ' -f 1`
-            if_name=`echo $if_def| ${CUT} -d ' ' -f 2`
-            case $if_type in 
-                'vlan') 
-                    activate_vlan $if_name $override_persistent
-                    ;;
-                'ipmp')
-                    activate_ipmp $if_name $override_persistent
-                    ;;
-                'aggr')
-                    activate_aggr $if_name $override_persistent
-                    ;;
-            esac
+        if is_numeric $interface; then
+            debug "VLAN $interface requested, configuring IPMP interface"
+            activate_ipmp "${interface}" '' ''
         else
-            error "interface-functions.sh: Interface $interface not physical or defined in \$interface_definition"
+            if_def="${interface_definition["$interface"]}"
+            if [ "${if_def}" != "" ]; then
+                if_type=`echo $if_def| ${CUT} -d ' ' -f 1`
+                if_name=`echo $if_def| ${CUT} -d ' ' -f 2`
+                case $if_type in 
+                    'vlan') 
+                        activate_vlan $if_name $override_persistent
+                        ;;
+                    'ipmp')
+                        activate_ipmp $if_name $override_persistent
+                        ;;
+                    'aggr')
+                        activate_aggr $if_name $override_persistent
+                        ;;
+                esac
+            else
+                if [ "$numeric" == 'true' ]; then
+                    if_type="${interface: -2:1}"
+                    case $if_type in
+                        'v')
+                            activate_vlan $interface "" "$numeric"
+                            ;;
+                        '*')
+                            error "interface-functions.sh: numeric interface activation failure"
+                            ;;
+                    esac
+                else
+                    error "interface-functions.sh: Interface $interface not physical, numeric or defined in \$interface_definition"
+                fi
+            fi
         fi
     fi
 }
@@ -105,7 +123,7 @@ deactivate_if () {
     local if_name=
     local override_persistent="$2"
 
-    debug "interface-functions.sh: activate_if $interface $override_persistent"
+    debug "interface-functions.sh: deactivate_if $interface $override_persistent"
 
     if physical_if $interface; then
         ifconfig $interface 1>/dev/null 2>/dev/null
@@ -144,12 +162,26 @@ activate_vlan () {
     local vlan_tag=
     local vlan_mtu=
     local vlan_persistent=
+    local vlan_num=
+    local nic_var=
+    local nic=
     local persistent_set=
     local override_persistent="$2"
+    local numeric="$3"
 
     debug "interface-functions.sh: activate_vlan $vlan_name $override_persistent"
 
-    vlan_def="${vlan_definition["$vlan_name"]}"
+    if [ "$numeric" == 'true' ]; then
+        vlan_num=`echo "$vlan_name" | $AWK -F 'vlan' '{print $2}' | $AWK -F 'v' '{print $1}'`
+        nic_num=`echo "$vlan_name" | $AWK -F 'vlan' '{print $2}' | $AWK -F 'v' '{print $2}'`
+        nic_var="default_nic${nic_num}"
+        eval nic=\$$nic_var
+        
+        vlan_def="$nic $vlan_num $default_mtu"
+    else                
+        vlan_def="${vlan_definition["$vlan_name"]}"
+    fi
+
     if [ "$vlan_def" != "" ]; then
         vlan_interface=`echo $vlan_def| ${CUT} -d ' ' -f 1`
         vlan_tag=`echo $vlan_def| ${CUT} -d ' ' -f 2`
@@ -278,25 +310,42 @@ activate_ipmp () {
     local ipmp_persistent=
     local interface=
     local override_persistent="$2"
+    local numeric=
+    local x=
 
     debug "interface-functions.sh: activate_ipmp $ipmp_name $override_persistent"
     
     # This works for Illumos forks.  Under Oracle Solaris IPMP config was wrapped into crossbow and will be configured with dladm.
+
+    if is_numeric $ipmp_name; then
+        numeric='true'
+        number=$ipmp_name
+        ipmp_name="vlan${ipmp_name}i0"
+    fi
 
     ipmpstat -i -o GROUP -P 2>/dev/null | grep -q $ipmp_name
     if [ $? -eq 0 ]; then
         debug "interface-functions.sh: ipmp $ipmp_name already exists"
         return 1
     else
-        ipmp_interfaces="${ipmp_definition["$ipmp_name"]}"
-        ipmp_persistent="${ipmp_definition["${ipmp_name}_persistent"]}"
+        if [ "$numeric" == 'true' ]; then
+            x=0
+            while [ $x -lt $default_nics ]; do
+                ipmp_interfaces="vlan${number}v${x} $ipmp_interfaces"
+                x=$(( x + 1 ))
+            done
+            ipmp_persistent=
+        else
+            ipmp_interfaces="${ipmp_definition["$ipmp_name"]}"
+            ipmp_persistent="${ipmp_definition["${ipmp_name}_persistent"]}"
+        fi
         if [ "$override_persistent" != "" ]; then
             debug "Overriding persistent from \"$ipmp_persistent\" to \"$override_persistent\""
             ipmp_persistent="$override_persistent"
         fi
         # Underlying interfaces need to be activated first
         for interface in $ipmp_interfaces; do
-            activate_if "$interface" $ipmp_persistent
+            activate_if "$interface" "$ipmp_persistent" "$numeric"
         done
 
         # Plumb the interface
