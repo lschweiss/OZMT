@@ -506,6 +506,57 @@ replication_source () {
 
 }
 
+local_datasets () {
+
+    # Accepts one parameter either "source" or "target" or "all" to return only primary, only target datasets or all datasets
+
+    local dataset_type=
+    local dataset=
+    local datasets=
+    local pool=
+    local folder=
+    local folders=
+
+    case $1 in
+        'source')
+            dataset_type='source'
+            ;;
+        'target')
+            dataset_type='target'
+            ;;
+        *)
+            dataset_type='all'
+            ;;
+    esac
+
+    folders=`zfs get -d2 -s local,received -o name -H ${zfs_dataset_property}`
+
+    for folder in $folders; do        
+        pool=`echo $folder| $AWK -F '/' '{print $1}'`
+        dataset=`zfs get -d2 -s local,received -o value -H ${zfs_dataset_property} $folder`
+        if [ "$dataset_type" == 'all' ]; then
+            echo "$dataset"
+            continue
+        fi
+        
+        if [ -f /${pool}/zfs_tools/var/replication/source/$dataset ]; then
+            cat "/${pool}/zfs_tools/var/replication/source/$dataset" | ${GREP} -q "$pool"
+            if [ $? -eq 0 ]; then
+                if [ "$dataset_type" == 'source' ]; then
+                    echo "$dataset"
+                    continue
+                fi
+            else
+                if [ "$dataset_type" == 'target' ]; then
+                    echo "$dataset"
+                    continue
+                fi
+            fi                   
+        fi        
+    done
+
+}
+
 dataset_source () {
 
     # For next gen replication only.  Relies on zfs property configured replication.
