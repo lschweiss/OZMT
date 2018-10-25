@@ -59,7 +59,7 @@ pools="$(pools)"
 
 
 for pool in $pools; do
-    debug "Checking pool $pool for cron jobs"
+    debug "Checking pool $pool for $type cron jobs"
     if [ -d /${pool}/etc/cron/${type}.d ]; then
         crons=`ls -1 /${pool}/etc/cron/${type}.d`
         for cron in $cron; do
@@ -72,7 +72,7 @@ done
 folders=`local_datasets all folder`
 
 for folder in $folders; do
-    debug "Checking $folder for cron jobs"
+    debug "Checking $folder for $type cron jobs"
     mountpoint=`zfs get -o value -H mountpoint $folder`
     if [ -d "${mountpoint}/.ozmt-cron/${type}.d" ]; then
         dataset=`zfs get -o value -H $zfs_dataset_property $folder`
