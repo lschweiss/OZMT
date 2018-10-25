@@ -508,7 +508,13 @@ replication_source () {
 
 local_datasets () {
 
-    # Accepts one parameter either "source" or "target" or "all" to return only primary, only target datasets or all datasets
+    # Accepts one or two  parameters 
+    # First paramerter:
+    #    Either "source" or "target" or "all" to return only primary, only target datasets or all datasets
+    # Second parameter:
+    #   Set to 'folder' to return the folder name instead of the dataset name
+
+
 
     local dataset_type=
     local dataset=
@@ -535,7 +541,11 @@ local_datasets () {
         pool=`echo $folder| $AWK -F '/' '{print $1}'`
         dataset=`zfs get -d2 -s local,received -o value -H ${zfs_dataset_property} $folder`
         if [ "$dataset_type" == 'all' ]; then
-            echo "$dataset"
+            if [ "$2" == 'folder' ]; then
+                echo "$folder"
+            else 
+                echo "$dataset"
+            fi
             continue
         fi
         
@@ -543,12 +553,20 @@ local_datasets () {
             cat "/${pool}/zfs_tools/var/replication/source/$dataset" | ${GREP} -q "$pool"
             if [ $? -eq 0 ]; then
                 if [ "$dataset_type" == 'source' ]; then
-                    echo "$dataset"
+                    if [ "$2" == 'folder' ]; then
+                        echo "$folder"
+                    else
+                        echo "$dataset"
+                    fi
                     continue
                 fi
             else
                 if [ "$dataset_type" == 'target' ]; then
-                    echo "$dataset"
+                    if [ "$2" == 'folder' ]; then
+                        echo "$folder"
+                    else
+                        echo "$dataset"
+                    fi
                     continue
                 fi
             fi                   
