@@ -82,7 +82,7 @@ while getopts p:d:b:v:r:g:i:R:T: opt; do
         b)  # Billing code
             billing="$OPTARG"
             debug "billing code: $billing"
-            ;
+            ;;
         v)  # vIP
             vips=$(( vips + 1 ))
             routes=0
