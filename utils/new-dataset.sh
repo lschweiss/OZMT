@@ -41,6 +41,8 @@ local_pools="zpool list -H -o name"
 show_usage() {
     echo
     echo "Usage: $0 -p {pool} -d {dataset_name}"
+    echo "    [-b {billing code} ]         Billing code assocated with the dataset"
+    echo
     echo "  These options can be repeated, but must be in order:"
     echo "    [-v {vip}]                   vIP in x.x.x.x/x format"
     echo
@@ -67,7 +69,7 @@ interfaces=0
 
 declare -A vip
 
-while getopts p:f:d:v:r:g:i:R:T: opt; do
+while getopts p:d:b:v:r:g:i:R:T: opt; do
     case $opt in
         p)  # Pool
             source_pool="$OPTARG"
@@ -77,6 +79,10 @@ while getopts p:f:d:v:r:g:i:R:T: opt; do
             dataset="$OPTARG"
             debug "dataset name: $dataset"
             ;;
+        b)  # Billing code
+            billing="$OPTARG"
+            debug "billing code: $billing"
+            ;
         v)  # vIP
             vips=$(( vips + 1 ))
             routes=0
@@ -147,6 +153,10 @@ else
 fi
 
 zfs set ${zfs_dataset_property}=${dataset} $source_pool/$folder
+
+zfs set ${zfs_property_tag}:datasetcreate="$@" $source_pool/$folder
+
+[ "$billing" != '' ] && zfs set ${zfs_property_tag}:billing="$billing" $source_pool/$folder
 
 echo "${HOSTNAME}:${source_pool}:${folder}" > ${data_dir}/dataset.${dataset}
 
