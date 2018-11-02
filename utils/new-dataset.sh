@@ -154,7 +154,10 @@ fi
 
 zfs set ${zfs_dataset_property}=${dataset} $source_pool/$folder
 
-zfs set ${zfs_property_tag}:datasetcreate="$@" $source_pool/$folder
+# TODO: Need to figure out how to get this in a zfs property.  Likely contains quotes, complicating the process.
+# Alternatively, this could be stored in /${pool}/etc, but the dataset could be moved away from the pool it was created on.
+
+# zfs set ${zfs_property_tag}:datasetcreate=\'"$@"\' $source_pool/$folder
 
 [ "$billing" != '' ] && zfs set ${zfs_property_tag}:billing="$billing" $source_pool/$folder
 
