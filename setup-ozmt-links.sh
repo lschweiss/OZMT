@@ -44,6 +44,7 @@ ln -s ${TOOLS_ROOT}/utils/zpool-cache-attach.sh /usr/sbin/ozmt-zpool-cache-attac
 ln -s ${TOOLS_ROOT}/utils/zfs-cache-refresh.sh /usr/sbin/ozmt-zfs-cache-refresh.sh
 ln -s ${TOOLS_ROOT}/utils/zfs-rollback-folders.sh /usr/sbin/ozmt-zfs-rollback-folders.sh
 ln -s ${TOOLS_ROOT}/utils/remove-quota.sh /usr/sbin/ozmt-remove-quota.sh
+ln -s ${TOOLS_ROOT}/quota/quota-report-show.sh /usr/sbin/ozmt-quota-report-show.sh
 ln -s ${TOOLS_ROOT}/utils/watch-jobs.sh /usr/sbin/ozmt-watch-jobs.sh
 ln -s ${TOOLS_ROOT}/utils/watch-zfs-debug.sh /usr/sbin/ozmt-watch-zfs-debug.sh
 ln -s ${TOOLS_ROOT}/utils/locate-disks/locate-inuse-disks.sh /usr/sbin/ozmt-locate-inuse-disks.sh
@@ -63,6 +64,11 @@ fi
 ln -s ${TOOLS_ROOT}/samba/samba-service.sh /usr/sbin/ozmt-samba-service.sh
 
 ln -s ${TOOLS_ROOT}/vip/vip-trigger.sh /usr/sbin/ozmt-vip-trigger.sh
+ln -s ${TOOLS_ROOT}/vip/vip-mod.sh /usr/sbin/ozmt-vip-add.sh
+ln -s ${TOOLS_ROOT}/vip/vip-mod.sh /usr/sbin/ozmt-vip-mod.sh
+ln -s ${TOOLS_ROOT}/vip/vip-del.sh /usr/sbin/ozmt-vip-del.sh
+ln -s ${TOOLS_ROOT}/vip/vip-show.sh /usr/sbin/ozmt-vip-show.sh
+
 
 ln -s ${TOOLS_ROOT}/replication/schedule-replication.sh /usr/sbin/ozmt-schedule-replication.sh
 ln -s ${TOOLS_ROOT}/replication/reset-replication.sh /usr/sbin/ozmt-reset-replication.sh

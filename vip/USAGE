@@ -1,0 +1,29 @@
+Usage:
+
+    ozmt-vip-mod.sh {zfs_folder} 
+      These options can be repeated, but must be in order:
+        [-v {vip}]                   vIP in x.x.x.x/x format
+    
+        [-r {network/mask}]          Route for vIP
+                                     x.x.x.x/x format
+                                     optional: list a named route group defined in
+                                               /etc/ozmt/network/{template}.routes
+                                     (repeatable for each vIP)
+            -g {gateway}             Gateway for specified route
+                                     (Manditory for each route, unless a template is used)
+    
+        [-i {interface_vlan}]        {interface_vlan} to attach vIP 
+
+
+      adds new vIP(s) or modifies existing vIP(s)
+
+    ozmt-vip-del.sh {zfs_folder} {vip}
+      vip can be any of:
+        all                         Remove all vIPs from the zfs_folder
+    
+        {vip_#}                     Remove the vIP at index {vip_#}
+
+        {network/mask}              Remove the vIP matching {network/mask}
+
+
+

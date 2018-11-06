@@ -187,6 +187,11 @@ activate_vip () {
     ipifs_list=`echo "$ipifs" | sed 's/,/\n/g'`
 
     for ipif in $ipifs_list; do
+        if is_numeric $ipif; then
+            # Simple vlan provided.
+            # Put in multi-interface notation
+            ipif="*/$ipif"
+        fi
         ip_host=`echo "$ipif" | cut -d '/' -f 1`
         ip_if=`echo "$ipif" | cut -d '/' -f 2`
         if is_numeric $ip_if; then
