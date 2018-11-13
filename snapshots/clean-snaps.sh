@@ -71,9 +71,6 @@ for pool in $pools; do
             clean_this_folder='false'
             recursive='false'
             snap_grep="^${folder}@${snaptype}_"
-            folder_fixed="$(foldertojob $folder)"
-            destroy_queue="/${pool}/zfs_tools/var/spool/snapshot/destroy_queue/$folder_fixed"
-            MKDIR $destroy_queue
 
             folder_props=`cat /${pool}/zfs_tools/var/spool/snapshot/${pool}_replication_properties | ${GREP} "^${folder}\s"`
             # Make sure we should clean this folder
@@ -112,29 +109,44 @@ for pool in $pools; do
 
             keepcount=`zfs_cache get -H -o value ${zfs_snapshot_property}:${snaptype} ${folder} 3>/dev/null`
 
-            debug "Keeping $keepcount snapshots for ${folder}"
+            debug "Keeping $keepcount $snaptype snapshots for ${folder}"
         
-            if [ "${keepcount:0:1}" == "r" ]; then
-                keepcount="${keepcount:1}"
+            if [ "${keepcount: -1}" == "r" ]; then
+                keepcount="${keepcount::-1}"
                 recursive='true'
+            else
+                recursive='false'
             fi
 
             if [[ "$keepcount" != "" && $keepcount -ne 0 ]]; then
-
-                if [ ! -f ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps ]; then
-                    MKDIR ${TMP}/snapshots/clean/${pool}
-                    zfs list -H -o name -d1 -t snapshot ${folder} > ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps
+                if [ "$recursive" == 'true' ]; then
+                    clean_folders=`zfs list -o name -H -r $folder`
+                else
+                    clean_folders="$folder"
                 fi
 
-                # Queue snapshots for removal
-                delete_list=`cat ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps | \
-                    ${AWK} -F " " '{print $1}' | \
-                    ${GREP} "${snap_grep}" | \
-                    ${SORT} -r | \
-                    ${TAIL} -n +$(( $keepcount + 1 ))`
-                for snap in $delete_list; do
-                    notice "Queuing for destroy: ${snap}, keeping ${keepcount} of type ${snaptype}"
-                    echo "$snap" > ${destroy_queue}/${folder_fixed}_$(${DATE} +%s.%N)
+                for clean_folder in $clean_folders; do
+                    folder_fixed="$(foldertojob $clean_folder)"
+                    destroy_queue="/${pool}/zfs_tools/var/spool/snapshot/destroy_queue/$folder_fixed"
+                    MKDIR $destroy_queue
+                    snap_grep="^${clean_folder}@${snaptype}_"
+
+                    if [ ! -f ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps ]; then
+                        MKDIR ${TMP}/snapshots/clean/${pool}
+                        zfs list -H -o name -d1 -t snapshot ${clean_folder} > ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps
+                    fi
+
+                    # Queue snapshots for removal
+                    delete_list=`cat ${TMP}/snapshots/clean/${pool}/${folder_fixed}.snaps | \
+                        ${AWK} -F " " '{print $1}' | \
+                        ${GREP} "${snap_grep}" | \
+                        ${SORT} -r | \
+                        ${TAIL} -n +$(( $keepcount + 1 ))`
+                    for snap in $delete_list; do
+                        notice "Queuing for destroy: ${snap}, keeping ${keepcount} of type ${snaptype}"
+                        echo "$snap" > ${destroy_queue}/${folder_fixed}_$(${DATE} +%s.%N)
+                    done
+
                 done
             fi
                 
