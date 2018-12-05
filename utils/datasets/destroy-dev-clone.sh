@@ -42,14 +42,16 @@ MKDIR $myTMP
 
 DEBUG='true'
 
+paused='false'
+
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-p {pause_tag}] [-t]"
     echo
 }
 
-while getopts d:n:t opt; do
+while getopts d:n:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -63,19 +65,50 @@ while getopts d:n:t opt; do
             test='true'
             debug "Running in test mode"
             ;;
+        p)  # Leave replication paused
+            pause="$OPTARG"
+            debug "Leave replication paused.  Using tag $OPTARG"
+            ;;
         ?)  # Show program usage and exit
             show_usage
             exit 0
             ;;
         :)  # Mandatory arguments not specified
-            die "${job_name}: Option -$OPTARG requires an argument."
+            die "${job_name}: Option -$OPTARG requires an argument." 1
             ;;
     esac
 done
 
+declare -A o_source
+declare -A o_paused
+
+if [ "$pause" == '' ]; then
+    pause="$$"
+fi
+
+
 die () {
+    unset IFS
+    if [ "$paused" == 'true' ]; then
+        for ozmt_dataset in $ozmt_datasets; do
+            this_source="${o_source[$ozmt_dataset]}"
+            o_pool=`echo $this_source | $CUT -d ':' -f 1`
+            debug "Releasing pause on $ozmt_dataset on pool $o_pool"
+            $SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -s unpause -i $pause
+        done
+    fi
+
     rm -f ${myTMP}/dataset*_$$
-    exit $1
+
+    if [ $2 -ne 0 ]; then
+        if [ "$1" != '' ]; then
+            error "$1"
+        fi
+    else
+        notice "$1"
+    fi
+
+    exit $2
 }
 
 
@@ -85,8 +118,7 @@ debug "Finding dataset source for $clone_dataset"
 dataset_source=`dataset_source $clone_dataset`
 o_source["${clone_dataset}"]="$dataset_source"
 if [ "$dataset_source" == '' ]; then
-    error "Cannot locate source for $clone_dataset"
-    die 1
+    die "Cannot locate source for $clone_dataset" 1
 fi
 debug "Found source at $dataset_source"
 clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
@@ -115,14 +147,20 @@ fi
 
 ozmt_datasets=`cat ${TMP}/dataset_datasets_$$ 2>/dev/null`
 
-# Locate datasets
+
+##
+# Locate and pause all related datasets
+##
+
+source clone-functions.sh
+
+##
+# Destroy Clones
+##
+
 if [ "$ozmt_datasets" != '' ]; then
-    # Create stub clones
     for ozmt_dataset in $ozmt_datasets; do
-        debug "Finding dataset source for $ozmt_dataset"
-        this_source=`dataset_source $ozmt_dataset`
-        debug "Found source as: $this_source"
-        o_source["$ozmt_dataset"]="$this_source"
+        this_source="${o_source[$ozmt_dataset]}"
         o_pool=`echo $this_source | $CUT -d ':' -f 1`
         o_folder=`echo $this_source | $CUT -d ':' -f 2`
        
@@ -155,7 +193,7 @@ if [ "$ozmt_datasets" != '' ]; then
                 warning "Failed to destroy ${o_pool}/${o_folder}/dev/${dev_name}"
                 if [ $SECONDS -gt $timeout ]; then
                     error "Could not destroy ${o_pool}/${o_folder}/dev/${dev_name} aborting destroy-dev-clone." ${TMP}/dataset_dev_destroy_$$.txt
-                    die 1 
+                    die "" 1 
                 fi
                 sleep 60
             fi
@@ -163,8 +201,12 @@ if [ "$ozmt_datasets" != '' ]; then
 
     done
 else
-    error "Could not locate any dataset listing for ${clone_dataset}  Make sure dataset's folder paramaters are set."
-    die 1
+    die "Could not locate any dataset listing for ${clone_dataset}  Make sure dataset's folder paramaters are set." 1
 fi
 
-die 0
+if [ "$pause" == "$$" ]; then
+    die "Destroying $clone_dataset complete" 0
+else
+    notice "Destroying $clone_dataset complete"
+    exit 0
+fi

@@ -211,9 +211,18 @@ for pool in $pools; do
 
                     if [ "$suspended" == 'true' ]; then
                         if [ $duration_min -ge $zfs_replication_suspended_error_time ]; then
-                            error "Replication for dataset $dataset_name has been suspended for more than $zfs_replication_suspended_error_time minutes"
+                            error "Replication for dataset $dataset_name has been SUSPENDED for more than $zfs_replication_suspended_error_time minutes"
                         fi
                         continue
+                    fi
+
+                    if [ "$paused" == 'true' ]; then
+                        if [ $duration_min -ge $zfs_replication_suspended_error_time ]; then
+                            error "Replication for dataset $dataset_name has been PAUSED for more than $zfs_replication_suspended_error_time minutes.  Forcefully unpausing."
+                            /opt/ozmt/replication/replication-state.sh -d $dataset_name -s unpause
+                        else
+                            continue
+                        fi
                     fi
 
                     case $freq_unit in 

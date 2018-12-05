@@ -120,6 +120,7 @@ while [ "$quit" != 'true' ]; do
                 target_defs=`ls -1 "${replication_def_dir}/${folder_def}"|sort`
                 for target_def in $target_defs; do
                     suspended=
+                    paused=
                     last_run=
                     job_status=
                     last_complete=
@@ -157,6 +158,9 @@ while [ "$quit" != 'true' ]; do
                     fi
                     if [ "$suspended" == 'true' ]; then
                         echo -n ", $(color red)SUSPENDED$(color)"
+                    fi
+                    if [ "$paused" == 'true' ]; then
+                        echo -n ", $(color red)PAUSED$(color)"
                     fi
 
                     jobname="${dataset_name}_to_${target_pool}:$(foldertojob $target_folder)"

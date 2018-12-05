@@ -44,15 +44,17 @@ MKDIR $myTMP
 
 DEBUG='true'
 
+paused='false'
+
 
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-q {quota}] [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-i {dev_ip} ] [-q {quota}] [-p {pause_tag}] [-t]"
     echo
 }
 
-while getopts d:n:s:q:i:t opt; do
+while getopts d:n:s:q:i:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -74,6 +76,10 @@ while getopts d:n:s:q:i:t opt; do
             dev_ip="$OPTARG"
             debug "Instance IP: $dev_ip"
             ;;
+        p)  # Leave replication paused
+            pause="$OPTARG"
+            debug "Leave replication paused.  Using tag $OPTARG"
+            ;;
         t)  # Test mode
             test='true'
             debug "Running in test mode"
@@ -83,17 +89,40 @@ while getopts d:n:s:q:i:t opt; do
             exit 0
             ;;
         :)  # Mandatory arguments not specified
-            die "${job_name}: Option -$OPTARG requires an argument."
+            die "${job_name}: Option -$OPTARG requires an argument." 1
             ;;
     esac
 done
 
 declare -A o_source
+declare -A o_paused
+
+if [ "$pause" == '' ]; then
+    pause="$$"
+fi
 
 die () {
-    echo $1
+    unset IFS
+    if [ "$paused" == 'true' ]; then
+        for ozmt_dataset in $ozmt_datasets; do
+            this_source="${o_source[$ozmt_dataset]}"
+            o_pool=`echo $this_source | $CUT -d ':' -f 1`
+            debug "Releasing pause on $ozmt_dataset on pool $o_pool"
+            $SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -s unpause -i $pause
+        done
+    fi
+
     rm -f ${myTMP}/dataset*_$$
-    exit 1
+
+    if [ $2 -ne 0 ]; then
+        if [ "$1" != '' ]; then
+            error "$1"
+        fi
+    else
+        notice "$1"
+    fi
+
+    exit $2
 }
 
 find_snap () {
@@ -178,7 +207,7 @@ dataset_source=`dataset_source $clone_dataset`
 o_source["${clone_dataset}"]="$dataset_source"
 if [ "$dataset_source" == '' ]; then
     error "Cannot locate source for $clone_dataset"
-    die 1
+    die "Cannot locate source for $clone_dataset" 1
 fi
 debug "Found source at $dataset_source"
 clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
@@ -188,7 +217,7 @@ clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
 $SSH ${clone_pool} zfs list ${clone_pool}/${clone_dataset}/dev/${dev_name}  1>/dev/null 2>/dev/null
 if [ $? -eq 0 ]; then
     error "Clone already exists for $dev_name"
-    die 1
+    die "Cannot locate source for $clone_dataset" 1
 else
     debug "Safe to create ${clone_pool}/dev/${dev_name}"
 fi
@@ -217,7 +246,7 @@ debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
 snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
 if [ "$snap" == '' ]; then
     error "Could not find snapshot: $snap_name"
-    die 1
+    die "Cannot locate source for $clone_dataset" 1
 else
     debug "Found snapshot $snap"
 fi
@@ -233,13 +262,22 @@ if [ "$datasets" != ' - ' ]; then
 fi
 
 ozmt_datasets=`cat ${myTMP}/dataset_datasets_$$ 2>/dev/null`
+
+
+##
+# Locate and pause all related datasets
+##
+
+source clone-functions.sh
+
+##           
+# Create clones
+##
+
 if [ "$ozmt_datasets" != '' ]; then
     # Create stub clones
     for ozmt_dataset in $ozmt_datasets; do
-        debug "Finding dataset source for $ozmt_dataset"
-        this_source=`dataset_source $ozmt_dataset`
-        debug "Found source as: $this_source"
-        o_source["$ozmt_dataset"]="$this_source"
+        this_source="${o_source[$ozmt_dataset]}"
         o_pool=`echo $this_source | $CUT -d ':' -f 1`
         o_folder=`echo $this_source | $CUT -d ':' -f 2`
         # Clone it
@@ -248,14 +286,14 @@ if [ "$ozmt_datasets" != '' ]; then
             $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
             if [ "$clone_quota" != "" ]; then
                 $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name} || \
-                    die "FAILED: $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}"
+                    die "FAILED: $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}" 1
             fi
             if [ "$dev_ip" != "" ]; then
                 $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name} || \
-                    die "FAILED: $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}"
+                    die "FAILED: $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}" 1
             fi
             $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone || \
-                die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone"
+                die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone" 1
         else
             echo "TEST MODE.  Would run:"
             echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}"
@@ -269,14 +307,14 @@ NUM=1
 line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 while [ "$line" != '' ]; do 
     clone_folder=`echo $line | $CUT -d ' ' -f 1`
-    ozmt_datasets=`echo $line | $CUT -d ' ' -f 2`
+    this_datasets=`echo $line | $CUT -d ' ' -f 2`
     
     origin_path="/${clone_dataset}/${clone_folder}"
-    debug "Cloning folder: $clone_folder origin: $origin_path datasets: $ozmt_datasets"
+    debug "Cloning folder: $clone_folder origin: $origin_path datasets: $this_datasets"
     
-    if [ "$ozmt_datasets" != '' ]; then
+    if [ "$this_datasets" != '' ]; then
         IFS=','
-        for ozmt_dataset in $ozmt_datasets; do
+        for ozmt_dataset in $this_datasets; do
         unset IFS
             
             this_source="${o_source["$ozmt_dataset"]}"
@@ -290,7 +328,7 @@ while [ "$line" != '' ]; do
             notice "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
             if [ "$test" != 'true' ]; then
                 $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} || \
-                    die "FAILED: $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
+                    die "FAILED: $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}" 1
             else
                 echo "TEST MODE.  Would run:"
                 echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
@@ -311,7 +349,7 @@ while [ "$line" != '' ]; do
             # Snapshot the folder
             if [ "$test" != 'true' ]; then
                 $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone || \
-                    die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
+                    die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone" 1
             else
                 echo "TEST MODE.  Would run:"
                 echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
@@ -325,7 +363,10 @@ while [ "$line" != '' ]; do
     line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 done
 
-exit 0
+
+# Resume Replication
+
+die "" 0
 
 
 

@@ -269,6 +269,9 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                     if [ "$suspended" == 'true' ]; then
                         debug "replication is suspended.  Skipping job."
                         continue
+                    elif [ "paused" == 'true' ]; then
+                        debug "replication is paused.  Skipping job."
+                        continue
                     else
                         # Confirm previous job is complete
                         if [[ "$previous_jobname" != "" && \
