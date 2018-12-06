@@ -1,13 +1,19 @@
 # Find all dataset sources
 
-if [ "$ozmt_datasets" != '' ]; then
-    for ozmt_dataset in $ozmt_datasets; do
-        this_source=`dataset_source $ozmt_dataset`
-        debug "Found dataset $ozmt_dataset at: $this_source"
-        o_source["$ozmt_dataset"]="$this_source"
-    done
+if [ "$pg_only" == '' ]; then
+    if [ "$ozmt_datasets" != '' ]; then
+        for ozmt_dataset in $ozmt_datasets; do
+            this_source=`dataset_source $ozmt_dataset`
+            debug "Found dataset $ozmt_dataset at: $this_source"
+            o_source["$ozmt_dataset"]="$this_source"
+        done
+    fi
+else
+    postgres="$pg_only"
+    postgres_dev='-'
 fi
 
+    
 x="$(echo -e "$postgres" | $TR -d '[:space:]')"
 postgres="$x"
 if [ "$postgres" != '-' ]; then
@@ -52,28 +58,30 @@ flushed='false'
 debug "Waiting for any running jobs to complete"
 
 while [ "$flushed" == 'false' ]; do
+    flushed='true'
 
-    for ozmt_dataset in $ozmt_datasets; do
-        flushed='true'
-        this_source="${o_source[$ozmt_dataset]}"
-        o_pool=`echo $this_source | $CUT -d ':' -f 1`
-        o_folder=`echo $this_source | $CUT -d ':' -f 2`
-        state=`$SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -r 2> /dev/null`
+    if [ "$pg_only" == '' ]; then
+        for ozmt_dataset in $ozmt_datasets; do
+            flushed='true'
+            this_source="${o_source[$ozmt_dataset]}"
+            o_pool=`echo $this_source | $CUT -d ':' -f 1`
+            o_folder=`echo $this_source | $CUT -d ':' -f 2`
+            state=`$SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -r 2> /dev/null`
 
-        echo $state | ${GREP} -q 'FAIL'
-        if [ $? -eq 0 ]; then
-            error "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning."
-            die "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning." 1
-        fi
+            echo $state | ${GREP} -q 'FAIL'
+            if [ $? -eq 0 ]; then
+                error "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning."
+                die "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning." 1
+            fi
 
-        echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
-        if [ $? -eq 0 ]; then
-            debug "Dataset $ozmt_dataset not flushed.  Pausing 30 seconds."
-            flushed='false'
-            sleep 30
-        fi
-
-    done
+            echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
+            if [ $? -eq 0 ]; then
+                debug "Dataset $ozmt_dataset not flushed.  Pausing 30 seconds."
+                flushed='false'
+                sleep 30
+            fi
+        done
+    fi
 
     if [ "$postgres" != '-' ]; then
         state=`$SSH $p_pool /opt/ozmt/replication/replication-state.sh -d $p_dataset -r 2> /dev/null`

@@ -50,11 +50,11 @@ paused='false'
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} [-i {dev_ip} ] [-q {quota}] [-p {pause_tag}] [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-o {pg_dataset}:{pg_folder} ] -s {snapname} [-i {dev_ip} ] [-q {quota}] [-p {pause_tag}] [-t]"
     echo
 }
 
-while getopts d:n:s:q:i:p:t opt; do
+while getopts d:n:o:s:q:i:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -63,6 +63,10 @@ while getopts d:n:s:q:i:p:t opt; do
         n)  # Dev name
             dev_name="$OPTARG"
             debug "instance_name: $dev_name"
+            ;;
+        o)  # Only Postgres
+            pg_only="$OPTARG"
+            debug "Only cloning postgres at: $pg_only"
             ;;
         s)  # Snapshot name / type
             snap_name="$OPTARG"
@@ -205,173 +209,189 @@ process_reparse () {
  
 }
 
-# Locate dataset info
-clone_pool=
-debug "Finding dataset source for $clone_dataset"
-dataset_source=`dataset_source $clone_dataset`
-o_source["${clone_dataset}"]="$dataset_source"
-if [ "$dataset_source" == '' ]; then
-    error "Cannot locate source for $clone_dataset"
-    die "Cannot locate source for $clone_dataset" 1
+
+if [ "$pg_only" == '' ]; then
+    # Locate dataset info
+    clone_pool=
+    debug "Finding dataset source for $clone_dataset"
+    dataset_source=`dataset_source $clone_dataset`
+    o_source["${clone_dataset}"]="$dataset_source"
+    if [ "$dataset_source" == '' ]; then
+        error "Cannot locate source for $clone_dataset"
+        die "Cannot locate source for $clone_dataset" 1
+    fi
+    debug "Found source at $dataset_source"
+    clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
+    
+    # Check if clone already exists
+    
+    $SSH ${clone_pool} zfs list ${clone_pool}/${clone_dataset}/dev/${dev_name}  1>/dev/null 2>/dev/null
+    if [ $? -eq 0 ]; then
+        error "Clone already exists for $dev_name"
+        die "Cannot locate source for $clone_dataset" 1
+    else
+        debug "Safe to create ${clone_pool}/dev/${dev_name}"
+    fi
+    
+    # TODO: Check if clones exist in all additional folders and datasets
+    
+    
+    
+    # Collect folders
+    rm -f ${myTMP}/dataset_folders_$$
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}` 
+    folders="$(echo -e "$x" | $TR -d '[:space:]')"
+    if [ "$folders" != '-' ]; then
+        NUM=1
+        while [ $NUM -le $folders ]; do
+            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${myTMP}/dataset_folders_$$
+            NUM=$(( NUM + 1 ))
+        done
+    fi
+    
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
+    postgres="$(echo -e "$x" | $TR -d '[:space:]')"
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
+    postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
+    
+    
+    debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
+    
+    snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
+    if [ "$snap" == '' ]; then
+        error "Could not find snapshot: $snap_name"
+        die "Cannot locate source for $clone_dataset" 1
+    else
+        debug "Found snapshot $snap"
+    fi
+    
+    rm -f ${myTMP}/dataset_datasets_$$
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
+    datasets="$(echo -e "$x" | $TR -d '[:space:]')"
+    if [ "$datasets" != '-' ]; then
+        NUM=1
+        while [ $NUM -le $datasets ]; do
+            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${myTMP}/dataset_datasets_$$
+            NUM=$(( NUM + 1 ))
+        done
+    fi
+    
+    ozmt_datasets=`cat ${myTMP}/dataset_datasets_$$ 2>/dev/null`
 fi
-debug "Found source at $dataset_source"
-clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
-
-# Check if clone already exists
-
-$SSH ${clone_pool} zfs list ${clone_pool}/${clone_dataset}/dev/${dev_name}  1>/dev/null 2>/dev/null
-if [ $? -eq 0 ]; then
-    error "Clone already exists for $dev_name"
-    die "Cannot locate source for $clone_dataset" 1
-else
-    debug "Safe to create ${clone_pool}/dev/${dev_name}"
-fi
-
-# TODO: Check if clones exist in all additional folders and datasets
-
-
-
-# Collect folders
-rm -f ${myTMP}/dataset_folders_$$
-x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}` 
-folders="$(echo -e "$x" | $TR -d '[:space:]')"
-if [ "$folders" != '-' ]; then
-    NUM=1
-    while [ $NUM -le $folders ]; do
-        $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${myTMP}/dataset_folders_$$
-        NUM=$(( NUM + 1 ))
-    done
-fi
-
-x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
-postgres="$(echo -e "$x" | $TR -d '[:space:]')"
-x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
-postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
-
-
-debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
-
-snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
-if [ "$snap" == '' ]; then
-    error "Could not find snapshot: $snap_name"
-    die "Cannot locate source for $clone_dataset" 1
-else
-    debug "Found snapshot $snap"
-fi
-
-rm -f ${myTMP}/dataset_datasets_$$
-x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
-datasets="$(echo -e "$x" | $TR -d '[:space:]')"
-if [ "$datasets" != '-' ]; then
-    NUM=1
-    while [ $NUM -le $datasets ]; do
-        $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${myTMP}/dataset_datasets_$$
-        NUM=$(( NUM + 1 ))
-    done
-fi
-
-ozmt_datasets=`cat ${myTMP}/dataset_datasets_$$ 2>/dev/null`
-
-
+    
 ##
 # Locate and pause all related datasets
 ##
 
 source clone-functions.sh
 
+
+if [ "$pg_only" != '' ]; then
+    snap=`find_snap "${p_pool}/${p_folder}/${p_name}" "$snap_name"`
+    if [ "$snap" == '' ]; then
+        error "Could not find snapshot: $snap_name"
+        die "Cannot locate source for $clone_dataset" 1
+    else
+        debug "Found snapshot $snap"
+    fi
+fi
+
 ##           
 # Create clones
 ##
+if [ "$pg_only" == '' ]; then
 
-if [ "$ozmt_datasets" != '' ]; then
-    # Create stub clones
-    for ozmt_dataset in $ozmt_datasets; do
-        this_source="${o_source[$ozmt_dataset]}"
-        o_pool=`echo $this_source | $CUT -d ':' -f 1`
-        o_folder=`echo $this_source | $CUT -d ':' -f 2`
-        # Clone it
-        notice "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
-        if [ "$test" != 'true' ]; then
-            $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
-            if [ "$clone_quota" != "" ]; then
-                $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name} || \
-                    die "FAILED: $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}" 1
-            fi
-            if [ "$dev_ip" != "" ]; then
-                $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name} || \
-                    die "FAILED: $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}" 1
-            fi
-            $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone || \
-                die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone" 1
-        else
-            echo "TEST MODE.  Would run:"
-            echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}"
-            echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone"
-        fi
-    done
-fi
-
-
-NUM=1
-line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
-while [ "$line" != '' ]; do 
-    clone_folder=`echo $line | $CUT -d ' ' -f 1`
-    this_datasets=`echo $line | $CUT -d ' ' -f 2`
-    
-    origin_path="/${clone_dataset}/${clone_folder}"
-    debug "Cloning folder: $clone_folder origin: $origin_path datasets: $this_datasets"
-    
-    if [ "$this_datasets" != '' ]; then
-        IFS=','
-        for ozmt_dataset in $this_datasets; do
-        unset IFS
-            
-            this_source="${o_source["$ozmt_dataset"]}"
+    if [ "$ozmt_datasets" != '' ]; then
+        # Create stub clones
+        for ozmt_dataset in $ozmt_datasets; do
+            this_source="${o_source[$ozmt_dataset]}"
             o_pool=`echo $this_source | $CUT -d ':' -f 1`
             o_folder=`echo $this_source | $CUT -d ':' -f 2`
-
-            origin_path="/${ozmt_dataset}/${clone_folder}"
-            debug "Origin: $origin_path"
-
             # Clone it
-            notice "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
+            notice "Creating stub ${o_pool}/${o_folder}/dev/${dev_name} from ${o_pool}/${o_folder}@${snap}"
             if [ "$test" != 'true' ]; then
-                $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} || \
-                    die "FAILED: $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}" 1
+                $SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}
+                if [ "$clone_quota" != "" ]; then
+                    $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name} || \
+                        die "FAILED: $SSH $o_pool zfs set quota=${clone_quota} ${o_pool}/${o_folder}/dev/${dev_name}" 1
+                fi
+                if [ "$dev_ip" != "" ]; then
+                    $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name} || \
+                        die "FAILED: $SSH $o_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${o_pool}/${o_folder}/dev/${dev_name}" 1
+                fi
+                $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone || \
+                    die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone" 1
             else
                 echo "TEST MODE.  Would run:"
-                echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
+                echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}"
+                echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}@clone"
             fi
-
-            # Fix up any reparse points
-            $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
-                $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > \
-                ${myTMP}/dataset_reparse_${ozmt_dataset}_$$ 
-
-
-
-            debug "Found reparse points: $(wc -l ${myTMP}/dataset_reparse_${ozmt_dataset}_$$)"
-            clone_path="/${o_folder}/dev/${dev_name}/${clone_folder}"
-
-            process_reparse "${myTMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
-
-            # Snapshot the folder
-            if [ "$test" != 'true' ]; then
-                $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone || \
-                    die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone" 1
-            else
-                echo "TEST MODE.  Would run:"
-                echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
-            fi
-           
-            IFS=','
         done
-        
     fi
-    NUM=$(( NUM + 1 ))
+    
+    
+    NUM=1
     line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
-done
-unset IFS
+    while [ "$line" != '' ]; do 
+        clone_folder=`echo $line | $CUT -d ' ' -f 1`
+        this_datasets=`echo $line | $CUT -d ' ' -f 2`
+        
+        origin_path="/${clone_dataset}/${clone_folder}"
+        debug "Cloning folder: $clone_folder origin: $origin_path datasets: $this_datasets"
+        
+        if [ "$this_datasets" != '' ]; then
+            IFS=','
+            for ozmt_dataset in $this_datasets; do
+            unset IFS
+                
+                this_source="${o_source["$ozmt_dataset"]}"
+                o_pool=`echo $this_source | $CUT -d ':' -f 1`
+                o_folder=`echo $this_source | $CUT -d ':' -f 2`
+    
+                origin_path="/${ozmt_dataset}/${clone_folder}"
+                debug "Origin: $origin_path"
+    
+                # Clone it
+                notice "Creating ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} from ${o_pool}/${o_folder}/${clone_folder}@${snap}"
+                if [ "$test" != 'true' ]; then
+                    $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder} || \
+                        die "FAILED: $SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}" 1
+                else
+                    echo "TEST MODE.  Would run:"
+                    echo "$SSH $o_pool zfs clone ${o_pool}/${o_folder}/${clone_folder}@${snap} ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}"
+                fi
+    
+                # Fix up any reparse points
+                $SSH $o_pool "$FIND ${origin_path} -maxdepth 3 -type l -exec ls -l {} \;" | \
+                    $GREP REPARSE | $AWK -F ' ' '{printf("%s\t%s\n",$9,$11)}' > \
+                    ${myTMP}/dataset_reparse_${ozmt_dataset}_$$ 
+    
+    
+    
+                debug "Found reparse points: $(wc -l ${myTMP}/dataset_reparse_${ozmt_dataset}_$$)"
+                clone_path="/${o_folder}/dev/${dev_name}/${clone_folder}"
+    
+                process_reparse "${myTMP}/dataset_reparse_${ozmt_dataset}_$$" "$origin_path" "$clone_path" "$ozmt_dataset"
+    
+                # Snapshot the folder
+                if [ "$test" != 'true' ]; then
+                    $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone || \
+                        die "FAILED: $SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone" 1
+                else
+                    echo "TEST MODE.  Would run:"
+                    echo "$SSH $o_pool zfs snapshot ${o_pool}/${o_folder}/dev/${dev_name}/${clone_folder}@clone"
+                fi
+               
+                IFS=','
+            done
+            
+        fi
+        NUM=$(( NUM + 1 ))
+        line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
+    done
+    unset IFS
+
+fi # pg_only
 
 ##
 # Clone postgres
@@ -399,7 +419,7 @@ fi
 
 # Resume Replication
 
-die "" 0
+die "Cloning $dev_name complete." 0
 
 
 
