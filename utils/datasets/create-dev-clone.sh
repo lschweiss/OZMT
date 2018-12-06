@@ -78,7 +78,7 @@ while getopts d:n:s:q:i:p:t opt; do
             ;;
         p)  # Leave replication paused
             pause="$OPTARG"
-            debug "Leave replication paused.  Using tag $OPTARG"
+            debug "Replication was left paused by clone destroy.  Using tag $OPTARG"
             ;;
         t)  # Test mode
             test='true'
@@ -110,6 +110,11 @@ die () {
             debug "Releasing pause on $ozmt_dataset on pool $o_pool"
             $SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -s unpause -i $pause
         done
+    fi
+
+    if [ "$p_paused" == 'true' ]; then
+        debug "Releasing pause on $p_dataset on pool $p_pool"
+        $SSH $p_pool /opt/ozmt/replication/replication-state.sh -d $p_dataset -s unpause -i $pause
     fi
 
     rm -f ${myTMP}/dataset*_$$
@@ -226,20 +231,23 @@ fi
 
 
 
-##
-# Create the clone(s)
-##
-
 # Collect folders
 rm -f ${myTMP}/dataset_folders_$$
-folders=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}` 
-if [ "$folders" != ' - ' ]; then
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}` 
+folders="$(echo -e "$x" | $TR -d '[:space:]')"
+if [ "$folders" != '-' ]; then
     NUM=1
     while [ $NUM -le $folders ]; do
         $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${myTMP}/dataset_folders_$$
         NUM=$(( NUM + 1 ))
     done
 fi
+
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
+postgres="$(echo -e "$x" | $TR -d '[:space:]')"
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
+postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
+
 
 debug "Cloning the following folders: $(cat ${myTMP}/dataset_folders_$$)"
 
@@ -252,8 +260,9 @@ else
 fi
 
 rm -f ${myTMP}/dataset_datasets_$$
-datasets=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
-if [ "$datasets" != ' - ' ]; then
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
+datasets="$(echo -e "$x" | $TR -d '[:space:]')"
+if [ "$datasets" != '-' ]; then
     NUM=1
     while [ $NUM -le $datasets ]; do
         $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${myTMP}/dataset_datasets_$$
@@ -362,6 +371,30 @@ while [ "$line" != '' ]; do
     NUM=$(( NUM + 1 ))
     line=`$SED "${NUM}q;d" ${myTMP}/dataset_folders_$$`
 done
+unset IFS
+
+##
+# Clone postgres
+##
+
+if [ "$postgres" != '-' ]; then
+    notice "Creating ${p_pool}/${p_folder}/dev/${dev_name} from ${p_pool}/${p_folder}/${p_name}@${snap}"
+        
+    if [ "$test" != 'true' ]; then
+        $SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} || \
+            die "FAILED: $SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}" 1
+        if [ "$dev_ip" != "" ]; then
+            $SSH $p_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} || \
+                die "FAILED: $SSH $p_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}" 1
+        fi
+        $SSH $p_pool zfs snapshot ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}@clone || \
+            die "FAILED: $SSH $p_pool zfs snapshot ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}@clone" 1
+    else
+        echo "TEST MODE.  Would run:"
+        echo "$SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"
+    fi
+
+fi
 
 
 # Resume Replication

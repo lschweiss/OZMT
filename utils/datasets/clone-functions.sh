@@ -2,13 +2,28 @@
 
 if [ "$ozmt_datasets" != '' ]; then
     for ozmt_dataset in $ozmt_datasets; do
-        debug "Finding dataset source for $ozmt_dataset"
         this_source=`dataset_source $ozmt_dataset`
-        debug "Found source as: $this_source"
+        debug "Found dataset $ozmt_dataset at: $this_source"
         o_source["$ozmt_dataset"]="$this_source"
     done
 fi
 
+x="$(echo -e "$postgres" | $TR -d '[:space:]')"
+postgres="$x"
+if [ "$postgres" != '-' ]; then
+    p_dataset=`echo $postgres | ${CUT} -d ':' -f 1`
+    p_name=`echo $postgres | ${CUT} -d ':' -f 2`
+    p_source=`dataset_source $p_dataset`
+    debug "Found postgres source at: $p_source"
+    p_pool=`echo $p_source | $CUT -d ':' -f 1`
+    p_folder=`echo $p_source | $CUT -d ':' -f 2`
+fi
+
+if [ "$postgres_dev" != '-' ]; then
+    pdev_folder="$postgres_dev"
+else
+    pdev_folder="dev"
+fi
 
 
 # Pause all related datasets replication
@@ -23,6 +38,12 @@ if [ "$ozmt_datasets" != '' ]; then
         o_paused["$ozmt_dataset"]='true'
         paused='true'
     done
+fi
+
+if [ "$postgres" != '-' ]; then
+    notice "Pausing $p_dataset replication"
+    $SSH $p_pool /opt/ozmt/replication/replication-state.sh -d $p_dataset -s pause -i $pause
+    p_paused='true'
 fi
 
 
@@ -47,13 +68,31 @@ while [ "$flushed" == 'false' ]; do
 
         echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
         if [ $? -eq 0 ]; then
+            debug "Dataset $ozmt_dataset not flushed.  Pausing 30 seconds."
             flushed='false'
             sleep 30
         fi
 
     done
 
+    if [ "$postgres" != '-' ]; then
+        state=`$SSH $p_pool /opt/ozmt/replication/replication-state.sh -d $p_dataset -r 2> /dev/null`
+        echo $state | ${GREP} -q 'FAIL'
+        if [ $? -eq 0 ]; then
+            error "Dataset $p_dataset replication in failed state.  Must fix before cloning."
+            die "Dataset $p_dataset replication in failed state.  Must fix before cloning." 1
+        fi
+
+        echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
+        if [ $? -eq 0 ]; then
+            debug "Dataset $p_dataset not flushed.  Pausing 30 seconds."
+            flushed='false'
+            sleep 30
+        fi
+    fi
+
 done
+
 
 debug "All jobs fully paused"
 

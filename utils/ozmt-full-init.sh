@@ -232,7 +232,7 @@ gnu_source () {
 
 [ -z "$TEST" ] && TEST=`gnu_source test`
 
-
+[ -z "$TR" ] && TR=`gnu_source tr`
 
 
 # Set defaults

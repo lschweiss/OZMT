@@ -67,6 +67,7 @@ while getopts d:n:p:t opt; do
             ;;
         p)  # Leave replication paused
             pause="$OPTARG"
+            pflag='true'
             debug "Leave replication paused.  Using tag $OPTARG"
             ;;
         ?)  # Show program usage and exit
@@ -89,6 +90,7 @@ fi
 
 die () {
     unset IFS
+
     if [ "$paused" == 'true' ]; then
         for ozmt_dataset in $ozmt_datasets; do
             this_source="${o_source[$ozmt_dataset]}"
@@ -96,6 +98,11 @@ die () {
             debug "Releasing pause on $ozmt_dataset on pool $o_pool"
             $SSH $o_pool /opt/ozmt/replication/replication-state.sh -d $ozmt_dataset -s unpause -i $pause
         done
+    fi
+
+    if [ "$p_paused" == 'true' ]; then
+        debug "Releasing pause on $p_dataset on pool $p_pool"
+        $SSH $p_pool /opt/ozmt/replication/replication-state.sh -d $p_dataset -s unpause -i $pause
     fi
 
     rm -f ${myTMP}/dataset*_$$
@@ -126,8 +133,9 @@ clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
 # Collect dataset folders
 
 rm -f ${TMP}/dataset_folders_$$
-folders=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}`
-if [ "$folders" != ' - ' ]; then
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}`
+folders="$(echo -e "$x" | $TR -d '[:space:]')"
+if [ "$folders" != '-' ]; then
     NUM=1
     while [ $NUM -le $folders ]; do
         $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${TMP}/dataset_folders_$$
@@ -136,8 +144,9 @@ if [ "$folders" != ' - ' ]; then
 fi
 
 rm -f ${TMP}/dataset_datasets_$$
-datasets=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
-if [ "$datasets" != ' - ' ]; then
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
+datasets="$(echo -e "$x" | $TR -d '[:space:]')"
+if [ "$datasets" != '-' ]; then
     NUM=1
     while [ $NUM -le $datasets ]; do
         $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${TMP}/dataset_datasets_$$
@@ -147,6 +156,10 @@ fi
 
 ozmt_datasets=`cat ${TMP}/dataset_datasets_$$ 2>/dev/null`
 
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
+postgres="$(echo -e "$x" | $TR -d '[:space:]')"
+x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
+postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
 
 ##
 # Locate and pause all related datasets
@@ -203,6 +216,29 @@ if [ "$ozmt_datasets" != '' ]; then
 else
     die "Could not locate any dataset listing for ${clone_dataset}  Make sure dataset's folder paramaters are set." 1
 fi
+
+
+##
+# Destroy Postgres clone
+##
+
+if [ "$postgres" != '-' ]; then
+    $SSH $p_pool zfs list -o name -H ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} 1>/dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
+        warning "Could not location ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} Skipping destroy."
+        result=0
+    else
+        notice "Destroying ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"
+        if [ "$test" != 'true' ]; then
+            $SSH $p_pool zfs destroy -r -f ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
+            result=$?
+        fi
+    fi
+    if [ $result -ne 0 ]; then
+        die "Failed to destroy ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}" 1
+    fi
+fi
+
 
 if [ "$pause" == "$$" ]; then
     die "Destroying $clone_dataset complete" 0
