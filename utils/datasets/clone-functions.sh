@@ -31,6 +31,16 @@ else
     pdev_folder="dev"
 fi
 
+if [ "$reparse" != '' ]; then
+    data_dataset=`echo $reparse | ${CUT} -d ':' -f 1`
+    pg_dev_folder=`echo $reparse | ${CUT} -d ':' -f 2`
+    data_source=`dataset_source $data_dataset`
+    data_pool=`echo $data_source | $CUT -d ':' -f 1`
+    data_folder=`echo $data_source | $CUT -d ':' -f 2`
+    debug "Found Postgres dev path at ${data_source}:/${data_folder}/${pg_dev_folder}"
+fi
+    
+
 
 # Pause all related datasets replication
 if [ "$ozmt_datasets" != '' ]; then
@@ -62,6 +72,7 @@ while [ "$flushed" == 'false' ]; do
 
     if [ "$pg_only" == '' ]; then
         for ozmt_dataset in $ozmt_datasets; do
+            set -x
             flushed='true'
             this_source="${o_source[$ozmt_dataset]}"
             o_pool=`echo $this_source | $CUT -d ':' -f 1`
@@ -73,6 +84,7 @@ while [ "$flushed" == 'false' ]; do
                 error "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning."
                 die "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning." 1
             fi
+            set +x
 
             echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
             if [ $? -eq 0 ]; then

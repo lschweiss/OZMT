@@ -50,11 +50,17 @@ paused='false'
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-o {pg_dataset}:{pg_folder} ] -s {snapname} [-i {dev_ip} ] [-q {quota}] [-p {pause_tag}] [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} "
+    echo "          [-o {pg_dataset}:{pg_folder} ]"
+    echo "          [-r {data_dataset):{pg_dev_folder}"
+    echo "          [-i {dev_ip} ]"
+    echo "          [-q {quota}]"
+    echo "          [-p {pause_tag}]"
+    echo "          [-t ]"
     echo
 }
 
-while getopts d:n:o:s:q:i:p:t opt; do
+while getopts d:n:o:r:s:q:i:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -67,6 +73,10 @@ while getopts d:n:o:s:q:i:p:t opt; do
         o)  # Only Postgres
             pg_only="$OPTARG"
             debug "Only cloning postgres at: $pg_only"
+            ;;
+        r)  # Create reparse point for Postgres
+            reparse="$OPTARG"
+            debug "Will create postgres reparse point at: $OPTARG"
             ;;
         s)  # Snapshot name / type
             snap_name="$OPTARG"
@@ -401,14 +411,23 @@ if [ "$postgres" != '-' ]; then
     notice "Creating ${p_pool}/${p_folder}/dev/${dev_name} from ${p_pool}/${p_folder}/${p_name}@${snap}"
         
     if [ "$test" != 'true' ]; then
+        # Clone it
         $SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} || \
             die "FAILED: $SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}" 1
+        # Share it
         if [ "$dev_ip" != "" ]; then
             $SSH $p_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} || \
                 die "FAILED: $SSH $p_pool zfs set sharenfs="rw=@${dev_ip}/32,root=@${dev_ip}/32" ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}" 1
         fi
+        # Snapshot it
         $SSH $p_pool zfs snapshot ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}@clone || \
             die "FAILED: $SSH $p_pool zfs snapshot ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}@clone" 1
+        # Create reparse
+        if [ "$reparse" != '' ]; then
+            debug "Creating NFS reparse point at: /${data_folder}/${pg_dev_folder}/${dev_name}"
+            $SSH $data_pool nfsref add /${data_folder}/${pg_dev_folder}/${dev_name} zfs-${p_dataset}:/${p_folder}/${pdev_folder}/${dev_name} 
+        fi
+
     else
         echo "TEST MODE.  Would run:"
         echo "$SSH $p_pool zfs clone ${p_pool}/${p_folder}/${p_name}@${snap} ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"

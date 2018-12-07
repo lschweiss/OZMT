@@ -281,16 +281,16 @@ for dataset in $datasets; do
             if [ "$running" == 'true' ]; then
                 echo -e "${dataset}\tRUNNING"
             else
-                if [ -f ${pool}/zfs_tools/var/replication/jobs/running/${job_prefix}* ]; then
+                if [ -f /${pool}/zfs_tools/var/replication/jobs/running/${job_prefix}* ]; then
                     echo -n ",RUNNING"
                 fi
-                if [ -f ${pool}/zfs_tools/var/replication/jobs/sync/${job_prefix}* ]; then
+                if [ -f /${pool}/zfs_tools/var/replication/jobs/sync/${job_prefix}* ]; then
                     echo -n ",SYNC"
                 fi
-                if [ -f ${pool}/zfs_tools/var/replication/jobs/cleaning/${job_prefix}* ]; then
+                if [ -f /${pool}/zfs_tools/var/replication/jobs/cleaning/${job_prefix}* ]; then
                     echo -n ",CLEAN"
                 fi
-                if [ -f ${pool}/zfs_tools/var/replication/jobs/failed/${job_prefix}* ]; then
+                if [ -f /${pool}/zfs_tools/var/replication/jobs/failed/${job_prefix}* ]; then
                     echo -n ",FAIL"
                 fi
                 echo

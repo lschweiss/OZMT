@@ -47,11 +47,15 @@ paused='false'
 # show function usage
 show_usage() {
     echo
-    echo "Usage: $0 -d {dataset_name} -n {instance_name} [-o {pg_dataset}:{pg_folder} ] [-p {pause_tag}] [-t]"
+    echo "Usage: $0 -d {dataset_name} -n {instance_name} "
+    echo "          [-o {pg_dataset}:{pg_folder} ] "
+    echo "          [-r {data_dataset):{pg_dev_folder}"
+    echo "          [-p {pause_tag}] "
+    echo "          [-t]"
     echo
 }
 
-while getopts d:n:o:p:t opt; do
+while getopts d:n:o:r:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -65,7 +69,10 @@ while getopts d:n:o:p:t opt; do
             pg_only="$OPTARG"
             debug "Only cloning postgres at: $pg_only"
             ;;
-
+        r)  # Destroyreparse point for Postgres
+            reparse="$OPTARG"
+            debug "Will destroy postgres reparse point at: $OPTARG"
+            ;;
         t)  # Test mode
             test='true'
             debug "Running in test mode"
@@ -241,6 +248,10 @@ if [ "$postgres" != '-' ]; then
             notice "Destroying ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"
             $SSH $p_pool zfs destroy -r -f ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
             result=$?
+            if [ "$reparse" != '' ]; then
+                debug "Removing NFS reparse point at: /${data_folder}/${pg_dev_folder}/${dev_name}"
+                $SSH $data_pool rm /${data_folder}/${pg_dev_folder}/${dev_name}
+            fi
         else
             echo "TEST MODE. Would run:"
             echo "$SSH $p_pool zfs destroy -r -f ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"
