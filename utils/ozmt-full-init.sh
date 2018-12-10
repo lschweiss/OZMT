@@ -234,6 +234,8 @@ gnu_source () {
 
 [ -z "$TR" ] && TR=`gnu_source tr`
 
+[ -z "$CP" ] && CP=`gnu_source cp`
+
 
 # Set defaults
 

@@ -9,10 +9,19 @@ if [ "$pg_only" == '' ]; then
         done
     fi
 else
-    postgres="$pg_only"
+    postgres="$(echo "$pg_only" | ${CUT} -d ':' -f 1):$(echo "$pg_only" | ${CUT} -d ':' -f 2)"
+    postgres_data_pool="$(echo "$pg_only" | ${CUT} -d ':' -f 1)"
+    # Check for optional root reparse location
+    postgres_reparse="$(echo "$pg_only" | ${CUT} -d ':' -f 3):$(echo "$pg_only" | ${CUT} -d ':' -f 4)"
+    postgres_data_dataset="$(echo "$pg_only" | ${CUT} -d ':' -f 3)"
+    postgres_data_source=`dataset_source $postgres_data_dataset`
+    postgres_data_folder=`echo $postgres_data_source | $CUT -d ':' -f 2`
+    postgres_dev_folder="$(echo "$pg_only" | ${CUT} -d ':' -f 4)"
+    if [ "$postgres_reparse" == ':' ]; then
+        postgres_reparse='-'
+    fi
     postgres_dev='-'
 fi
-
     
 x="$(echo -e "$postgres" | $TR -d '[:space:]')"
 postgres="$x"
@@ -31,16 +40,18 @@ else
     pdev_folder="dev"
 fi
 
-if [ "$reparse" != '' ]; then
-    data_dataset=`echo $reparse | ${CUT} -d ':' -f 1`
-    pg_dev_folder=`echo $reparse | ${CUT} -d ':' -f 2`
-    data_source=`dataset_source $data_dataset`
-    data_pool=`echo $data_source | $CUT -d ':' -f 1`
-    data_folder=`echo $data_source | $CUT -d ':' -f 2`
-    debug "Found Postgres dev path at ${data_source}:/${data_folder}/${pg_dev_folder}"
-fi
-    
+if [ "$dataset_reparse" != '-' ]; then
+    dataset_data_dataset=`echo $dataset_reparse | ${CUT} -d ':' -f 1`
+    dataset_dev_folder=`echo $dataset_reparse | ${CUT} -d ':' -f 2`
+    dataset_app_folder=`echo $dataset_reparse | ${CUT} -d ':' -f 3`
+    dataset_data_source=`dataset_source $dataset_data_dataset`
+    dataset_data_pool=`echo $dataset_data_source | $CUT -d ':' -f 1`
+    dataset_data_folder=`echo $dataset_data_source | $CUT -d ':' -f 2`
+    dataset_data_mountpoint=`$SSH $dataset_data_pool zfs get -H -o value mountpoint ${dataset_data_pool}/${dataset_data_dataset}`
+    debug "Found Postgres dev path at ${dataset_data_source}:/${dataset_data_folder}/${dataset_dev_folder}"
 
+
+fi
 
 # Pause all related datasets replication
 if [ "$ozmt_datasets" != '' ]; then
@@ -72,8 +83,6 @@ while [ "$flushed" == 'false' ]; do
 
     if [ "$pg_only" == '' ]; then
         for ozmt_dataset in $ozmt_datasets; do
-            set -x
-            flushed='true'
             this_source="${o_source[$ozmt_dataset]}"
             o_pool=`echo $this_source | $CUT -d ':' -f 1`
             o_folder=`echo $this_source | $CUT -d ':' -f 2`
@@ -84,7 +93,6 @@ while [ "$flushed" == 'false' ]; do
                 error "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning."
                 die "Dataset $ozmt_dataset replication in failed state.  Must fix before cloning." 1
             fi
-            set +x
 
             echo $state | ${GREP} -q 'RUNNING\|SYNC\|CLEAN'
             if [ $? -eq 0 ]; then

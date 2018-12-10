@@ -169,6 +169,7 @@ for dataset in $datasets; do
     info_folder=
     suspended=
     paused=
+    replication_set=
 
 
     ##
@@ -181,6 +182,20 @@ for dataset in $datasets; do
         if [ -f /${pool}/zfs_tools/var/replication/source/${dataset} ]; then
             ds_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset}`
             break
+        else
+            # Check for a non-replicated dataset
+            zfs list -o name -H ${pool}/${dataset} 1> /dev/null 2>/dev/null
+            if [ $? -eq 0 ]; then
+                replication_set=`zfs get -o value -H $zfs_replication_property`
+                if [ "$replication_set" == 'on' ]; then
+                    error "Replication enabled for $dataset, but no source set"
+                    exit 1
+                else
+                    ds_source="${pool}:${dataset}"
+                    replication_set='off'
+                    break
+                fi
+            fi
         fi
     done
     
@@ -195,192 +210,203 @@ for dataset in $datasets; do
     
     # Where are the targets?
     
-    if [ ! -f /$pool/zfs_tools/var/replication/targets/${dataset} ]; then
-        error "Missing /$pool/zfs_tools/var/replication/targets/${dataset} cannot change replication state with out it."
-        continue
-    else
-        ds_targets=`cat /$pool/zfs_tools/var/replication/targets/${dataset}`
-    fi
-    
-    # Find and read the definition(s).
-    
-    for check_pool in $pools; do
-        if [ -d "/$check_pool/zfs_tools/var/replication/jobs/definitions" ]; then
-            definitions=`${FIND} "/$check_pool/zfs_tools/var/replication/jobs/definitions/" -type f`
-            for definition in $definitions; do
-                source $definition
-                if [ "$dataset_name" == "$dataset" ]; then
-                    debug "Found job definition $definition for $dataset"
-                    jobs="$definition $jobs"
-                    job_count=$(( job_count + 1 ))
-                fi
-            done        
-        fi
-    done
-    
-    ##
-    # Is this the source host?
-    ##
-    
-    source_pool=`echo "$ds_source" | ${CUT} -d ":" -f 1`
-    source_folder=`echo "$ds_source" | ${CUT} -d ":" -f 2`
-    
-    if islocal $source_pool; then
-        debug "Confirmed running on the source host."
-    else
-        warning "Must be run on the dataset's source host with the pool $source_pool"
-        continue
-    fi
-    
-    
-    ##
-    # Is it unanimous where the source is?
-    ##
-    
-    for target in $ds_targets; do
-        debug "Checking dataset source for target $target"
-        target_pool=`echo "$target" | ${CUT} -d ":" -f 1`
-        check_source=`${SSH} root@$target_pool cat /$target_pool/zfs_tools/var/replication/source/$dataset`
-        if [ "$check_source" != "$ds_source" ]; then
-            error "Dataset source is not consistent at all targets.  Target $target reports source to be $check_source.  My source: $ds_source"
-            abort='true'
-        fi
-    done
-    if [ "$abort" == 'true' ]; then
-        abort=
-        # Jump to next dataset
-        continue
-    fi
-
-    
-    for job in $jobs; do
-        suspended=
-        paused=
-        pause_array=
-        suspend_array=
-
-        source $job
-        job_prefix="${dataset_name}_to_${target}"
-
-
-        ##
-        # Query state
-        ##
-
+    if [ "$replication_set" == 'off' ]; then
+        ds_targets="$ds_source"
         if [ "$q_state" == 'true' ]; then
-            source $job_status
-            running='true'
-            if [ "$suspended" == 'true' ]; then
-                echo -e "${dataset}\tSUSPENDED"
-                running='false'
+            echo -e "${dataset}\tOFF"
+        else
+            echo "Cannot set replication state on un-replicated dataset"
+        fi            
+    else
+        if [ ! -f /$pool/zfs_tools/var/replication/targets/${dataset} ]; then
+            error "Missing /$pool/zfs_tools/var/replication/targets/${dataset} cannot change replication state with out it."
+            continue
+        else
+            ds_targets=`cat /$pool/zfs_tools/var/replication/targets/${dataset}`
+        fi
+    
+    
+        # Find and read the definition(s).
+        
+        for check_pool in $pools; do
+            if [ -d "/$check_pool/zfs_tools/var/replication/jobs/definitions" ]; then
+                definitions=`${FIND} "/$check_pool/zfs_tools/var/replication/jobs/definitions/" -type f`
+                for definition in $definitions; do
+                    source $definition
+                    if [ "$dataset_name" == "$dataset" ]; then
+                        debug "Found job definition $definition for $dataset"
+                        jobs="$definition $jobs"
+                        job_count=$(( job_count + 1 ))
+                    fi
+                done        
             fi
-            if [ "$paused" == 'true' ]; then
-                echo -e -n "${dataset}\tPAUSED"
-                running='false'
-            fi
-            if [ "$running" == 'true' ]; then
-                echo -e "${dataset}\tRUNNING"
-            else
-                if [ -f /${pool}/zfs_tools/var/replication/jobs/running/${job_prefix}* ]; then
-                    echo -n ",RUNNING"
-                fi
-                if [ -f /${pool}/zfs_tools/var/replication/jobs/sync/${job_prefix}* ]; then
-                    echo -n ",SYNC"
-                fi
-                if [ -f /${pool}/zfs_tools/var/replication/jobs/cleaning/${job_prefix}* ]; then
-                    echo -n ",CLEAN"
-                fi
-                if [ -f /${pool}/zfs_tools/var/replication/jobs/failed/${job_prefix}* ]; then
-                    echo -n ",FAIL"
-                fi
-                echo
-            fi
+        done
+        
+        ##
+        # Is this the source host?
+        ##
+        
+        source_pool=`echo "$ds_source" | ${CUT} -d ":" -f 1`
+        source_folder=`echo "$ds_source" | ${CUT} -d ":" -f 2`
+        
+        if islocal $source_pool; then
+            debug "Confirmed running on the source host."
+        else
+            warning "Must be run on the dataset's source host with the pool $source_pool"
             continue
         fi
-    
-    
-    
+        
+        
         ##
-        # Set the repliction state
+        # Is it unanimous where the source is?
         ##
-        case "$state" in
-            'pause')
-                update_job_status "$job_status" "paused" "true"
-                if [ "$id" != "" ]; then
-                    pause_array="$id $pause_array"
-                    update_job_status "$job_status" "pause_array" "$pause_array"
-                fi
-                ;;
-            'unpause')
-                if [ "$id" != "" ]; then
-                    new_array=
-                    for x in $pause_array; do
-                        if [ "$x" != "$id" ]; then
-                            new_array="$x $new_array"
-                        fi
-                    done
-                    update_job_status "$job_status" "pause_array" "$new_array"
-                    if [ "$new_array" == '' ]; then
-                        update_job_status "$job_status" "paused" 'false'
-                    fi
-                else
-                    update_job_status "$job_status" "paused" "false"
-                    update_job_status "$job_status" "pause_array" ""
-                fi
-                ;;
-            'suspend')
-                update_job_status "$job_status" "suspended" 'true'
-                if [ "$id" != "" ]; then
-                    suspend_array="$id $suspend_array"
-                    update_job_status "$job_status" "suspend_array" "$suspend_array"
-                fi
-                ;;
-            'unsuspend')
-                if [ "$id" != "" ]; then
-                    new_array=
-                    for x in $suspend_array; do
-                        if [ "$x" != "$id" ]; then
-                            new_array="$x $new_array"
-                        fi
-                    done
-                    update_job_status "$job_status" "suspend_array" "$new_array"
-                    if [ "$new_array" == '' ]; then
-                        update_job_status "$job_status" "suspended" 'false'
-                    fi
-                else
-                    update_job_status "$job_status" "suspended" "false"
-                    update_job_status "$job_status" "suspended_array" ""
-                fi
-                ;;
-            'run')
-                if [ "$id" != "" ]; then
-                    new_array=
-                    for x in $pause_array; do
-                        if [ "$x" != "$id" ]; then
-                            new_array="$x $new_array"
-                        fi
-                    done
-                    update_job_status "$job_status" "pause_array" "$new_array"
-                    if [ "$new_array" == '' ]; then
-                        update_job_status "$job_status" "paused" 'false'
-                    fi
-                    new_array=
-                    for x in $suspend_array; do
-                        if [ "$x" != "$id" ]; then
-                            new_array="$x $new_array"
-                        fi
-                    done
-                    update_job_status "$job_status" "suspend_array" "$new_array"
-                    if [ "$new_array" == '' ]; then
-                        update_job_status "$job_status" "suspended" 'false'
-                    fi
-                else        
-                    update_job_status "$job_status" "suspended" 'false' "paused" 'false' "suspend_array" "" "pause_array" ""
-                fi
-                ;;
-        esac
+        
+        for target in $ds_targets; do
+            debug "Checking dataset source for target $target"
+            target_pool=`echo "$target" | ${CUT} -d ":" -f 1`
+            check_source=`${SSH} root@$target_pool cat /$target_pool/zfs_tools/var/replication/source/$dataset`
+            if [ "$check_source" != "$ds_source" ]; then
+                error "Dataset source is not consistent at all targets.  Target $target reports source to be $check_source.  My source: $ds_source"
+                abort='true'
+            fi
+        done
+        if [ "$abort" == 'true' ]; then
+            abort=
+            # Jump to next dataset
+            continue
+        fi
 
-    done # for job
+    
+        for job in $jobs; do
+            suspended=
+            paused=
+            pause_array=
+            suspend_array=
+
+            source $job
+            job_prefix="${dataset_name}_to_${target}"
+
+
+            ##
+            # Query state
+            ##
+
+            if [ "$q_state" == 'true' ]; then
+                source $job_status
+                running='true'
+                if [ "$suspended" == 'true' ]; then
+                    echo -e "${dataset}\tSUSPENDED"
+                    running='false'
+                fi
+                if [ "$paused" == 'true' ]; then
+                    echo -e -n "${dataset}\tPAUSED"
+                    running='false'
+                fi
+                if [ "$running" == 'true' ]; then
+                    echo -e "${dataset}\tRUNNING"
+                else
+                    if [ -f /${pool}/zfs_tools/var/replication/jobs/running/${job_prefix}* ]; then
+                        echo -n ",RUNNING"
+                    fi
+                    if [ -f /${pool}/zfs_tools/var/replication/jobs/sync/${job_prefix}* ]; then
+                        echo -n ",SYNC"
+                    fi
+                    if [ -f /${pool}/zfs_tools/var/replication/jobs/cleaning/${job_prefix}* ]; then
+                        echo -n ",CLEAN"
+                    fi
+                    if [ -f /${pool}/zfs_tools/var/replication/jobs/failed/${job_prefix}* ]; then
+                        echo -n ",FAIL"
+                    fi
+                    echo
+                fi
+                continue
+            fi
+        
+        
+        
+            ##
+            # Set the repliction state
+            ##
+            source $job_status
+            case "$state" in
+                'pause')
+                    update_job_status "$job_status" "paused" "true"
+                    if [ "$id" != "" ]; then
+                        pause_array="$id $pause_array"
+                        update_job_status "$job_status" "pause_array" "$pause_array"
+                    fi
+                    ;;
+                'unpause')
+                    if [ "$id" != "" ]; then
+                        new_array=
+                        for x in $pause_array; do
+                            if [ "$x" != "$id" ]; then
+                                new_array="$x $new_array"
+                            fi
+                        done
+                        update_job_status "$job_status" "pause_array" "$new_array"
+                        if [ "$new_array" == '' ]; then
+                            update_job_status "$job_status" "paused" 'false'
+                        fi
+                    else
+                        update_job_status "$job_status" "paused" "false"
+                        update_job_status "$job_status" "pause_array" ""
+                    fi
+                    ;;
+                'suspend')
+                    update_job_status "$job_status" "suspended" 'true'
+                    if [ "$id" != "" ]; then
+                        suspend_array="$id $suspend_array"
+                        update_job_status "$job_status" "suspend_array" "$suspend_array"
+                    fi
+                    ;;
+                'unsuspend')
+                    if [ "$id" != "" ]; then
+                        new_array=
+                        for x in $suspend_array; do
+                            if [ "$x" != "$id" ]; then
+                                new_array="$x $new_array"
+                            fi
+                        done
+                        update_job_status "$job_status" "suspend_array" "$new_array"
+                        if [ "$new_array" == '' ]; then
+                            update_job_status "$job_status" "suspended" 'false'
+                        fi
+                    else
+                        update_job_status "$job_status" "suspended" "false"
+                        update_job_status "$job_status" "suspended_array" ""
+                    fi
+                    ;;
+                'run')
+                    if [ "$id" != "" ]; then
+                        new_array=
+                        for x in $pause_array; do
+                            if [ "$x" != "$id" ]; then
+                                new_array="$x $new_array"
+                            fi
+                        done
+                        update_job_status "$job_status" "pause_array" "$new_array"
+                        if [ "$new_array" == '' ]; then
+                            update_job_status "$job_status" "paused" 'false'
+                        fi
+                        new_array=
+                        for x in $suspend_array; do
+                            if [ "$x" != "$id" ]; then
+                                new_array="$x $new_array"
+                            fi
+                        done
+                        update_job_status "$job_status" "suspend_array" "$new_array"
+                        if [ "$new_array" == '' ]; then
+                            update_job_status "$job_status" "suspended" 'false'
+                        fi
+                    else        
+                        update_job_status "$job_status" "suspended" 'false' "paused" 'false' "suspend_array" "" "pause_array" ""
+                    fi
+                    ;;
+            esac
+
+        done # for job
+    fi # replication_set == off
     
 done # for dataset
 

@@ -49,13 +49,13 @@ show_usage() {
     echo
     echo "Usage: $0 -d {dataset_name} -n {instance_name} "
     echo "          [-o {pg_dataset}:{pg_folder} ] "
-    echo "          [-r {data_dataset):{pg_dev_folder}"
+    echo "          [-f {fqdn}"
     echo "          [-p {pause_tag}] "
     echo "          [-t]"
     echo
 }
 
-while getopts d:n:o:r:p:t opt; do
+while getopts d:n:o:f:p:t opt; do
     case $opt in
         d)  # Dataset name
             clone_dataset="$OPTARG"
@@ -69,9 +69,9 @@ while getopts d:n:o:r:p:t opt; do
             pg_only="$OPTARG"
             debug "Only cloning postgres at: $pg_only"
             ;;
-        r)  # Destroyreparse point for Postgres
-            reparse="$OPTARG"
-            debug "Will destroy postgres reparse point at: $OPTARG"
+        f)  # FQDN used for reparse points
+            dev_fqdn="$OPTARG"
+            debug "Will delete root reparse points for: $OPTARG"
             ;;
         t)  # Test mode
             test='true'
@@ -99,6 +99,16 @@ if [ "$pause" == '' ]; then
     pause="$$"
 fi
 
+if [ "$dev_name" == '' ]; then
+    if [ "$dev_fqdn" != "" ]; then
+        dev_name=`echo $dev_fqdn | ${CUT} -d '.' -f 1`
+        debug "Instance name not specified.  Set to $dev_name from $dev_fqdn"
+    else
+        echo "Neither -n or -f specified."
+        show_usage
+        exit 1
+    fi
+fi
 
 die () {
     unset IFS
@@ -167,11 +177,20 @@ if [ "$pg_only" == '' ]; then
     fi
     
     ozmt_datasets=`cat ${TMP}/dataset_datasets_$$ 2>/dev/null`
-    
+
+    # Collect additional cloning information
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:reparse ${clone_pool}/${clone_dataset}`
+    dataset_reparse="$(echo -e "$x" | $TR -d '[:space:]')"
+
+    dataset_mountpoint=`$SSH $clone_pool zfs get -H -o value mountpoint ${clone_pool}/${clone_dataset}`
+
     x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
     postgres="$(echo -e "$x" | $TR -d '[:space:]')"
     x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
     postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
+    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres:reparse ${clone_pool}/${clone_dataset}`
+    postgres_reparse="$(echo -e "$x" | $TR -d '[:space:]')"
+
 
 fi # pg_only
 
@@ -225,9 +244,20 @@ if [ "$pg_only" == '' ]; then
                     fi
                     sleep 60
                 fi
-            done
-    
+            done    
         done
+        
+        # Delete root reparse point
+        if [ "$dataset_reparse" != '-' ]; then
+            if [ "$dev_fqdn" == '' ]; then
+                warning "Dataset specfies reparse root, but no FQDN supplied.  Skipping."
+            else
+                link="${dataset_data_mountpoint}/${dataset_dev_folder}/${dev_fqdn}"
+                debug "Deleting dev links at: $link"
+                $SSH $dataset_data_pool rm -r $link
+            fi
+        fi
+
     else
         die "Could not locate any dataset listing for ${clone_dataset}  Make sure dataset's folder paramaters are set." 1
     fi
@@ -248,9 +278,17 @@ if [ "$postgres" != '-' ]; then
             notice "Destroying ${p_pool}/${p_folder}/${pdev_folder}/${dev_name}"
             $SSH $p_pool zfs destroy -r -f ${p_pool}/${p_folder}/${pdev_folder}/${dev_name} 2>${TMP}/dataset_dev_destroy_$$.txt
             result=$?
-            if [ "$reparse" != '' ]; then
-                debug "Removing NFS reparse point at: /${data_folder}/${pg_dev_folder}/${dev_name}"
-                $SSH $data_pool rm /${data_folder}/${pg_dev_folder}/${dev_name}
+            # Delete reparse point
+            if [ "$postgres_reparse" != '-' ]; then
+                if [ "$dev_fqdn" == '' ]; then
+                    warning "Dataset specfies postgres reparse root, but no FQDN supplied.  Skipping."
+                else
+                    if [ "$pg_only" != '' ]; then
+                        link="/${postgres_data_folder}/${postgres_dev_folder}/${dev_fqdn}"
+                        debug "Deleting postgres reparse point at: $link"
+                        $SSH $postgres_data_pool rm $link
+                    fi
+                fi
             fi
         else
             echo "TEST MODE. Would run:"
