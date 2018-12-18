@@ -224,6 +224,10 @@ add_mod_vip () {
 
 del_vip () {
 
+    if [ "$1" == '-h' ]; then
+        vip_usage
+    fi
+
     local zfs_folder="$1"
     shift
     local vip="$1"
