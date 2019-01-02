@@ -63,7 +63,7 @@ for pool in $pools; do
     crondir="/${pool}/zfs_tools/etc/cron/${type}.d"
     if [ -d $crondir ]; then
         crons=`ls -1 $crondir`
-        for cron in $cron; do
+        for cron in $crons; do
             notice "Running $type cron job $cron for $pool"
             ${crondir}/${cron} &
         done
