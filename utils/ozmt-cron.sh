@@ -60,11 +60,12 @@ pools="$(pools)"
 
 for pool in $pools; do
     debug "Checking pool $pool for $type cron jobs"
-    if [ -d /${pool}/etc/cron/${type}.d ]; then
-        crons=`ls -1 /${pool}/etc/cron/${type}.d`
+    crondir="/${pool}/zfs_tools/etc/cron/${type}.d"
+    if [ -d $crondir ]; then
+        crons=`ls -1 $crondir`
         for cron in $cron; do
             notice "Running $type cron job $cron for $pool"
-            /${pool}/etc/cron/${type}.d/${cron} &
+            ${crondir}/${cron} &
         done
     fi
 done
