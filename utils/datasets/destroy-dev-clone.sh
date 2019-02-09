@@ -44,6 +44,8 @@ DEBUG='true'
 
 paused='false'
 
+mode='destroy'
+
 # show function usage
 show_usage() {
     echo
@@ -140,59 +142,57 @@ die () {
     exit $2
 }
 
-if [ "$pg_only" == '' ]; then
-    # Locate dataset info
-    clone_pool=
-    debug "Finding dataset source for $clone_dataset"
-    dataset_source=`dataset_source $clone_dataset`
-    o_source["${clone_dataset}"]="$dataset_source"
-    if [ "$dataset_source" == '' ]; then
-        die "Cannot locate source for $clone_dataset" 1
-    fi
-    debug "Found source at $dataset_source"
-    clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
-    
-    # Collect dataset folders
-    
-    rm -f ${TMP}/dataset_folders_$$
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}`
-    folders="$(echo -e "$x" | $TR -d '[:space:]')"
-    if [ "$folders" != '-' ]; then
-        NUM=1
-        while [ $NUM -le $folders ]; do
-            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${TMP}/dataset_folders_$$
-            NUM=$(( NUM + 1 ))
-        done
-    fi
-    
-    rm -f ${TMP}/dataset_datasets_$$
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
-    datasets="$(echo -e "$x" | $TR -d '[:space:]')"
-    if [ "$datasets" != '-' ]; then
-        NUM=1
-        while [ $NUM -le $datasets ]; do
-            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${TMP}/dataset_datasets_$$
-            NUM=$(( NUM + 1 ))
-        done
-    fi
-    
-    ozmt_datasets=`cat ${TMP}/dataset_datasets_$$ 2>/dev/null`
-
-    # Collect additional cloning information
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:reparse ${clone_pool}/${clone_dataset}`
-    dataset_reparse="$(echo -e "$x" | $TR -d '[:space:]')"
-
-    dataset_mountpoint=`$SSH $clone_pool zfs get -H -o value mountpoint ${clone_pool}/${clone_dataset}`
-
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
-    postgres="$(echo -e "$x" | $TR -d '[:space:]')"
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
-    postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
-    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres:reparse ${clone_pool}/${clone_dataset}`
-    postgres_reparse="$(echo -e "$x" | $TR -d '[:space:]')"
-
-
-fi # pg_only
+## Moved to clone_functions.sh
+#if [ "$pg_only" == '' ]; then
+#    # Locate dataset info
+#    clone_pool=
+#    debug "Finding dataset source for $clone_dataset"
+#    dataset_source=`dataset_source $clone_dataset`
+#    o_source["${clone_dataset}"]="$dataset_source"
+#    if [ "$dataset_source" == '' ]; then
+#        die "Cannot locate source for $clone_dataset" 1
+#    fi
+#    debug "Found source at $dataset_source"
+#    clone_pool=`echo $dataset_source | $CUT -d ':' -f 1`
+#    
+#    # Collect dataset folders
+#    
+#    rm -f ${TMP}/dataset_folders_$$
+#    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folders ${clone_pool}/${clone_dataset}`
+#    folders="$(echo -e "$x" | $TR -d '[:space:]')"
+#    if [ "$folders" != '-' ]; then
+#        NUM=1
+#        while [ $NUM -le $folders ]; do
+#            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:folder:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null  >>${TMP}/dataset_folders_$$
+#            NUM=$(( NUM + 1 ))
+#        done
+#    fi
+#    
+#    rm -f ${TMP}/dataset_datasets_$$
+#    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:datasets ${clone_pool}/${clone_dataset}`
+#    datasets="$(echo -e "$x" | $TR -d '[:space:]')"
+#    if [ "$datasets" != '-' ]; then
+#        NUM=1
+#        while [ $NUM -le $datasets ]; do
+#            $SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:dataset:${NUM} ${clone_pool}/${clone_dataset} 2>/dev/null >>${TMP}/dataset_datasets_$$
+#            NUM=$(( NUM + 1 ))
+#        done
+#    fi
+#    
+#    ozmt_datasets=`cat ${TMP}/dataset_datasets_$$ 2>/dev/null`
+#
+#    # Collect additional cloning information
+#    dataset_mountpoint=`$SSH $clone_pool zfs get -H -o value mountpoint ${clone_pool}/${clone_dataset}`
+#
+#    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres ${clone_pool}/${clone_dataset}`
+#    postgres="$(echo -e "$x" | $TR -d '[:space:]')"
+#    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgresdev ${clone_pool}/${clone_dataset}`
+#    postgres_dev="$(echo -e "$x" | $TR -d '[:space:]')"
+#    x=`$SSH $clone_pool zfs get -H -o value ${zfs_property_tag}:postgres:reparse ${clone_pool}/${clone_dataset}`
+#    postgres_reparse="$(echo -e "$x" | $TR -d '[:space:]')"
+#
+#
+#fi # pg_only
 
 ##
 # Locate and pause all related datasets
@@ -247,17 +247,6 @@ if [ "$pg_only" == '' ]; then
             done    
         done
         
-        # Delete root reparse point
-        if [ "$dataset_reparse" != '-' ]; then
-            if [ "$dev_fqdn" == '' ]; then
-                warning "Dataset specfies reparse root, but no FQDN supplied.  Skipping."
-            else
-                link="${dataset_data_mountpoint}/${dataset_dev_folder}/${dev_fqdn}"
-                debug "Deleting dev links at: $link"
-                $SSH $dataset_data_pool rm -r $link
-            fi
-        fi
-
     else
         die "Could not locate any dataset listing for ${clone_dataset}  Make sure dataset's folder paramaters are set." 1
     fi
@@ -283,11 +272,9 @@ if [ "$postgres" != '-' ]; then
                 if [ "$dev_fqdn" == '' ]; then
                     warning "Dataset specfies postgres reparse root, but no FQDN supplied.  Skipping."
                 else
-                    if [ "$pg_only" != '' ]; then
-                        link="/${postgres_data_folder}/${postgres_dev_folder}/${dev_fqdn}"
-                        debug "Deleting postgres reparse point at: $link"
-                        $SSH $postgres_data_pool rm $link
-                    fi
+                    link="${postgres_reparse_mountpoint}/${postgres_reparse_path}/${dev_fqdn}"
+                    debug "Deleting postgres reparse point at: $link"
+                    $SSH $postgres_reparse_pool rm $link
                 fi
             fi
         else
