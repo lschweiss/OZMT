@@ -122,6 +122,9 @@ if [ "$postgres" != '-' ]; then
     p_dataset=`echo $postgres | ${CUT} -d ':' -f 1`
     p_name=`echo $postgres | ${CUT} -d ':' -f 2`
     p_source=`dataset_source $p_dataset`
+    if [ "$p_source" == '' ]; then
+        die "Cannot locate dataset source for $p_dataset"
+    fi
     debug "Found postgres source at: $p_source"
     p_pool=`echo $p_source | $CUT -d ':' -f 1`
     p_folder=`echo $p_source | $CUT -d ':' -f 2`
