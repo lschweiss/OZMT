@@ -341,6 +341,12 @@ gnu_source () {
 
 [ -z "$default_mtu" ] && default_mtu='1500'
 
+# Linux only
+
+[ -z "$diskdev_path" ] && diskdev_path='/dev/disk/by-id'
+
+[ -z "$diskdev_prefix" ] && diskdev_prefix='wwn-'
+
 
 
 # Test essential binaries

@@ -108,7 +108,7 @@ collect_expander_info () {
         $SG_SES -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp 2>/dev/null
         if [ $? -ne 0 ]; then
             # Not a useful SES link
-            rm -f $myTMP/ses_info.tmp
+            #rm -f $myTMP/ses_info.tmp
             continue
         else
             # Parse the output for useful information
@@ -159,7 +159,7 @@ collect_expander_info () {
             echo "expander["${wwn}_fwrev"]=\"$fwrev\"" >> $myTMP/expanders
             echo "expander["${wwn}_slots"]=\"$slots\"" >> $myTMP/expanders
 
-            jbod_name=`cat /etc/ozmt/jbod-map | ${GREP} $wwn 2> /dev/null | ${AWK} -F ' ' '{print $2}'`
+            jbod_name=`cat /etc/ozmt/jbod-map 2>/dev/null | ${GREP} $wwn 2> /dev/null | ${AWK} -F ' ' '{print $2}'`
             if [ "$jbod_name" != "" ]; then
                 echo "expander["${wwn}_name"]=\"$jbod_name\"" >> $myTMP/expanders
             fi
@@ -173,7 +173,7 @@ collect_expander_info () {
             source $myTMP/expanders
             slot=0
             while [ $slot -lt $slots ]; do
-
+                debug "Collecting slot $(( slot + 1 )) of $slots from ${ses_path}/${dev}"
                 this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
                     $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 echo "expander["${wwn}_sasaddr_${slot}_${paths}"]=\"$this_sasaddr\"" >> $myTMP/expanders
@@ -181,6 +181,7 @@ collect_expander_info () {
                 if [ "$this_sasaddr" != '0' ]; then
                     disk_wwn="${sasaddr["${this_sasaddr}_wwn"]}"
                     if [ "${disk_wwn}" != '' ]; then
+                        debug "Found disk: $disk_wwn"
                         #echo "addr: $this_sasaddr wwn: $disk_wwn"
                         echo "expander["${wwn}_diskwwn_${slot}"]=\"$disk_wwn\"" >> $myTMP/expanders
                         echo "disk["${disk_wwn}_expander"]=\"$wwn\"" >> $myTMP/disks
@@ -201,8 +202,8 @@ collect_expander_info () {
 
     done # for dev
 
-    rm -f $myTMP/ses_info.tmp
-    rm -f $myTMP/ses_wwn.tmp    
+    #rm -f $myTMP/ses_info.tmp
+    #rm -f $myTMP/ses_wwn.tmp    
 
     echo "expander_list=\"$expander_list\"" >> $myTMP/expanders
     source $myTMP/expanders
@@ -214,6 +215,7 @@ collect_disk_info () {
 
     local devs=
     local dev=
+    local devpath=
     local tdev=
     local addr=
     local addrs=
@@ -227,11 +229,26 @@ collect_disk_info () {
     declare -A disk
     declare -A sasaddr
 
-    pushd . 1>/dev/null
-    cd /dev/rdsk
-    # Not all devices get a *d0 link
+    if [ "$SDPARM" == '/bin/false' ]; then 
+        error "Cannot map disks, sdparm not installed."
+    fi
 
-    devs=`ls -1 *d0s0`
+    pushd . 1>/dev/null
+
+    case $os in
+        'SunOS')
+            devpath='/dev/rdsk'
+            cd $devpath
+            # Not all devices get a *d0 link        
+            devs=`ls -1 *d0s0`
+            ;;
+        'Linux')
+            devpath="$diskdev_path"
+            cd $devpath
+            devs=`ls -1 | ${GREP} "^${diskdev_prefix}" | ${GREP} -v '\-part'`
+            ;;
+    esac
+
     popd 1>/dev/null
     echo "declare -A disk" > $myTMP/disks
     echo "declare -A sasaddr" > $myTMP/sasaddresses
@@ -240,17 +257,33 @@ collect_disk_info () {
 
     mkdir $myTMP/disk_info
 
-    
+
     for dev in $devs; do
-        tdev="${dev::-2}"
-        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry /dev/rdsk/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sdparm 2> /dev/null; 
+        case $os in
+            'SunOS')
+                tdev="${dev::-2}"
+                ;;
+            'Linux')
+                tdev="${dev}" #:${#diskdev_prefix}}"
+                ;;
+        esac
+
+        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry ${devpath}/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sdparm 2> /dev/null;
             echo $? > $myTMP/disk_info/${tdev}_disk_info.result ; ) &
     done
 
+ 
     wait
 
     for dev in $devs; do
-        tdev="${dev::-2}"
+        case $os in
+            'SunOS')
+                tdev="${dev::-2}"
+                ;;
+            'Linux')
+                tdev="${dev}" #:${#diskdev_prefix}}"
+                ;;
+        esac
         wwn=
         addrs=0
         result=`cat $myTMP/disk_info/${tdev}_disk_info.result`
@@ -282,7 +315,7 @@ collect_disk_info () {
         serial=
         unitserial=
 
-        $SG_INQ -s /dev/rdsk/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sginq  2> /dev/null
+        $SG_INQ -s ${devpath}/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sginq  2> /dev/null
         if [ $? -ne 0 ]; then
             # Not a useful disk link
             echo "UNKNOWN" > $myTMP/disk_info/${tdev}_disk_info.sginq
