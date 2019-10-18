@@ -98,6 +98,9 @@ output_map () {
     fi
     
     paths="${expander["${wwn}_paths"]}"
+
+    echo "1: Predictive Failure   2: Slot Disabled   3: Ident on   4: Fault on   5: Slot power off"
+    echo
    
     echo "JBOD: $name, Model: ${expander["${wwn}_model"]}, FW: ${expander["${wwn}_fwrev"]}, Paths (${paths}):"
     path=1
@@ -110,8 +113,8 @@ output_map () {
         printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
             "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "wwn" "Addr 1" "Addr 2"
     else
-        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s\n' \
-            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev"
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-14s\n' \
+            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "12345" "Slot Status"
     fi 
     
     bays="${expander["${wwn}_slots"]}"
@@ -131,6 +134,16 @@ output_map () {
         disk_status="${disk["${disk_wwn}_status"]}"
         disk_pool="${disk["${disk_wwn}_pool"]}"
         disk_vdev="${disk["${disk_wwn}_vdev"]}"
+
+        slot_pfailure="${expander["${wwn}_pfailure_${bay}"]}"
+        slot_disabled="${expander["${wwn}_disabled_${bay}"]}"
+        slot_status="${expander["${wwn}_status_${bay}"]}"
+        slot_ident="${expander["${wwn}_ident_${bay}"]}"
+        slot_fault="${expander["${wwn}_fault_${bay}"]}"
+        slot_off="${expander["${wwn}_off_${bay}"]}"
+
+        compact_status="${slot_pfailure}${slot_disabled}${slot_ident}${slot_fault}${slot_off}"
+
         if [ $highlight -eq 1 ]; then
             echo -n "$(color bd cyan )"
             highlight=0
@@ -142,8 +155,9 @@ output_map () {
             printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
                 "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev" "$disk_wwn" "$disk_addr1" "$disk_addr2"
         else
-            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s\n' \
-                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev"
+            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-14s\n' \
+                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
+                "$disk_status" "$disk_pool" "$disk_vdev" "$compact_status" "$slot_status"
         fi
         bay=$(( bay + 1 ))
     done

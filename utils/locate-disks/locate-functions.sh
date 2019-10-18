@@ -170,14 +170,20 @@ collect_expander_info () {
             # TODO : This can be significantly sped up by using 'sg_ses -p 10 ${ses_path}/${dev}' 
             #        and parsing the output instead of reading each slot
 
+            debug "Collecting disk info from ${ses_path}/${dev}"
+            $SG_SES -p 10 ${ses_path}/${dev} 2>/dev/null > $myTMP/disk_wwn.tmp
+            $SG_SES -p 2 ${ses_path}/${dev} 2>/dev/null > $myTMP/disk_status.tmp
+
             source $myTMP/expanders
             slot=0
             while [ $slot -lt $slots ]; do
-                debug "Collecting slot $(( slot + 1 )) of $slots from ${ses_path}/${dev}"
-                this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
+                #this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
+                #    $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
+                this_sasaddr=`cat $myTMP/disk_wwn.tmp | \
+                    $GREP -A 9 "Element index: $slot" | \
                     $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 echo "expander["${wwn}_sasaddr_${slot}_${paths}"]=\"$this_sasaddr\"" >> $myTMP/expanders
-                
+
                 if [ "$this_sasaddr" != '0' ]; then
                     disk_wwn="${sasaddr["${this_sasaddr}_wwn"]}"
                     if [ "${disk_wwn}" != '' ]; then
@@ -193,6 +199,34 @@ collect_expander_info () {
                         echo "expander["${wwn}_diskosname_${slot}"]=\"${disk["${disk_wwn}_osname"]}\"" >> $myTMP/expanders
                     fi
                 fi
+            
+                cat $myTMP/disk_status.tmp | \
+                    $GREP -m 1 -A 7 "Element $slot descriptor" > $myTMP/disk_status_slot.tmp
+
+                slot_pfailure=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'Predicted failure=' | $AWK -F ',' '{print $1}' | $AWK -F '=' '{print $2}'`
+                echo "expander["${wwn}_pfailure_${slot}"]=\"$slot_pfailure\"" >> $myTMP/expanders
+
+                slot_disabled=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'Disabled=' | $AWK -F ',' '{print $2}' | $AWK -F '=' '{print $2}'`
+                echo "expander["${wwn}_disabled_${slot}"]=\"$slot_disabled\"" >> $myTMP/expanders
+
+                slot_status=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'status: ' | $AWK -F ',' '{print $4}' | $AWK -F ': ' '{print $2}'`
+                echo "expander["${wwn}_status_${slot}"]=\"$slot_status\"" >> $myTMP/expanders
+
+                slot_ident=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'Ident=' | $AWK -F ',' '{print $3}' | $AWK -F '=' '{print $2}'`
+                echo "expander["${wwn}_ident_${slot}"]=\"$slot_ident\"" >> $myTMP/expanders
+
+                slot_fault=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'Fault reqstd=' | $AWK -F ',' '{print $3}' | $AWK -F '=' '{print $2}'`
+                echo "expander["${wwn}_fault_${slot}"]=\"$slot_fault\"" >> $myTMP/expanders
+
+                slot_off=`cat $myTMP/disk_status_slot.tmp | \
+                    $GREP 'Device off=' | $AWK -F ',' '{print $4}' | $AWK -F '=' '{print $2}'`
+                echo "expander["${wwn}_off_${slot}"]=\"$slot_off\"" >> $myTMP/expanders
+                
             
                 slot=$(( slot + 1 ))
 
