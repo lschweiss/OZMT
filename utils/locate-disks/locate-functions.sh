@@ -262,6 +262,9 @@ collect_disk_info () {
     local serial=
     local unitserial=
     local result=
+    local soft_error=
+    local hard_error=
+    local trans_error=
     declare -A disk
     declare -A sasaddr
 
@@ -278,6 +281,7 @@ collect_disk_info () {
             # Not all devices get a *d0 link        
             devs=`ls -1 *d0s0`
             sd_map > $myTMP/sdmap
+            iostat -e > $mytmp/io.errors
             ;;
         'Linux')
             devpath="$diskdev_path"
@@ -420,9 +424,16 @@ collect_disk_info () {
         [ -n "$fwrev" ] && echo "disk["${wwn}_fwrev"]=\"${fwrev//[[:space:]]}\"" >> $myTMP/disks
         [ -n "$serial" ] && echo "disk["${wwn}_serial"]=\"${serial//[[:space:]]}\"" >> $myTMP/disks
         [ -n "$unitserial" ] && echo "disk["${wwn}_unitserial"]=\"${unitserial//[[:space:]]}\"" >> $myTMP/disks
-        [ -n "$sdnum" ] && echo "disk["${wwn}_sdnum"]=\"${sdnum//[[:space:]]}\"" >> $myTMP/disks
-
-
+        if [ -n "$sdnum" ]; then
+            echo "disk["${wwn}_sdnum"]=\"${sdnum//[[:space:]]}\"" >> $myTMP/disks
+            cat $mytmp/io.errors | $GREP "${sdnum} " > $myTMP/io.disk.error
+            soft_error=`cat $myTMP/io.disk.error | $AWK -F ' ' '{print $2}'`
+            hard_error=`cat $myTMP/io.disk.error | $AWK -F ' ' '{print $3}'`
+            trans_error=`cat $myTMP/io.disk.error | $AWK -F ' ' '{print $4}'`
+            echo "disk["${wwn}_softerror"]=\"${soft_error//[[:space:]]}\"" >> $myTMP/disks
+            echo "disk["${wwn}_harderror"]=\"${hard_error//[[:space:]]}\"" >> $myTMP/disks
+            echo "disk["${wwn}_transerror"]=\"${trans_error//[[:space:]]}\"" >> $myTMP/disks
+        fi
         addr=1
         while [ $addr -le $addrs ]; do
             echo "disk["${wwn}_sasaddr_${addr}"]=\"${sasaddr["$addr"]}\"" >> $myTMP/disks
