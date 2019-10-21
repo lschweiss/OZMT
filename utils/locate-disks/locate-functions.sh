@@ -252,6 +252,7 @@ collect_disk_info () {
     local dev=
     local devpath=
     local tdev=
+    local sdnum=
     local addr=
     local addrs=
     local wwns=
@@ -276,6 +277,7 @@ collect_disk_info () {
             cd $devpath
             # Not all devices get a *d0 link        
             devs=`ls -1 *d0s0`
+            sd_map > $myTMP/sdmap
             ;;
         'Linux')
             devpath="$diskdev_path"
@@ -326,9 +328,11 @@ collect_disk_info () {
     wait
 
     for dev in $devs; do
+        sdnum=
         case $os in
             'SunOS')
                 tdev="${dev::-2}"
+                sdnum=`cat $myTMP/sdmap | $GREP $tdev | $CUT -d '=' -f1`
                 ;;
             'Linux')
                 tdev="${dev}" #:${#diskdev_prefix}}"
@@ -416,6 +420,8 @@ collect_disk_info () {
         [ -n "$fwrev" ] && echo "disk["${wwn}_fwrev"]=\"${fwrev//[[:space:]]}\"" >> $myTMP/disks
         [ -n "$serial" ] && echo "disk["${wwn}_serial"]=\"${serial//[[:space:]]}\"" >> $myTMP/disks
         [ -n "$unitserial" ] && echo "disk["${wwn}_unitserial"]=\"${unitserial//[[:space:]]}\"" >> $myTMP/disks
+        [ -n "$sdnum" ] && echo "disk["${wwn}_sdnum"]=\"${sdnum//[[:space:]]}\"" >> $myTMP/disks
+
 
         addr=1
         while [ $addr -le $addrs ]; do

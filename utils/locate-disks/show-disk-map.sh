@@ -110,8 +110,8 @@ output_map () {
     done
 
     if [ "$wide" == 'true' ]; then    
-        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
-            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "wwn" "Addr 1" "Addr 2"
+        printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-5s | %-16s | %-16s | %-16s | %-16s\n' \
+            "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "sd" "12345" "Slot Status" "wwn" "Addr 1" "Addr 2"
     else
         printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-14s\n' \
             "Bay" "OS Name" "Serial" "Vendor" "Model" "FW" "Status" "Pool" "vdev" "12345" "Slot Status"
@@ -134,6 +134,7 @@ output_map () {
         disk_status="${disk["${disk_wwn}_status"]}"
         disk_pool="${disk["${disk_wwn}_pool"]}"
         disk_vdev="${disk["${disk_wwn}_vdev"]}"
+        disk_sdnum="${disk["${disk_wwn}_sdnum"]}"
 
         slot_pfailure="${expander["${wwn}_pfailure_${bay}"]}"
         slot_disabled="${expander["${wwn}_disabled_${bay}"]}"
@@ -152,8 +153,10 @@ output_map () {
             highlight=1
         fi
         if [ "$wide" == 'true' ]; then
-            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-16s | %-16s | %-16s\n' \
-                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" "$disk_status" "$disk_pool" "$disk_vdev" "$disk_wwn" "$disk_addr1" "$disk_addr2"
+            printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-5s | %-16s | %-16s | %-16s | %-16s | %-16s\n' \
+                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
+                "$disk_status" "$disk_pool" "$disk_vdev" "$disk_sdnum" "$compact_status" "$slot_status" \
+                "$disk_wwn" "$disk_addr1" "$disk_addr2"
         else
             printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-14s\n' \
                 "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
