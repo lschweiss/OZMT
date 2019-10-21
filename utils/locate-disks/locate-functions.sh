@@ -105,6 +105,7 @@ collect_expander_info () {
      
     devs=`ls -1 ${ses_path}`
     for dev in $devs; do
+        debug "Collecting slot info from: ${ses_path}/${dev}"
         $SG_SES -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp 2>/dev/null
         if [ $? -ne 0 ]; then
             # Not a useful SES link
@@ -180,7 +181,7 @@ collect_expander_info () {
                 #this_sasaddr=`$SG_SES -I 0,${slot} -p aes ${ses_path}/${dev} 2>/dev/null | \
                 #    $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 this_sasaddr=`cat $myTMP/disk_wwn.tmp | \
-                    $GREP -A 9 "Element index: $slot" | \
+                    $GREP -A 9 "Element index: $slot " | \
                     $GREP 'SAS address:' | $GREP -v 'attached' | $AWK -F 'x' '{print $2}'`
                 echo "expander["${wwn}_sasaddr_${slot}_${paths}"]=\"$this_sasaddr\"" >> $myTMP/expanders
 
@@ -301,9 +302,24 @@ collect_disk_info () {
                 tdev="${dev}" #:${#diskdev_prefix}}"
                 ;;
         esac
+        
+        # Try up to 3 times
+        ( 
+        try=0
+        while [ $try -lt 3 ]; do
+            nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry ${devpath}/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sdparm 2> /dev/null
+            echo $? > $myTMP/disk_info/${tdev}_disk_info.result 
+            result=`cat $myTMP/disk_info/${tdev}_disk_info.result`
+            if [ $? -eq 0 ]; then
+                break
+            else
+                debug "Could not collect sdparm for ${devpath}/${dev}  Error $result  Try $(( try + 1 ))"
+            fi
+            try=$(( try + 1 ))
+        done 
+        ) &
 
-        ( nice -n 15 $TIMEOUT 5s $SDPARM --quiet --inquiry ${devpath}/${dev} 1> $myTMP/disk_info/${tdev}_disk_info.sdparm 2> /dev/null;
-            echo $? > $myTMP/disk_info/${tdev}_disk_info.result ; ) &
+        
     done
 
  
