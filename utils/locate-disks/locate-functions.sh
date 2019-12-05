@@ -105,7 +105,6 @@ collect_expander_info () {
     source $myTMP/disks
     source $myTMP/sasaddresses
      
-    devs=`ls -1 ${ses_path}`
     for dev in $devs; do
         debug "Collecting slot info from: ${ses_path}/${dev}"
         $SG_SES -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp 2>/dev/null
