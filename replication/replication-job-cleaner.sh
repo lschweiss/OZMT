@@ -467,6 +467,10 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                     rm -f ${TMP}/property_update_err_$$ $props_to_replicate
                 fi
 
+                if [ -f "${job_cleaner_lock_dir}/abort_cleaning" ]; then
+                    break
+                fi
+
             done # for job
 
             if [ -f "${job_cleaner_lock_dir}/abort_cleaning" ]; then
