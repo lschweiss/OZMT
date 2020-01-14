@@ -126,7 +126,7 @@ trap clean_up SIGHUP SIGINT SIGTERM
 
 
 die () {
-    error "$1" $2
+    warning "$1" $2
     rm $2 2>/dev/null
     clean_up 1
 }

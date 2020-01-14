@@ -79,12 +79,14 @@ collect_expander_info () {
     declare -A expander
     expander_list=
 
-    case $os in 
+    case $os in
         'SunOS')
             ses_path='/dev/es'
+            devs=`ls -1 ${ses_path}`
             ;;
         'Linux')
             ses_path='/dev/bsg'
+            devs=`lsscsi -i | ${GREP} 'enclosu' | $CUT -d "[" -f2 | $CUT -d "]" -f1`
             ;;
     esac
 
@@ -103,13 +105,13 @@ collect_expander_info () {
     source $myTMP/disks
     source $myTMP/sasaddresses
      
-    devs=`ls -1 ${ses_path}`
     for dev in $devs; do
         debug "Collecting slot info from: ${ses_path}/${dev}"
         $SG_SES -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp 2>/dev/null
         if [ $? -ne 0 ]; then
             # Not a useful SES link
             #rm -f $myTMP/ses_info.tmp
+            debug "Skipping ${ses_path}/${dev}"
             continue
         else
             # Parse the output for useful information
