@@ -261,6 +261,11 @@ case $mode in
          die 1 ;;
 esac
 
+# Add send options
+
+[ "$zfs_replication_send_compressed" == 'true' ] && send_options="$send_options -c"
+[ "$zfs_replication_send_large_block" == 'true' ] && send_options="$send_options -A"
+
 MKDIR ${TMP}/replication
 
 # TODO: Remove '-d' and '-r' option from zfs-send.sh
@@ -269,7 +274,7 @@ MKDIR ${TMP}/replication
 if [ "$previous_snapshot" == "" ]; then
 
     debug "Starting zfs-send.sh for first replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -d -n "${dataset_name}" -r ${delete_snaps} ${mode_option} \
+    ../utils/zfs-send.sh -d -n "${dataset_name}" -r ${delete_snaps} ${mode_option} ${send_options} \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -l "${pool}/${folder}@${snapshot}" \
         -P "${TMP}/replication/job_info.$(${BASENAME} ${job_definition})" \
@@ -277,19 +282,21 @@ if [ "$previous_snapshot" == "" ]; then
     send_result=$?
 
 else
-
-    debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
-
-    $SSH $target_pool "ozmt-zfs-rollback-folders.sh ${target_pool}/${target_folder} ${previous_snapshot}"
-    result=$?
-
-    if [ $result -ne 0 ]; then
-        error "Could not rollback to snapshot ${target_pool}/${target_folder}@${previous_snapshot}" 
-        mv "${job_definition}" "${replication_dir}/failed/"
-        update_job_status "$job_status" failures +1
-        die 1
-    else
-        rm ${TMP}/replication/zfs_rollback_$$ 2> /dev/null
+    # Test if target is mounted
+    mounted=`$SSH $target_pool zfs get -o value -H mounted ${target_pool}/${target_folder}`
+    if [ "$mounted" != 'no' ]; then
+        debug "Executing zfs rollback on target to previous snapshot ${target_pool}/${target_folder}@${previous_snapshot}"
+        $SSH $target_pool "ozmt-zfs-rollback-folders.sh ${target_pool}/${target_folder} ${previous_snapshot}"
+        result=$?
+    
+        if [ $result -ne 0 ]; then
+            error "Could not rollback to snapshot ${target_pool}/${target_folder}@${previous_snapshot}" 
+            mv "${job_definition}" "${replication_dir}/failed/"
+            update_job_status "$job_status" failures +1
+            die 1
+        else
+            rm ${TMP}/replication/zfs_rollback_$$ 2> /dev/null
+        fi
     fi
 
     # Remove quotas on the target folder(s)
@@ -300,7 +307,7 @@ else
    
     # Start zfs send
     debug "Starting zfs-send.sh replication of ${pool}/${folder}"
-    ../utils/zfs-send.sh -d -U -n "${dataset_name}" -r -I ${delete_snaps} ${mode_option} \
+    ../utils/zfs-send.sh -d -U -n "${dataset_name}" -r -I ${delete_snaps} ${mode_option} ${send_options} \
         -s "${pool}/${folder}" -t "${target_pool}/${target_folder}" -h "${target_pool}" \
         -f "${pool}/${folder}@${previous_snapshot}" \
         -l "${pool}/${folder}@${snapshot}" \

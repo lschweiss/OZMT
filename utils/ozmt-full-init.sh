@@ -329,6 +329,10 @@ gnu_source () {
 
 [ -z "$zfs_replication_job_cleaner_cycle" ] &&  zfs_replication_job_cleaner_cycle="60"
 
+[ -z "$zfs_replication_send_compressed" ] && zfs_replication_send_compressed='true'
+
+[ -z "$zfs_replication_send_large_block" ] && zfs_replication_send_large_block='false'
+
 [ -z "$suspend_all_jobs_timeout" ] && suspend_all_jobs_timeout=60
 
 [ -z "$zfs_cache_max_age" ] && zfs_cache_max_age=30

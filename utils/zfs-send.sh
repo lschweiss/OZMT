@@ -146,6 +146,8 @@ show_usage() {
     echo "  [-u]                pUsh locally set zfs properties to the target."
     echo "  [-U]                pUsh locally set zfs properties to the target durring job cleaning."
     echo "                        Requires -n to be set to the dataset name"
+    echo "  [-c]                Use zfs send --compressed option"
+    echo "  [-A]                Use zfs send --large-block option"
     echo "  [-h host]           Send to a remote host.  Defaults to via mbuffer."
     echo "  [-S]                Use ssh transport."
     echo "  [-M]                Use mbuffer transport."
@@ -197,9 +199,11 @@ gen_chksum=
 job_name='zfs_send'
 pid_info=
 t_pid_info=
+send_compressed='false'
+send_large='false'
 
 
-while getopts s:t:f:l:ruUiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
+while getopts s:t:f:l:ruUcAiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
     case $opt in
         s)  # Source ZFS folder
             source_folder="$OPTARG"
@@ -246,6 +250,14 @@ while getopts s:t:f:l:ruUiIdp:h:miMSb:eg:z:Fk:K:L:R:n:P:T: opt; do
             push_prop='true'
             push_prop_later='true'
             debug "${job_name}: pushing locally set zfs properties to the target durring job cleaning"
+            ;;
+        c)  # Use send --compress
+            send_compressed='true'
+            debug "${job_name}: Using zfs send --compress"
+            ;;
+        A)  # Use send --large-block
+            send_large='true'
+            debug "${job_name}: Using zfs send --large-block"
             ;;
         h)  # Remote host
             remote_host="$OPTARG"
@@ -1019,6 +1031,9 @@ if [ "$replicate" == 'true' ]; then
 else
     send_options=
 fi
+
+[ "$send_compressed" == 'true' ] && send_options="$send_options --compressed"
+[ "$send_large" == 'true' ] && send_options="$send_options --large-block"
 
 debug "${job_name}: Starting zfs send to $target_fifo"
 debug "${job_name}:   zfs send -v -P $send_options $send_snaps 2> $tmpdir/zfs_send.error 1> $target_fifo"
