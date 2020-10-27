@@ -95,6 +95,7 @@ for pool in $pools; do
             target_defs=`ls -1 "${replication_def_dir}/${folder_def}"|sort`
             for target_def in $target_defs; do
                 suspended=
+                paused=
                 debug "to target $target_def"
                 last_run=
                 job_status=
