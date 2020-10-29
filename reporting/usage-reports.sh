@@ -140,7 +140,7 @@ pools="$(pools)"
 
 for pool in ${pools}; do
 
-    
+    is_mounted $pool || continue
     usage_report "${pool}"
 
 done

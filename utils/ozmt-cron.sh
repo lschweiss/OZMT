@@ -59,6 +59,7 @@ pools="$(pools)"
 
 
 for pool in $pools; do
+    is_mounted $pool || continue
     debug "Checking pool $pool for $type cron jobs"
     crondir="/${pool}/zfs_tools/etc/cron/${type}.d"
     if [ -d $crondir ]; then

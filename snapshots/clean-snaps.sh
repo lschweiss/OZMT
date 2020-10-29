@@ -49,6 +49,8 @@ fi
 
 for pool in $pools; do
 
+    is_mounted $pool || continue
+
     # Collect snapshot data
     if [ ! -d /${pool}/zfs_tools/var/spool/snapshot/destroy_queue ]; then
         MKDIR /${pool}/zfs_tools/var/spool/snapshot/destroy_queue

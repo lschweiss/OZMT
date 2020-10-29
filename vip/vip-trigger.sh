@@ -612,6 +612,7 @@ case $1 in
             # Possible dataset name given
             debug "Checking for matching dataset: $2"
             for pool in $pools; do
+                is_mounted $pool || continue
                 folders=`vip_folders $pool`
                 debug "  $pool vip folders: $vip_folders"
                 for folder in $folders; do

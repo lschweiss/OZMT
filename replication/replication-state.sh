@@ -178,6 +178,7 @@ for dataset in $datasets; do
     
     # Does it exist?
     for pool in $pools; do
+        is_mounted $pool || continue
         debug "Checking for dataset $dataset on pool $pool"
         if [ -f /${pool}/zfs_tools/var/replication/source/${dataset} ]; then
             ds_source=`cat /${pool}/zfs_tools/var/replication/source/${dataset}`

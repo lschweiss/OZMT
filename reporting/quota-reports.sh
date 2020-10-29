@@ -413,6 +413,7 @@ fi
 pools="$(pools)"
 
 for pool in $pools; do
+    is_mounted $pool || continue
 
     #jobfolder="/${pool}/zfs_tools/etc/reports/jobs/quota"
 
