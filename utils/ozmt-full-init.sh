@@ -161,11 +161,26 @@ gnu_source () {
 
 [ -z "$RSYNC" ] && RSYNC=`gnu_source rsync`
 
-[ -z "$SSH" ] && SSH=`gnu_source ssh`
-    SSH="$SSH -q" # Make SSH quiet
-    [ -f /var/ozmt/private_ssh_key ] && SSH="$SSH -i /var/ozmt/private_ssh_key"
-    [ -f $HOME/.ssh/id_rsa ] && SSH="$SSH -i $HOME/.ssh/id_rsa"
-    [ -f $HOME/.ssh/id_dsa ] && SSH="$SSH -i $HOME/.ssh/id_dsa"
+if [ -z "$SSH" ]; then
+    SSH_BIN=`gnu_source ssh`
+    SSH_BIN="$SSH_BIN -q" # Make SSH quiet
+    [ -f /var/ozmt/private_ssh_key ] && SSH_BIN="$SSH_BIN -i /var/ozmt/private_ssh_key"
+    [ -f $HOME/.ssh/id_rsa ] && SSH_BIN="$SSH_BIN -i $HOME/.ssh/id_rsa"
+    [ -f $HOME/.ssh/id_dsa ] && SSH_BIN="$SSH_BIN -i $HOME/.ssh/id_dsa"
+    SSH () {
+        local result=1
+        count=1
+        while [ $count -le 5 ]; do
+            $SSH_BIN $@
+            result=$?
+            [ $result -eq 0 ] && break
+            count=$(( count + 1 ))
+            sleep 1
+        done
+        return $result
+    }
+    SSH="SSH"
+fi
 
 [ -z "$SCP" ] && SCP=`gnu_source scp`
     [ -f /var/ozmt/private_ssh_key ] && SCP="$SCP -i /var/ozmt/private_ssh_key"
