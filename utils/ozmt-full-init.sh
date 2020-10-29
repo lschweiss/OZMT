@@ -167,19 +167,8 @@ if [ -z "$SSH" ]; then
     [ -f /var/ozmt/private_ssh_key ] && SSH_BIN="$SSH_BIN -i /var/ozmt/private_ssh_key"
     [ -f $HOME/.ssh/id_rsa ] && SSH_BIN="$SSH_BIN -i $HOME/.ssh/id_rsa"
     [ -f $HOME/.ssh/id_dsa ] && SSH_BIN="$SSH_BIN -i $HOME/.ssh/id_dsa"
-    SSH () {
-        local result=1
-        count=1
-        while [ $count -le 5 ]; do
-            $SSH_BIN $@
-            result=$?
-            [ $result -eq 0 ] && break
-            count=$(( count + 1 ))
-            sleep 1
-        done
-        return $result
-    }
-    SSH="SSH"
+    export SSH_BIN
+    SSH="$TOOLS_ROOT/utils/SSH.sh"
 fi
 
 [ -z "$SCP" ] && SCP=`gnu_source scp`
