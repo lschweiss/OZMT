@@ -44,6 +44,8 @@ logfile="$default_logfile"
 
 report_name="$default_report_name"
 
+MKDIR ${TMP}/import
+
 #export DEBUG="true"
 
 # Minimum number of arguments needed by this program
@@ -68,7 +70,7 @@ if [ $? -ne 0 ]; then
     # Repeatedly trying will get a successful run.
     result=134
     while [ $result -eq 134 ]; do
-        zpool import -N $@ 
+        zpool import -N -o cachefile=none $@ 
         result=$?
         [ -f core ] && rm core
     done
@@ -94,12 +96,12 @@ zfs mount ${import_pool}/zfs_tools 1>/dev/null 2>/dev/null
 # List unmounted folders
 /usr/sbin/zfs list -o mounted,name -r ${import_pool} | ${GREP} "   no" | \
     ${AWK} -F " " '{print $2}' | \
-    ${GREP} -v "^${import_pool}$" > ${TMP}/zpool_import_zfs.$$
+    ${GREP} -v "^${import_pool}$" > ${TMP}/import/zpool_import_zfs.$$
 
-./fast-zfs-mount.sh ${TMP}/zpool_import_zfs.$$ ${import_pool}
+./fast-zfs-mount.sh ${TMP}/import/zpool_import_zfs.$$ ${import_pool}
 result=$?
 if [ $result -eq 0 ]; then
-    rm -f ${TMP}/zpool_import_zfs.$$ ${TMP}/zpool_import_zfs_roots.$$ ${TMP}/zpool_import_zfs_root_folders.$$
+    rm -f ${TMP}/import/zpool_import_zfs.$$ ${TMP}/import/zpool_import_zfs_roots.$$ ${TMP}/import/zpool_import_zfs_root_folders.$$
 else
     warning "Some ZFS folders failed to mount"
     start_cron

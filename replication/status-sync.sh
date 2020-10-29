@@ -55,6 +55,7 @@ pools="$(pools)"
 rm ${TMP}/sync_datafiles_$$ 2> /dev/null
 
 for pool in $pools; do
+    is_mounted $pool || continue
     debug "Syncing dataset sources for pool $pool"
     if [ -d /${pool}/zfs_tools/var/replication/source ]; then
         datasets=`ls -1 /${pool}/zfs_tools/var/replication/source/`
@@ -116,6 +117,7 @@ for file in $files; do
         debug " to pool based folders"
         # Were syncing across all known pools
         for pool in $pools; do 
+            is_mounted $pool || continue
             debug "   From pool $pool"
             source_file=`echo "/${file}" | ${SED} "s,{pool},${pool},g"`
             debug "       Source file $source_file"

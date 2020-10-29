@@ -46,6 +46,7 @@ now=`${DATE} +"%F %H:%M:%S%z"`
 pools="$(pools)"
 
 for pool in $pools; do
+    is_mounted $pool || continue
 
     quotas=`zfs list -o name,quota -r -H -p $pool`
     IFS=$'\n'

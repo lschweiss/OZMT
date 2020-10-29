@@ -85,6 +85,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     # Parse failed jobs
     
     for pool in $pools; do
+        is_mounted $pool || continue
         debug "Finding FAILED replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
         MKDIR ${job_runner_lock_dir}/${pool}
@@ -217,6 +218,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
     pending_cycles=$(( pending_cycles + 1 ))
     
     for pool in $pools; do
+        is_mounted $pool || continue
         debug "Finding PENDING replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
 

@@ -505,6 +505,7 @@ locate_in_use_disks () {
         pools=`cat ${myTMP}/${host}_pools`
         unset IFS 
         for pool in $pools; do
+            is_mounted $pool || continue
             debug "Mapping disks for $pool"
     
             eval ${execute} zpool status ${pool} > ${myTMP}/${pool}_status

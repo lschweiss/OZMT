@@ -40,6 +40,7 @@ pools="$(pools)"
 # Build a list of cache directories and mark the caches stale
 cache_dirs=
 for pool in $pools; do
+    is_mounted $pool || continue
     cache_dir="/$pool/zfs_tools/var/cache/zfs_cache"
     if [ ! -d $cache_dir ]; then
         continue

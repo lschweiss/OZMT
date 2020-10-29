@@ -113,6 +113,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
     # Parse synced jobs
     
     for pool in $pools; do
+        is_mounted $pool || continue
         debug "Finding synced replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
         mounted=`zfs get -o value -H mounted ${pool}/zfs_tools`
@@ -180,6 +181,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
     # Parse cleaning jobs
     
     for pool in $pools; do
+        is_mounted $pool || continue
         debug "Finding cleaning replication jobs on pool $pool"
         replication_dir="/${pool}/zfs_tools/var/replication/jobs"
         # Check if all jobs suspended

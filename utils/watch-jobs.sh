@@ -99,6 +99,7 @@ while [ "$quit" != 'true' ]; do
     echo -e "\e[?25l"
 
     for pool in $pools; do
+        is_mounted $pool || continue
         echo "                                                                                                 "
         echo -n "Pool ${pool}, jobs: "
 

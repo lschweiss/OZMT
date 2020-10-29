@@ -92,6 +92,7 @@ dataset="$1"
 
 
 for pool in $pools; do
+    is_mounted $pool || continue
 
     rm -f ${TMP}/replication/datasets_$$
     zfs get -r -s local,received -o value,name -H ${zfs_dataset_property} $pool | ${SORT}  >> ${TMP}/replication/datasets_$$

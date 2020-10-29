@@ -386,6 +386,30 @@ MKDIR () {
 
 }
 
+####
+#
+# is_mounted returns true if the pool and zfs_tools is mounted
+#
+###
+
+is_mounted () {
+
+    local this_pool="$1"
+    
+    if [ "$(zfs get -o value -H mounted $this_pool)" == "yes" ]; then
+        if [ "$(zfs get -o value -H mounted ${this_pool}/zfs_tools)" == "yes" ]; then
+            return 0
+        else
+            warning "${this_pool}/zfs_tools is not mounted"
+        fi
+    else
+        warning "${this_pool} is not mounted"
+    fi
+
+    return 1
+}
+        
+
 
 ####
 #

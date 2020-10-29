@@ -112,6 +112,7 @@ activate_smb () {
         # Find the pool with this dataset
         debug "Locating dataset: $smb_target"
         for pool in $pools; do
+            is_mounted $pool || continue
             debug "Checking pool: $pool"
             test_folders=`zfs_cache get -H -o name -s local,recieved -r -t filesystem ${zfs_cifs_property} ${pool}`
             for zfs_folder in $test_folders; do
@@ -597,6 +598,7 @@ case $1 in
 
     *)
         for pool in $pools; do
+            is_mounted $pool || continue
             activate_smb $pool
         done
     ;;
