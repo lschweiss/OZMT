@@ -95,12 +95,10 @@ if [ "$previous_snapshot" == "" ]; then
 fi
 
 # Confirm on the target host that this is truely the source
-set -x
 timeout 1m $SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/source/${dataset_name} \
     > ${TMP}/target_check_$$ \
     2> ${TMP}/target_check_error_$$
 errorcode=$?
-set +x
 case "$errorcode" in 
     '124')
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remote host timed out after 1m.  Setting job to failed."
