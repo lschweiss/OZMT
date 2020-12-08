@@ -180,10 +180,10 @@ while [ "$quit" != 'true' ]; do
                     echo -e -n "$(print_num 'Run: ' $running_jobs 2) "
                     echo -e -n "$(print_num 'Fail: ' $failed_jobs 1) "
                     echo -e -n "$(print_num 'Sync: ' $synced_jobs 2) "
-                    echo -e -n "$(print_num 'Clean: ' $cleaning_jobs 2)  "
+                    echo -e "$(print_num 'Clean: ' $cleaning_jobs 2)  "
                     
                 done # for target_def
-                echo "                                                                                                                                   "
+                #echo "                                                                                                                                   "
 
             done # for folder_def
 
