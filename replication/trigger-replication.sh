@@ -86,8 +86,16 @@ source "${job_status}"
 
 if [ "$suspended" == 'true' ]; then
     debug "Replication is suspended for data set $dataset_name"
+    release_lock "${job_status}"
     exit 0
 fi
+
+if [ "$paused" == 'true' ]; then
+    debug "Replication is paused for data set $dataset_name"
+    release_lock "${job_status}"
+    exit 0
+fi
+
 
 # previous_snapshot may have been defined in job_status file for a first run.
 if [ "$previous_snapshot" == "" ]; then

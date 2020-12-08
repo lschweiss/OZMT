@@ -270,6 +270,8 @@ for dataset in $datasets; do
         continue
     fi
 
+    debug "Dataset source is: $ds_source  Source pool: $source_pool  Target pool: $target_pool"
+
     
     ##
     # Handle running jobs

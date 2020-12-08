@@ -107,6 +107,7 @@ for pool in $pools; do
                     source "${job_status}"
                     release_lock "${job_status}"
                 else
+                    debug "Creating job status file $job_status"
                     MKDIR $($DIRNAME $job_status)
                     touch "${job_status}"
                     init_lock "${job_status}"
