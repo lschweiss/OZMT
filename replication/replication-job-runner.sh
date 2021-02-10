@@ -255,6 +255,7 @@ while [ $SECONDS -lt $zfs_replication_job_runner_cycle ]; do
                 debug "found job: $job"
                 if [ -f "${replication_dir}/pending/${job}" ]; then
                     suspended=
+                    paused=
                     previous_jobname=
                     source "${replication_dir}/pending/${job}"
                     wait_for_lock "${job_status}"
