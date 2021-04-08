@@ -53,7 +53,7 @@ mode='create'
 show_usage() {
     echo
     echo "Usage: $0 -d {dataset_name} -n {instance_name} -s {snapname} "
-    echo "          [-o {pg_dataset}:{pg_folder}:{data_dataset}:{pgdev_folder} ]"
+    echo "          [-o {pg_dataset}:{pg_folder} ] # Only postgres clone"
     echo "          [-f {fqdn}"
     echo "          [-i {dev_ip} ]"
     echo "          [-q {quota}]"

@@ -103,16 +103,11 @@ if [ "$pg_only" == '' ]; then
     fi
 else
     postgres="$(echo "$pg_only" | ${CUT} -d ':' -f 1):$(echo "$pg_only" | ${CUT} -d ':' -f 2)"
-    postgres_data_pool="$(echo "$pg_only" | ${CUT} -d ':' -f 1)"
-    # Check for optional root reparse location
-    postgres_reparse="$(echo "$pg_only" | ${CUT} -d ':' -f 3):$(echo "$pg_only" | ${CUT} -d ':' -f 4)"
-    postgres_data_dataset="$(echo "$pg_only" | ${CUT} -d ':' -f 3)"
+    postgres_data_dataset="$(echo "$pg_only" | ${CUT} -d ':' -f 1)"
     postgres_data_source=`dataset_source $postgres_data_dataset`
     postgres_data_folder=`echo $postgres_data_source | $CUT -d ':' -f 2`
-    postgres_dev_folder="$(echo "$pg_only" | ${CUT} -d ':' -f 4)"
-    if [ "$postgres_reparse" == ':' ]; then
-        postgres_reparse='-'
-    fi
+    postgres_dev_folder="dev"
+    postgres_reparse='-'
     postgres_dev='-'
 fi
     
