@@ -54,6 +54,7 @@ ln -s ${TOOLS_ROOT}/utils/datasets/create-dev-clone.sh /usr/sbin/ozmt-clone-crea
 ln -s ${TOOLS_ROOT}/utils/datasets/destroy-dev-clone.sh /usr/sbin/ozmt-clone-destroy.sh 
 ln -s ${TOOLS_ROOT}/utils/extended-zpool-status.sh /usr/sbin/ozmt-zpool-status.sh
 ln -s ${TOOLS_ROOT}/utils/new-dataset.sh /usr/sbin/ozmt-new-dataset.sh
+ln -s ${TOOLS_ROOT}/utils/remove-dataset.sh /usr/sbin/ozmt-remove-dataset.sh
 ln -s ${TOOLS_ROOT}/utils/update-ozmt.sh /usr/sbin/ozmt-update-cluster.sh
 
 
