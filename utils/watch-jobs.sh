@@ -47,6 +47,8 @@ trap end_watch SIGHUP SIGINT SIGTERM
 
 trap resize WINCH
 
+onepass="$1"
+
 end_watch () {
     quit='true'
 }
@@ -193,6 +195,8 @@ while [ "$quit" != 'true' ]; do
 
     sleep 0.1
 
-done # while [ 1 ]
+    [ "$onepass" == '-1' ] && quit='true'
+
+done # while [ $quit ]
 
 echo -e "\e[?25h"
