@@ -62,6 +62,9 @@ show_usage () {
     echo "                        unsuspend - Release the suspend"
     echo "                        run - Set to normal replication operation"
     echo ""
+    echo "  -q                  Quite alerting on a suspended dataset"
+    echo ""
+
     echo "  -i {id}"
     echo "                      Set the ID of the process pausing or suspending the job"
     echo ""
@@ -127,6 +130,9 @@ while getopts d:s:p:i:r opt; do
             ;;
         r)  # Query the state
             q_state='true'
+            ;;
+        q)  # Quiet
+            quiet='true'
             ;;
         ?)  # Show usage
             show_usage
@@ -356,6 +362,9 @@ for dataset in $datasets; do
                     ;;
                 'suspend')
                     update_job_status "$job_status" "suspended" 'true'
+                    if [ "$quiet" == 'true' ]; then
+                        update_job_status "$job_status" "quiet" 'true'
+                    fi
                     if [ "$id" != "" ]; then
                         suspend_array="$id $suspend_array"
                         update_job_status "$job_status" "suspend_array" "$suspend_array"
@@ -377,6 +386,7 @@ for dataset in $datasets; do
                         update_job_status "$job_status" "suspended" "false"
                         update_job_status "$job_status" "suspended_array" ""
                     fi
+                    update_job_status "$job_status" "quiet" 'false'
                     ;;
                 'run')
                     if [ "$id" != "" ]; then
