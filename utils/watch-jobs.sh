@@ -160,7 +160,11 @@ while [ "$quit" != 'true' ]; do
                         continue
                     fi
                     if [ "$suspended" == 'true' ]; then
-                        echo -n ", $(color red)SUSPENDED$(color)"
+                        if [ "$quiet" == 'true' ]; then
+                            echo -n ", $(color blink red)SUSPENDED$(color)"
+                        else
+                            echo -n ", $(color red)SUSPENDED$(color)"
+                        fi
                     fi
                     if [ "$paused" == 'true' ]; then
                         echo -n ", $(color red)PAUSED$(color)"
