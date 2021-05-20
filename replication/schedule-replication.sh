@@ -213,7 +213,7 @@ for pool in $pools; do
                     fi
 
                     if [ "$suspended" == 'true' ]; then
-                        if [[ [ $duration_min -ge $zfs_replication_suspended_error_time ] && [ "$quiet" != 'true' ] ]]; then
+                        if [ $duration_min -ge $zfs_replication_suspended_error_time ] && [ "$quiet" != 'true' ] ; then
                             error "Replication for dataset $dataset_name has been SUSPENDED for more than $zfs_replication_suspended_error_time minutes"
                         fi
                         continue
