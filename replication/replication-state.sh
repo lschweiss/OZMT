@@ -60,6 +60,8 @@ show_usage () {
     echo "                        unpause - Release the pause"
     echo "                        suspend - Do not schedule, or clean any jobs, finish any running jobs"
     echo "                        unsuspend - Release the suspend"
+    echo "                        flush - Do not schedule new jobs, complete all existing scheduled jobs"
+    echo "                        unflush - Release the flush"
     echo "                        run - Set to normal replication operation"
     echo ""
     echo "  -q                  Quite alerting on a suspended dataset"
@@ -289,6 +291,7 @@ for dataset in $datasets; do
             paused=
             pause_array=
             suspend_array=
+            flush=
 
             source $job
             job_prefix="${dataset_name}_to_${target}"
@@ -388,6 +391,12 @@ for dataset in $datasets; do
                     fi
                     update_job_status "$job_status" "quiet" 'false'
                     ;;
+                'flush')
+                    update_job_status "$job_status" "flush" 'true'
+                    ;;
+                'unflush')
+                    update_job_status "$job_status" "flush" 'false'
+                    ;;
                 'run')
                     if [ "$id" != "" ]; then
                         new_array=
@@ -413,6 +422,7 @@ for dataset in $datasets; do
                     else        
                         update_job_status "$job_status" "suspended" 'false' "paused" 'false' "suspend_array" "" "pause_array" ""
                     fi
+                    update_job_status "$job_status" "flush" 'false'
                     ;;
             esac
 

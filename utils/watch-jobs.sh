@@ -129,6 +129,7 @@ while [ "$quit" != 'true' ]; do
                     last_complete=
                     active=
                     quiet=
+                    flush=
                     job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                     source "${job_definition}"
                     echo -n "${dataset_name} to ${target_pool}, ${frequency}"
@@ -166,6 +167,9 @@ while [ "$quit" != 'true' ]; do
                         else
                             echo -n ", $(color red)SUSPENDED$(color)"
                         fi
+                    fi
+                    if [ "$flush" == 'true' ]; then
+                        echo -n ", $(color red)FLUSHING$(color)"
                     fi
                     if [ "$paused" == 'true' ]; then
                         echo -n ", $(color red)PAUSED$(color)"

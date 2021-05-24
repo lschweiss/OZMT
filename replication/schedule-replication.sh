@@ -97,6 +97,7 @@ for pool in $pools; do
             for target_def in $target_defs; do
                 suspended=
                 paused=
+                flush=
                 debug "to target $target_def"
                 last_run=
                 job_status=
@@ -226,6 +227,10 @@ for pool in $pools; do
                         else
                             continue
                         fi
+                    fi
+
+                    if [ "$flush" == 'true' ]; then
+                        continue
                     fi
 
                     case $freq_unit in 
