@@ -128,6 +128,7 @@ while [ "$quit" != 'true' ]; do
                     job_status=
                     last_complete=
                     active=
+                    quiet=
                     job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                     source "${job_definition}"
                     echo -n "${dataset_name} to ${target_pool}, ${frequency}"
