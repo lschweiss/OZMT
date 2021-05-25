@@ -45,6 +45,7 @@ logfile="$default_logfile"
 report_name="$default_report_name"
 
 MKDIR ${TMP}/import
+mkdir -p /var/ozmt/zfscache
 
 #export DEBUG="true"
 
@@ -62,7 +63,9 @@ for last; do : ; done
 
 import_pool="$last"
 
-stop_cron
+[ -f /var/ozmt/zfscache/${import_pool}.save ] && cp /var/ozmt/zfscache/${import_pool}.save /var/ozmt/zfscache/${import_pool}
+
+cachefile="-o cachefile=/var/ozmt/zfscache/$import_pool"
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then
@@ -70,27 +73,31 @@ if [ $? -ne 0 ]; then
     # Repeatedly trying will get a successful run.
     result=134
     while [ $result -eq 134 ]; do
-        zpool import -N -o cachefile=none $@ 
+        zpool import -N $cachefile $@ 
         result=$?
         [ -f core ] && rm core
     done
 else
     warning "Pool is already imported: $import_pool"
+    exit 1
 fi
 
 zpool list $import_pool 1> /dev/null 2> /dev/null
 if [ $? -ne 0 ]; then
     warning "Pool \"$import_pool\" does not appear to be imported.  Aborting."
-    start_cron
     exit 1
 fi
+
+# Save the cachefile
+cp /var/ozmt/zfscache/${import_pool} /var/ozmt/zfscache/${import_pool}.save
 
 ##
 # mount zfs folders
 ##
 
 # Mount zfs_tools first
-zfs mount ${import_pool} 
+zfs mount ${import_pool}
+[ -d /${import_pool}/zfs_tools ] && rm -rf /${import_pool}/zfs_tools
 zfs mount ${import_pool}/zfs_tools 1>/dev/null 2>/dev/null
 
 # List unmounted folders
@@ -104,11 +111,9 @@ if [ $result -eq 0 ]; then
     rm -f ${TMP}/import/zpool_import_zfs.$$ ${TMP}/import/zpool_import_zfs_roots.$$ ${TMP}/import/zpool_import_zfs_root_folders.$$
 else
     warning "Some ZFS folders failed to mount"
-    start_cron
     exit $result
 fi
 
-start_cron
 
 ##
 # Start vIPs

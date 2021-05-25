@@ -65,7 +65,6 @@ if [ $? -ne 0 ]; then
 fi
 
 
-stop_cron
 
 ##
 # exportfs each NFS export
@@ -103,7 +102,8 @@ fi
 # Export the pool
 ##
 
+[ -f /var/ozmt/zfscache/${export_pool} ] && cp /var/ozmt/zfscache/${export_pool} /var/ozmt/zfscache/${export_pool}.save
+
 zpool export $@
 result=$?
-start_cron
 exit $result

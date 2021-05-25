@@ -6,7 +6,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2015  Chip Schweiss
+# Copyright (C) 2021  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -59,13 +59,19 @@ fi
 pool=`echo $mount_zfs_folder | $AWK -F '/' '{print $1}'`
 dataset=`zfs get -s local,received -o value -H $zfs_dataset_property $mount_zfs_folder`
 if [ "$dataset" != "" ]; then
-    dataset_source=`cat /$pool/zfs_tools/var/replication/source/$dataset`
-    if [ "$datset_source" == "${pool}:${dataset}" ]; then
-        notice "Mounting source dataset $dataset"
+    if [ -f /$pool/zfs_tools/var/replication/source/$dataset ]; then
+        dataset_source=`cat /$pool/zfs_tools/var/replication/source/$dataset`
+        if [ "$dataset_source" == "${pool}:${dataset}" ]; then
+            notice "Mounting source dataset $pool/$dataset"
+        else
+            notice "NOT mounting target dataset $pool/$dataset"
+            exit 0
+        fi
     else
-        notice "NOT mounting target dataset $dataset"
-        exit 0
+        notice "Mounting non-replicated dataset: $dataset"
     fi
+else
+    debug "Not a dataset folder: $mount_zfs_folder"
 fi
 
 # Test if this folder is already mounted.  If not, mount it.
