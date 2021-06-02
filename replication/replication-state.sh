@@ -100,7 +100,7 @@ if [ "$#" -lt "$MIN_ARGS" ]; then
 fi
 
 
-while getopts d:s:p:i:r opt; do
+while getopts d:s:p:i:rq opt; do
     case $opt in
         p)  # All dataset in a pool
             pool="$OPTARG"
