@@ -399,8 +399,13 @@ deactivate_vip () {
                         debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
                         ;;
                     'SunOS')
-                        #route delete ${net}/${mask} $gateway
-                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        if [ "$DELETE_ROUTES" == 'true' ]; then
+                            debug "Deleting route delete ${net}/${mask} $gateway"
+                            route delete ${net}/${mask} $gateway
+                        else
+                            #route delete ${net}/${mask} $gateway
+                            debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        fi
                         ;;
                 esac
                 IFS=''
@@ -434,8 +439,12 @@ deactivate_vip () {
                         debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
                         ;;
                     'SunOS')
-                        #route delete ${net}/${mask} $gateway 
-                        debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        if [ "$DELETE_ROUTES" == 'true' ]; then
+                            debug "Deleting route delete ${net}/${mask} $gateway"
+                            route delete ${net}/${mask} $gateway
+                        else
+                            debug "Route deletion disabled: route delete ${net}/${mask} $gateway"
+                        fi
                         ;;
                 esac
 
