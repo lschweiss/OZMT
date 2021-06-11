@@ -18,7 +18,7 @@ if [ "$pg_only" == '' ]; then
             error "Clone already exists for $dev_name"
             die "Cannot locate source for $clone_dataset" 1
         else
-            debug "Safe to create ${clone_pool}/dev/${dev_name}"
+            debug "Safe to create ${clone_pool}/${clone_dataset}/dev/${dev_name}"
         fi
     
         # TODO: Check if clones exist in all additional folders and datasets
@@ -37,6 +37,7 @@ if [ "$pg_only" == '' ]; then
             if [ "$folder" == '-' ]; then
                 die "Folder #${NUM} not defined at ${clone_pool}/${clone_dataset}"
             else
+                debug "Cloning addtional folder: $folder"
                 echo "$folder_prop" >>${myTMP}/dataset_folders_$$
             fi
             NUM=$(( NUM + 1 ))
@@ -78,7 +79,7 @@ if [ "$pg_only" == '' ]; then
 
         snap=`find_snap "${clone_pool}/${clone_dataset}" "$snap_name"`
         if [ "$snap" == '' ]; then
-            error "Could not find snapshot: $snap_name"
+            error "Could not find snapshot: $snap_name for ${clone_pool}/${clone_dataset}"
             die "Cannot locate source for $clone_dataset" 1
         else
             debug "Found snapshot $snap"
