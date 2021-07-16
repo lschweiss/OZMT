@@ -1112,6 +1112,16 @@ while [ "$running" == 'true' ]; do
         # Check remote status
         remote_failed=`$remote_ssh "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
         remote_finished=`$remote_ssh "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
+
+        remote_reset=`$remote_ssh "ls -1 ${remote_tmp} 2>&1 | grep 'No such file or directory'"`
+
+        if [ "$remote_reset" != "" ]; then
+            running='false'
+            success='false'
+            touch ${tmpdir}/running.false
+            touch ${tmpdir}/remote.failed
+            error "Failed to replicated ${job_name}. Remote receive has been lost"
+        fi
     
         if [ "$remote_failed" != "" ]; then
             running='false'
