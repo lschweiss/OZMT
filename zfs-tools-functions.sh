@@ -1070,6 +1070,12 @@ wait_for_lock() {
             fi
         else
             lockpid=`cat "$lockfile" 2>/dev/null`
+            # check if it is our lockfile
+            if [ "$lockpid" == "$$" ]; then
+                warning "Trying to aquire our own lock file $1"
+                locked='true' 
+            fi
+    
             # check if it is running
             # TODO: Make this work on things beside Illumos
             if [ -e /proc/$lockpid ]; then

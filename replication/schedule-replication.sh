@@ -73,7 +73,7 @@ for pool in $pools; do
             touch "${schedule_lock}"
             init_lock "${schedule_lock}"
         fi
-        wait_for_lock "${schedule_lock}"
+        wait_for_lock "${schedule_lock}" 30
         if [ $? -ne 0 ]; then
             warning "Could not aquire scheduling lock for pool $pool"
             continue
