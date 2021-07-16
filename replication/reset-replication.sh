@@ -352,8 +352,8 @@ for dataset in $datasets; do
                         notice "Killing replication-job.sh $rep_job"
                         pids=`ptree $rep_job | $AWK -F ' ' '{print $1}'`
                         for pid in $pids; do
-                            notice "Killing pid $rep_job"
-                            kill -9 $rep_job
+                            notice "Killing pid $pid"
+                            kill -9 $pid
                         done
                     fi
                 
