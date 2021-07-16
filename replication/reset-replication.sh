@@ -65,6 +65,8 @@ show_usage () {
     echo "                   This should be a comma separated list of ZFS folders within"
     echo "                   the dataset."
     echo ""
+    echo "  -k               Kill running jobs"
+    echo ""
     echo "  The host this command is run on must be the source host for this dataset."
     echo ""
     echo "  This is automatically run after every cut over of a dataset source or can be run"
@@ -96,7 +98,7 @@ if [ "$#" -lt "$MIN_ARGS" ]; then
 fi
 
 
-while getopts d:i:p: opt; do
+while getopts d:i:p:k opt; do
     case $opt in
         p)  # All dataset in a pool
             pool="$OPTARG"
@@ -117,6 +119,10 @@ while getopts d:i:p: opt; do
         d)  # Dataset name
             datasets="$datasets $OPTARG"
             debug "Dataset: $OPTARG"
+            ;;
+        k)  # Kill running jobs
+            debug "Kill running jobs."
+            kill_jobs='true'
             ;;
         i)  # Ignore folder list
             ignore_folder_list="$OPTARG"
@@ -182,6 +188,7 @@ for dataset in $datasets; do
     job_dead=
     running_jobs=
     info_folder=
+    abort=
     
 
 
@@ -339,9 +346,22 @@ for dataset in $datasets; do
             done # for running_job
     
             if [ "$running_jobs" != "" ]; then
-                warning "Running jobs reported for ${dataset_name}. Aborting. "
-                skip_dataset='true'
-                break
+                if [ "$kill_jobs" == 'true' ]; then
+                    rep_job=`ps awwx | ${GREP} "${dataset_name}_to_${target_pool}" | ${GREP} "replication-job.sh" | ${AWK} -F ' ' '{print $1}'`
+                    if [ "$rep_job" != '' ]; then
+                        notice "Killing replication-job.sh $rep_job"
+                        pids=`ptree $rep_job | $AWK -F ' ' '{print $1}'`
+                        for pid in $pids; do
+                            notice "Killing pid $rep_job"
+                            kill -9 $rep_job
+                        done
+                    fi
+                
+                else
+                    warning "Running jobs reported for ${dataset_name}. Aborting. "
+                    skip_dataset='true'
+                    break
+                fi
             fi
     
             if [[ "$wait_for_running" == 'true' && "$job_dead" == 'false' ]]; then
@@ -562,7 +582,7 @@ for dataset in $datasets; do
         done
         if [ "$valid_snap" == 'true' ]; then
             # This snap is the newest common snapshot
-            debug "Success! Snapshot $parent_snap_name is on all targets."
+            notice "Success! Snapshot $parent_snap_name is on all targets for $dataset."
             common_snap="$parent_snap_name"
             break
         fi
@@ -644,7 +664,7 @@ for dataset in $datasets; do
     ##
     # Remove all completed, suspended, failed, pending and synced jobs
     ##
-    stat_types="complete suspended failed pending synced cleaning"
+    stat_types="complete suspended failed pending synced cleaning running"
     
     debug "Cleaning job status for $dataset"
     
