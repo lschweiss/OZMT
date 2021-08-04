@@ -49,7 +49,7 @@ for pool in $pools; do
     touch /$pool/zfs_tools/var/cache/zfs_cache/.cache_stale
 done
 
-remote_caches=`ls -1A /var/zfs_tools/cache/zfs_cache | $GREP -v lock`
+remote_caches=`ls -1A /var/zfs_tools/cache/zfs_cache 2> /dev/null| $GREP -v lock`
 for remote_cache in $remote_caches; do
     touch /var/zfs_tools/cache/zfs_cache/${remote_cache}/.cache_stale
 done
