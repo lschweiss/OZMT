@@ -108,3 +108,5 @@ if [ -f /$pool/zfs_tools/var/replication/targets/$dataset ]; then
     notice "Removing replication targets at: /$pool/zfs_tools/var/replication/targets/$dataset"
     rm -f /$pool/zfs_tools/var/replication/targets/$dataset
 fi
+
+zfs set ${zfs_replication_property}='off' $pool/$folder 2>/dev/null
