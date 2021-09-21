@@ -58,14 +58,22 @@ fi
 
 pool=`echo $mount_zfs_folder | $AWK -F '/' '{print $1}'`
 dataset=`zfs get -s local,received -o value -H $zfs_dataset_property $mount_zfs_folder`
+fsid=`zfs get -s local,received -o value -H $zfs_fsid_property $mount_zfs_folder 2>/dev/null`
+
 if [ "$dataset" != "" ]; then
     if [ -f /$pool/zfs_tools/var/replication/source/$dataset ]; then
         dataset_source=`cat /$pool/zfs_tools/var/replication/source/$dataset`
         if [ "$dataset_source" == "${pool}:${dataset}" ]; then
             notice "Mounting source dataset $pool/$dataset"
+            source_dataset='true'
         else
-            notice "NOT mounting target dataset $pool/$dataset"
-            exit 0
+            if [ "$fsid" == '' ]; then
+                notice "NOT mounting target dataset $pool/$dataset"
+                exit 0
+            else
+                notice "FSID set on $mount_zfs_folder, mounting target dataset to prepare FSID"
+                source_dataset='false'
+            fi
         fi
     else
         notice "Mounting non-replicated dataset: $dataset"
@@ -102,6 +110,21 @@ case $os in
             fi
             rm ${TMP}/mount/zfs_mount_$$.txt 2> /dev/null
         fi
+        if [ "$fsid" != '' ]; then
+            debug "Setting FSID on $mount_zfs_folder"
+            my_fsid=`zfs get -s local,received -o value -H ${zfs_fsid_property}:${pool} $mount_zfs_folder 2>/dev/null`
+            if [ "$fsid" == "$my_fsid" ]; then
+                notice "FSID is on orginating pool.  No override necessary."
+            else
+                if [ "$source_dataset" == 'true' ]; then
+                    ./fsid/set_fsid.sh $mount_zfs_folder 
+                else
+                    debug "Background setting FSID on $mount_zfs_folder"
+                    $SCREEN -d -m -S "set_fsid_$(foldertojob $mount_zfs_folder)" ${PWD}/fsid/set_fsid.sh $mount_zfs_folder
+                fi
+            fi
+        fi
+
     ;;
     *)
         error "zfs-fast-mount.sh: Unsupported operation system $os"
@@ -133,7 +156,7 @@ cat $zfs_folders | \
 
 if [ $(cat ${TMP}/mount/fast_mount_zfs.$$ | wc -l) -gt 0 ]; then
     debug "Launching mount on $mount_zfs_folder children.  ${TMP}/mount/fast_mount_zfs.$$"
-    $TOOLS_ROOT/bin/$os/parallel --will-cite --workdir ${TMP}/parallel -a ${TMP}/mount/fast_mount_zfs.$$ ./fast-zfs-mount.sh $zfs_folders
+    $TOOLS_ROOT/bin/$os/parallel --will-cite --ungroup --workdir ${TMP}/parallel -a ${TMP}/mount/fast_mount_zfs.$$ ./fast-zfs-mount.sh $zfs_folders
     result=$?
     debug "Children finished mounting on ${mount_zfs_folder}.  ${TMP}/mount/fast_mount_zfs.$$"
 fi

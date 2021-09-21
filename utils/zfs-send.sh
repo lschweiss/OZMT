@@ -547,6 +547,7 @@ if [ "$remote_host" == "" ]; then
 else
     # Remote test
     remote_ssh="${SSH} root@$remote_host"
+    remote_ssh_quick="${SSH_BIN} root@$remote_host"
     if [ "$flat_file" == 'false' ]; then
         if [ "$replicate" == 'false' ]; then
             ${TIMEOUT} 2m $remote_ssh zfs list $target_folder &> /dev/null
@@ -1110,10 +1111,10 @@ while [ "$running" == 'true' ]; do
 
     if [ "$remote_host" != "" ]; then
         # Check remote status
-        remote_failed=`$remote_ssh "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
-        remote_finished=`$remote_ssh "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
+        remote_failed=`$remote_ssh_quick "ls -1 ${remote_tmp}/*.fail 2> /dev/null"`
+        remote_finished=`$remote_ssh_quick "ls -1 ${remote_tmp}/remote.complete 2> /dev/null"`
 
-        remote_reset=`$remote_ssh "ls -1 ${remote_tmp} 2>&1 | grep 'No such file or directory'"`
+        remote_reset=`$remote_ssh_quick "ls -1 ${remote_tmp} 2>&1 | grep 'No such file or directory'"`
 
         if [ "$remote_reset" != "" ]; then
             running='false'
@@ -1130,7 +1131,7 @@ while [ "$running" == 'true' ]; do
             touch ${tmpdir}/remote.failed
 
             # Check if clones need destroyed remotely
-            failed_clone=`$remote_ssh "cat ${remote_tmp}/zfs_receive.error 2>/dev/null | \
+            failed_clone=`$remote_ssh_quick "cat ${remote_tmp}/zfs_receive.error 2>/dev/null | \
                 grep 'cannot receive new filesystem stream: destination has snapshots'"`
             if [ "$failed_clone" != '' ]; then
                 destroy_clone=`echo $failed_clone | ${GREP} -oP '(?<=eg. ).*?(?=@)'`

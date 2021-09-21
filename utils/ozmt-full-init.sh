@@ -184,6 +184,8 @@ fi
 
 [ -z "$BASENAME" ] && BASENAME=`gnu_source basename`
 
+[ -z "$READLINK" ] && READLINK=`gnu_source readlink`
+
 [ -z "$DIRNAME" ] && DIRNAME=`gnu_source dirname`
 
 [ -z "$PARALLEL" ] && PARALLEL=`gnu_source parallel`
@@ -233,6 +235,8 @@ fi
 [ -z "$SDPARM" ] && SDPARM=`gnu_source sdparm`
 
 [ -z "$COLUMN" ] && COLUMN=`gnu_source column`
+
+[ -z "$SCREEN" ] && SCREEN=`gnu_source screen`
 
 [ -z "$TEST" ] && TEST=`gnu_source test`
 
@@ -302,6 +306,8 @@ fi
 [ -z "$zfs_snapshot_property" ] && zfs_snapshot_property="${zfs_property_tag}:snapshot"
 
 [ -z "$zfs_cifs_property" ] && zfs_cifs_property="${zfs_property_tag}:cifs"
+
+[ -z "$zfs_fsid_property" ] && zfs_fsid_property="${zfs_property_tag}:fsid"
 
 [ -z "$zfs_samba_server_prefix" ] && zfs_samba_server_prefix="ZFS-"
 
