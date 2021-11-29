@@ -68,14 +68,8 @@ debug "Waiting for fsid to be found for $folder"
 while [ ! -f ${MYTMP}/$folder_file ]; do
 
     # Check if fsid-collector is running and start if necessary.
-
-    if [ -f ${MYTMP}/fsid-collector.pid ]; then
-        collector_pid=`cat ${MYTMP}/fsid-collector.pid 2>/dev/null`
-        if [[ "$(cat /proc/${collector_pid}/cmdline)" != *"fsid-collector.sh"* ]]; then
-            notice "PID $collector_pid is dead.  Launching fsid-collector"
-            $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null || $SCREEN -d -m -S fsid_collector -s /bin/bash ${PWD}/fsid-collector.sh
-        fi
-    else
+    $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null
+    if [ $? -ne 0 ]; then
         notice "Launching fsid-collector"
         $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null || $SCREEN -d -m -S fsid_collector -s /bin/bash ${PWD}/fsid-collector.sh
     fi
