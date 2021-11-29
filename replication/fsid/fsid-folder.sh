@@ -70,7 +70,7 @@ while [ ! -f ${MYTMP}/$folder_file ]; do
     # Check if fsid-collector is running and start if necessary.
     $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null
     if [ $? -ne 0 ]; then
-        notice "Launching fsid-collector"
+        notice "Launching fsid-collector for $folder fsid finder"
         $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null || $SCREEN -d -m -S fsid_collector -s /bin/bash ${PWD}/fsid-collector.sh
     fi
 
