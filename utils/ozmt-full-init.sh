@@ -355,6 +355,8 @@ fi
 
 [ -z "$default_mtu" ] && default_mtu='1500'
 
+[ -z "$fsid_guid_timeout" ] && fsid_guid_timeout="30m"
+
 # Linux only
 
 [ -z "$diskdev_path" ] && diskdev_path='/dev/disk/by-id'

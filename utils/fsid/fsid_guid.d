@@ -9,9 +9,9 @@ fbt::zfs_ioc_dataset_list_next:entry
 fbt::dsl_dataset_fast_stat:entry
 /self->zfs_cmd != NULL/
 {
-    printf("zc_name: #%s# guid:#%#lx#",
+    printf("zc_name: #%s# guid:#%#lx# address:#%a#",
     stringof(self->zfs_cmd->zc_name),
-    args[0]->ds_fsid_guid);
+    args[0]->ds_fsid_guid, &args[0]->ds_fsid_guid);
 }
 
 fbt::zfs_ioc_dataset_list_next:return
@@ -19,4 +19,5 @@ fbt::zfs_ioc_dataset_list_next:return
 {
     self->zfs_cmd != NULL;
 }
+
 

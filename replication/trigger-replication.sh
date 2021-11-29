@@ -2,7 +2,7 @@
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012 - 2015  Chip Schweiss
+# Copyright (C) 2012 - 2021  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -107,7 +107,7 @@ timeout 1m $SSH $target_pool cat /${target_pool}/zfs_tools/var/replication/sourc
     > ${TMP}/target_check_$$ \
     2> ${TMP}/target_check_error_$$
 errorcode=$?
-case "$errorcode" in 
+case "$errorcode" in
     '124')
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remote host timed out after 1m.  Setting job to failed."
         update_job_status "${job_status}" "failures" "+1"
@@ -116,7 +116,7 @@ case "$errorcode" in
         rm -f ${TMP}/target_check_error_$$
         exit 1
         ;;
-    '0')  
+    '0')
         target_source_reference=`cat ${TMP}/target_check_$$`
         if [ "$target_source_reference" != "${pool}:${folder}" ]; then
             error "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}.  However, sources do not match.  My source "${pool}:${folder}", target's source $target_source_reference"
@@ -128,7 +128,7 @@ case "$errorcode" in
         rm -f ${TMP}/target_check_$$
         rm -f ${TMP}/target_check_error_$$
         ;;
-    *)  
+    *)
         warning "Attempting replication from ${pool}:${folder} to ${target_pool}:${target_folder}. SSH to remore host failed with error code $errorcode  Setting job to failed." ${TMP}/target_check_error_$$
         update_job_status "${job_status}" "failures" "+1"
         release_lock "${job_status}"
@@ -142,35 +142,10 @@ esac
 now_stamp="$(now_stamp)"
 last_run=`${DATE} +"%F %H:%M:%S%z"`
 
-# ##
-# # Get new children folder in sync and move info into specific job definition
-# ##
-# 
-# pause 
-# 
-# set -x
-# 
-# if [ "$new_children" != "" ]; then
-#     if [ "$last_snapshot" == "" ]; then
-#         skip_new_children='true'
-#     else
-#         count=1
-#         while [ $count -le $new_children ]; do
-#             # Create "previous" snapshots
-#             timeout 2m zfs snapshot ${pool}/${new_child[$count]}@${last_snapshot}
-#             count=$(( count + 1 ))
-#         done
-#     fi
-# fi
-# 
-# set +x
-# 
-# pause
-
 
 # Copy quota,refquota to user parameters
 
-quota_folders=`zfs list -o name -H -p -r ${pool}/${folder}`
+quota_folders=`zfs get -o name -H -p -s local,received -t filesystem -r quota ${pool}/${folder}`
 
 for quota_folder in $quota_folders; do
     quota=`zfs get -o value -H -p quota $quota_folder 2>/dev/null`
@@ -180,11 +155,28 @@ for quota_folder in $quota_folders; do
     fi
 done
 
-for refquota_folder in $quota_folders; do
+refquota_folders=`zfs get -o name -H -p -s local,received -t filesystem -r refquota ${pool}/${folder}`
+
+for refquota_folder in $refquota_folders; do
     refquota=`zfs get -o value -H -p refquota $refquota_folder 2>/dev/null`
     current=`zfs get -o value -H -p -s local ${zfs_refquota_property} $refquota_folder 2>/dev/null`
     if [ "$current" != "$refquota" ]; then
         zfs set ${zfs_refquota_property}="$refquota" $refquota_folder 2>/dev/null
+    fi
+done
+
+
+# Set fsid for sharenfs folders
+
+sharenfs_folders=`zfs get -o name -t filesystem -H -r -p -s local,received,inherited sharenfs ${pool}/${folder}`
+
+for sharenfs_folder in $sharenfs_folders; do
+    fsid=`zfs get -H -p -o value -s local,received $zfs_fsid_property $sharenfs_folder`
+    if [ "$fsid" == '' ]; then
+        # Launch fsid finder
+        notice "Launch fsid finder for $sharenfs_folder"
+        folder_id=`foldertojob $sharenfs_folder`
+        $SCREEN -ls $folder_id 1>/dev/null 2>/dev/null || $SCREEN -d -m -S $folder_id ${PWD}/fsid/fsid-folder.sh $sharenfs_folder
     fi
 done
 
@@ -242,27 +234,9 @@ echo "previous_snapshot=\"${previous_snapshot}\"" >> $jobfile
 echo "creation_time=\"${last_run}\"" >> $jobfile
 echo "execution_number=\"1\"" >> $jobfile
 
-# if [ "$new_children" != "" ]; then
-#     if [ "$skip_new_children" != 'true' ]; then
-#         # Move new children information to the job file.
-#         echo "new_children=\"$new_children\"" >> $jobfile
-#     fi
-#     update_job_status "${job_status}" "new_children" "#REMOVE#"
-#     count=1
-#     while [ $count -le $new_children ]; do
-#         count=$(( count + 1 ))
-#         if [ "$skip_new_children" != 'true' ]; then
-#             echo "new_child[$count]=\"${new_child[$count]}\"" >> $jobfile
-#             update_job_status "${job_status}" "${new_child[$count]}" "#REMOVE#"
-#         fi
-#     done
-# fi
-# 
-# pause
+# Update last run time in the status file
 
-# Update last run time in the status file 
-
-update_job_status "${job_status}" "last_run" "${last_run}" 
+update_job_status "${job_status}" "last_run" "${last_run}"
 mv "$jobfile" "$pendingfile"
 
 release_lock "${job_status}"
