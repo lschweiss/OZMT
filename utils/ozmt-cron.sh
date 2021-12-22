@@ -66,7 +66,7 @@ for pool in $pools; do
         crons=`ls -1 $crondir`
         for cron in $crons; do
             notice "Running $type cron job $cron for $pool"
-            ${crondir}/${cron} &
+            ${crondir}/${cron} $pool &
         done
     fi
 done
