@@ -81,7 +81,7 @@ for folder in $folders; do
         crons=`ls -1 ${mountpoint}/.ozmt-cron/${type}.d`
         for cron in $crons; do
             notice "Running $type cron job $cron for $dataset"
-            ${mountpoint}/.ozmt-cron/${type}.d/${cron} &
+            ${mountpoint}/.ozmt-cron/${type}.d/${cron} $folder &
         done
     fi
 done
