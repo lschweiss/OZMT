@@ -76,7 +76,7 @@ folders=`local_datasets all folder`
 for folder in $folders; do
     debug "Checking $folder for $type cron jobs"
     mountpoint=`zfs get -o value -H mountpoint $folder`
-    if [ -d "${mountpoint}/.ozmt-cron/${type}.d" ]; then
+    if [ -d "${mountpoint}/.ozmt/${type}.d" ]; then
         dataset=`zfs get -o value -H $zfs_dataset_property $folder`
         crons=`ls -1 ${mountpoint}/.ozmt-cron/${type}.d`
         for cron in $crons; do
