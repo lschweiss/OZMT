@@ -486,7 +486,7 @@ locate_in_use_disks () {
     if [ ! -f $myTMP/expanders ]; then
         collect_expander_info
     fi
-    
+
     source $myTMP/disks
     source $myTMP/expanders
 
@@ -500,26 +500,26 @@ locate_in_use_disks () {
         else
             execute="${SSH} ${host}"
         fi
-        
+
         eval ${execute} zpool list -H -o name > ${myTMP}/${host}_pools
         pools=`cat ${myTMP}/${host}_pools`
-        unset IFS 
+        unset IFS
         for pool in $pools; do
-            is_mounted $pool || continue
+            #is_mounted $pool || continue
             debug "Mapping disks for $pool"
-    
+
             eval ${execute} zpool status ${pool} > ${myTMP}/${pool}_status
             echo "offline spares:" >> ${myTMP}/${pool}_status
             eval ${execute} cat /${pool}/zfs_tools/etc/spare-disks 2>/dev/null >> ${myTMP}/${pool}_status
-    
+
             # Parse zpool status
             disk_start='false'
             vdev=
-    
+
             while IFS='' read -r line || [[ -n "$line" ]]; do
                 # Remove leading spaces
                 line="${line#"${line%%[![:space:]]*}"}"
-    
+
                 if [ "$disk_start" != 'true' ]; then
                     if [[ "$line" == *"state: "* ]]; then
                         # Pool state
@@ -586,7 +586,7 @@ locate_in_use_disks () {
                     disk_read_err=
                     disk_write_err=
                     disk_cksum_err=
-    
+
                     # By process of elimination this should be a disk line
                     if [ "$vdev" == 'cldSPARE' ]; then
                         disk_osname="$line"
@@ -600,7 +600,7 @@ locate_in_use_disks () {
                     if [[ "$disk_osname" == *"d0p"* ]] || [[ "$disk_osname" == *"d0s"* ]]; then
                         disk_osname="${disk_osname::-2}"
                     fi
-    
+
                     debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
 
                     disk_wwn="${disk["${disk_osname}_wwn"]}"
@@ -614,7 +614,7 @@ locate_in_use_disks () {
                             echo "disk[${disk_wwn}_cksumerr]=\"${disk_cksum_err}\"" >> ${myTMP}/disks
                         fi
                         echo "disk[${disk_wwn}_status]=\"${disk_state}\"" >> ${myTMP}/disks
-    
+
                         expander="${disk["${disk_wwn}_expander"]}"
                         if [ "${expander}" != "" ]; then
                             # Add info at expander maping
@@ -623,16 +623,14 @@ locate_in_use_disks () {
                         fi
                     fi
 
-                    set +x 
-
                 fi # $disk_start
-    
+
             done < ${myTMP}/${pool}_status
-    
+
         done # for pool
-    
+
     done # for host
 
 }
 
-    
+
