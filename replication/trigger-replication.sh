@@ -176,7 +176,7 @@ for sharenfs_folder in $sharenfs_folders; do
         # Launch fsid finder
         notice "Launch fsid finder for $sharenfs_folder"
         folder_id=`foldertojob $sharenfs_folder`
-        $SCREEN -ls $folder_id 1>/dev/null 2>/dev/null || $SCREEN -d -m -S $folder_id ${PWD}/fsid/fsid-folder.sh $sharenfs_folder
+        $SCREEN -ls $folder_id 1>/dev/null 2>/dev/null || $SCREEN -d -m -S $folder_id ${PWD}/fsid/fsid-get.sh $sharenfs_folder
     fi
 done
 

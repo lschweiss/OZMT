@@ -1,8 +1,8 @@
-#! /bin/bash 
+#! /bin/bash
 
 # Chip Schweiss - chip.schweiss@wustl.edu
 #
-# Copyright (C) 2012 - 2015  Chip Schweiss
+# Copyright (C) 2012 - 2021  Chip Schweiss
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -101,6 +101,7 @@ for pool in $pools; do
                 debug "to target $target_def"
                 last_run=
                 job_status=
+                fsid_set=
                 job_definition="${replication_def_dir}/${folder_def}/${target_def}"
                 source "${job_definition}"
                 if [ -f "${job_status}" ]; then
@@ -134,26 +135,46 @@ for pool in $pools; do
                 if [ "$active" != "${pool}:${folder}" ]; then
                     # This folder is receiving.
                     debug "is receiving."
-                    # Test if $frequency has passed since last cleanup run
 
+                    # Check if fsid needs to be set
+                    if [ "$fsid_set" != 'true' ]; then
+                        sharenfs_folders=`zfs get -o name -t filesystem -H -r -p -s local,received,inherited sharenfs ${pool}/${folder}`
+                        fsid_set='true'
+                        for sharenfs_folder in $sharenfs_folders; do
+                            fsid=`zfs get -H -p -o value -s local,received $zfs_fsid_property $sharenfs_folder`
+                            if [ "$fsid" != '' ]; then
+                                fsid_set=`zfs get -H -p -o value -s local,received ${zfs_fsid_property}:${pool} $sharenfs_folder`
+                                if [ "$fsid_set" == '' ]; then
+                                    # Launch fsid set
+                                    fsid_set='false'
+                                    folder_id=`foldertojob $sharenfs_folder`
+                                    $SCREEN -ls ${folder_id}_set 1>/dev/null 2>/dev/null 
+                                    if [ $? -ne 0 ]; then
+                                        notice "Launch fsid set for $sharenfs_folder"
+                                        $SCREEN -ls ${folder_id}_set 1>/dev/null 2>/dev/null || \
+                                            $SCREEN -d -m -S ${folder_id}_set ${PWD}/fsid/fsid-set.sh $sharenfs_folder
+                                    fi
+                                fi
+                            fi
+                        done
+                        if [ "$fsid_set" == 'true' ]; then
+                            update_job_status "${job_status}" "fsid_set" "true"
+                        fi
+                    fi
 
-
-
-
-                    
                     continue
                 fi
 
                 if [ "$sync_now" == "" ]; then
                     # Test if $frequency has passed since last run
                     if [ "$last_run" == "" ]; then
-                        # Never run before trigger first run 
+                        # Never run before trigger first run
                         debug "triggering first run."
                         init_lock "${job_status}"
                         launch ./trigger-replication.sh "$job_definition"
                         pids="$pids $launch_pid"
                         continue
-                    fi     
+                    fi
                     last_run_secs=`${DATE} -d "$last_run" +%s`
                     now_secs=`${DATE} -d "$now" +%s`
                     duration_sec="$(( now_secs - last_run_secs ))"
@@ -193,9 +214,9 @@ for pool in $pools; do
                         # Don't queue any more jobs until we complete one.
                         continue
                     fi
-                      
+
                     # TODO: add support for replication start days, times
-    
+
                     if [ -t 1 ]; then
                         echo "queued_jobs=$queued_jobs"
                         echo "last_run=$last_run"
@@ -233,25 +254,25 @@ for pool in $pools; do
                         continue
                     fi
 
-                    case $freq_unit in 
+                    case $freq_unit in
                         'm')
                             if [ $duration_min -ge $freq_num ]; then
                                 debug "hasn't run in $freq_num minutes.  Triggering"
-                                launch ./trigger-replication.sh "${job_definition}" 
+                                launch ./trigger-replication.sh "${job_definition}"
                                 pids="$pids $launch_pid"
                             fi
                             ;;
                         'h')
                             if [ $duration_hour -ge $freq_num ]; then
                                 debug "hasn't run in $freq_num hours.  Triggering"
-                                launch ./trigger-replication.sh "${job_definition}" 
+                                launch ./trigger-replication.sh "${job_definition}"
                                 pids="$pids $launch_pid"
                             fi
                             ;;
                         'd')
                             if [ $duration_day -ge $freq_num ]; then
                                 debug "hasn't run in $freq_num days.  Triggering"
-                                launch ./trigger-replication.sh "${job_definition}" 
+                                launch ./trigger-replication.sh "${job_definition}"
                                 pids="$pids $launch_pid"
                             fi
                             ;;
@@ -266,7 +287,7 @@ for pool in $pools; do
                             error "Invalid replication frequency ($frequency) specified for $folder to $target"
                             ;;
                     esac
-                    
+
                 else
                     if [ "$dataset_name" == "$sync_now" ]; then
                         notice "Triggering replication for $dataset_name"
@@ -280,8 +301,8 @@ for pool in $pools; do
         release_lock "${schedule_lock}"
 
     fi # if [ -d "$replication_def_dir" ]
-    
-done # for pool 
+
+done # for pool
 
 # Wait for trigger_replication.sh jobs to completed
 for pid in $pids; do
