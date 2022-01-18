@@ -67,13 +67,8 @@ if [ "$dataset" != "" ]; then
             notice "Mounting source dataset $pool/$dataset"
             source_dataset='true'
         else
-            if [ "$fsid" == '' ]; then
-                notice "NOT mounting target dataset $pool/$dataset"
-                exit 0
-            else
-                notice "FSID set on $mount_zfs_folder, mounting target dataset to prepare FSID"
-                source_dataset='false'
-            fi
+            notice "NOT mounting target dataset $pool/$dataset"
+            exit 0
         fi
     else
         notice "Mounting non-replicated dataset: $dataset"
@@ -109,20 +104,6 @@ case $os in
                 fi
             fi
             rm ${TMP}/mount/zfs_mount_$$.txt 2> /dev/null
-        fi
-        if [ "$fsid" != '' ]; then
-            debug "Setting FSID on $mount_zfs_folder"
-            my_fsid=`zfs get -s local,received -o value -H ${zfs_fsid_property}:${pool} $mount_zfs_folder 2>/dev/null`
-            if [ "$fsid" == "$my_fsid" ]; then
-                notice "FSID is on orginating pool.  No override necessary."
-            else
-                if [ "$source_dataset" == 'true' ]; then
-                    ./fsid/set_fsid.sh $mount_zfs_folder 
-                else
-                    debug "Background setting FSID on $mount_zfs_folder"
-                    $SCREEN -d -m -S "set_fsid_$(foldertojob $mount_zfs_folder)" ${PWD}/fsid/set_fsid.sh $mount_zfs_folder
-                fi
-            fi
         fi
 
     ;;
