@@ -70,13 +70,13 @@ debug "Waiting for fsid to be found for $folder"
 while [ ! -f ${MYTMP}/$folder_file ]; do
 
     # Check if fsid-collector is running and start if necessary.
+    sleep $(($RANDOM % 120 ))  # Try to avoid race condition starting two procesess
     $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null
     if [ $? -ne 0 ]; then
         notice "Launching fsid-collector for $folder fsid finder"
         $SCREEN -ls fsid_collector 1>/dev/null 2>/dev/null || $SCREEN -d -m -S fsid_collector -s /bin/bash ${PWD}/fsid-collector.sh
     fi
 
-    sleep 15
 done
 
 # Collect fsid
@@ -86,15 +86,20 @@ mem=`cat ${MYTMP}/$folder_file | $CUT -d ' ' -f2`
 if [ "$fsid" != "" ] && [ "$mem" != "" ]; then
     new_fsid=`zfs get -o value -H ${zfs_fsid_property} $folder`
     short_fsid="${new_fsid:2}"
-    notice "Setting FSID for $folder to $new_fsid"
-    # Overwrite FSID
 
-    if [ "$enable_set_fsid" == 'true' ]; then
-        /usr/bin/mdb -kw -e "${mem}/Z $short_fsid"
-        result=$?
+    if [ "$fsid" == "$new_fsid" ]; then
+        notice "FSID already set for $folder to $new_fsid at $mem"
+        result=0
     else
-        debug "Test running.  Not setting FSID."
-        result=1
+        # Overwrite FSID
+        if [ "$enable_set_fsid" == 'true' ]; then
+            notice "Setting FSID for $folder to $new_fsid at $mem"
+            /usr/bin/mdb -kw -e "${mem}/Z $short_fsid"
+            result=$?
+        else
+            notice "Test running.  Not setting FSID for $folder to $new_fsid at $mem"
+            result=1
+        fi
     fi
 
     if [ $result -eq 0 ]; then

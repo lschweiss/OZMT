@@ -150,9 +150,15 @@ for pool in $pools; do
                                     folder_id=`foldertojob $sharenfs_folder`
                                     $SCREEN -ls ${folder_id}_set 1>/dev/null 2>/dev/null 
                                     if [ $? -ne 0 ]; then
-                                        notice "Launch fsid set for $sharenfs_folder"
-                                        $SCREEN -ls ${folder_id}_set 1>/dev/null 2>/dev/null || \
-                                            $SCREEN -d -m -S ${folder_id}_set ${PWD}/fsid/fsid-set.sh $sharenfs_folder
+                                        screen_count=`$SCREEN -ls|wc -l`
+                                        if [ $screen_count -lt 100 ]; then
+                                            notice "Launch fsid set for $sharenfs_folder"
+                                            $SCREEN -ls ${folder_id}_set 1>/dev/null 2>/dev/null || \
+                                                $SCREEN -d -m -S ${folder_id}_set ${PWD}/fsid/fsid-set.sh $sharenfs_folder
+                                            sleep 2
+                                        else
+                                            debug "Not launching more than 50 fsid set processes for $sharenfs_folder"
+                                        fi
                                     fi
                                 fi
                             fi

@@ -146,7 +146,7 @@ build_smb_conf () {
     local hosts_allow=
 
     if [ "$(zfs get -H -o value mounted $zfs_folder)" != 'yes' ]; then
-        error "Dataset $dataset_name is not mounted on ${zfs_folder}.  Cannot start CIFS services."
+        warning "Dataset $dataset_name is not mounted on ${zfs_folder}.  Cannot start CIFS services."
         return 1
     fi
 
@@ -418,7 +418,7 @@ build_smb_conf () {
             debug "Adding $ip to interfaces"
             interfaces="$interfaces $ip"
             if ! islocal $ip; then
-                error "vIP: $ip is not on this host.  Cannot start Samba for $dataset_name"
+                warning "vIP: $ip is not on this host.  Cannot start Samba for $dataset_name"
                 exit 1
             fi
         fi

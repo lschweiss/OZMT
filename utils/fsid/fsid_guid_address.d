@@ -1,4 +1,4 @@
-#!/usr/sbin/dtrace -s
+#!/usr/sbin/dtrace -s -q
 
 
 

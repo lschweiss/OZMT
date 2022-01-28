@@ -20,4 +20,3 @@ fbt::zfs_ioc_dataset_list_next:return
     self->zfs_cmd != NULL;
 }
 
-

@@ -54,15 +54,21 @@ MKDIR ${MYTMP}
 
 echo $$ > ${MYTMP}/fsid-collector.pid
 
-$TIMEOUT $fsid_guid_timeout ../../utils/fsid/fsid_guid.d 2> /dev/null | tee /tmp/debug_fsid.0 | \
-    $AWK -F "#" '{print $2 " " $4 " " $6}' | $GREP -v '@' | tee /tmp/debug_fsid.1 | \
-    while read -r folder fsid address; do
+$TIMEOUT $fsid_guid_timeout ../../utils/fsid/fsid_guid_address.d 1> ${MYTMP}/fsid_addresses &
+
+$TIMEOUT $fsid_guid_timeout ../../utils/fsid/fsid_guid.d  | tee /tmp/debug_fsid.0 | \
+    $AWK -F "#" '{print $2 " " $4}' | $GREP -v '@' | tee /tmp/debug_fsid.1 | \
+    while read -r folder fsid; do
         # We sometimes get odd character output for the folder.  Discard these
         if [ "$folder" != '' ]; then
             zfs list -o name $folder 2>/dev/null 1>/dev/null
             if [ $? -eq 0 ]; then
                 folder_file=`foldertojob $folder`
-                echo "$fsid $address" > ${MYTMP}/$folder_file
+                address=`cat ${MYTMP}/fsid_addresses |$AWK -F "#" '{print $2 " " $4}'| $GREP "^$fsid" |$TAIL -1| $CUT -d ' ' -f2`
+                if [ "$address" != '' ]; then
+                    echo "Found fsid for $folder: $fsid at $address"
+                    echo "$fsid $address" > ${MYTMP}/$folder_file
+                fi
             fi
         fi
     done
