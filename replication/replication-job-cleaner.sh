@@ -44,6 +44,7 @@ fi
 pools="$(pools)"
 now=`${DATE} +"%F %H:%M:%S%z"`
 
+#logging_level="0"
 
 
 
@@ -77,22 +78,46 @@ MKDIR ${CTMP}
 cache_list=${CTMP}/cache_list_$$
 
 clean_cache () {
-    # Clean our cache
-    debug "Cleaning cache"
-    if [ -f $cache_list ]; then
-        caches=`cat ${cache_list}| ${SORT} -u`
-        
-        for cache in $caches; do
-            rm -f $cache
+
+    local dataset="$1"
+
+
+    if [ "$dataset" == '' ]; then
+        # Clean all of our caches
+        debug "Cleaning all caches"
+        cache_lists=`ls -1 ${cache_list}*`
+        for this_cache_list in $cache_lists; do 
+            if [ -f $this_cache_list ]; then
+                caches=`cat ${this_cache_list}| ${SORT} -u`
+                
+                for cache in $caches; do
+                    rm -f $cache
+                    rm -f ${cache}.lastused
+                done
+                
+                rm -f $this_cache_list
+            fi
         done
-        
-        rm -f $cache_list
+    else
+        # Clean one dataset cache
+        debug "Cleaning $dataset cache"
+        if [ -f ${cache_list}_${dataset} ]; then
+            caches=`cat ${cache_list}_${dataset} | ${SORT} -u`
+
+            for cache in $caches; do
+                rm -f $cache
+                rm -f ${cache}.lastused
+            done
+
+            rm -f ${cache_list}_${dataset}
+        fi
     fi
 
 }
 
 ctrl_c () {
     clean_cache
+    release_lock ${job_cleaner_lock}
     exit 1
 }
 
@@ -205,6 +230,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 previous_jobname=
                 snapshot=
                 previous_snapshot=
+                nowork='true'
 
 
 
@@ -255,7 +281,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 # Collect source folder snapshots with 'previous_snapshot'
                 ##
                 debug "Collecting source previous snapshots ${pool}/${folder}"
-                source_snapshots=`(zfs_cache list -t snapshot -r -H -o name ${pool}/${folder} 3>>${cache_list}
+                source_snapshots=`(zfs_cache list -t snapshot -r -H -o name ${pool}/${folder} 3>>${cache_list}_${dataset_name}
                     echo $?>${CTMP}/result_$$ ) | ${GREP} "@${previous_snapshot}$"`
                 if [ $(cat ${CTMP}/result_$$) -ne 0 ]; then
                     warning "Could not collect source previous snapshots for ${pool}/${folder}."
@@ -263,7 +289,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 fi
                 # Verify 'previous_snapshot' on all coresponding target folders
                 debug "Collecting target previous snapshots ${target_pool}/${target_folder}"
-                target_snapshots=`(remote_zfs_cache list -t snapshot -r -H -o name ${target_pool}/${target_folder} 3>>${cache_list} 
+                target_snapshots=`(remote_zfs_cache list -t snapshot -r -H -o name ${target_pool}/${target_folder} 3>>${cache_list}_${dataset_name}
                     echo $?>${CTMP}/result_$$ ) | ${GREP} "@${previous_snapshot}$"`
                 if [ $(cat ${CTMP}/result_$$) -ne 0 ]; then
                     warning "Could not collect target previous snapshots for ${target_pool}/${target_folder}."
@@ -297,7 +323,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 done
                 
                 if [ "$match" == 'false' ]; then
-                    clean_cache
+                    clean_cache $dataset_name
                     warning "Could not find coresponding previous snapshot to $nomatch on target $target_pool/$target_folder"
                     update_job_status "$job_status" 'clean_missing_snapshot' '+1'
                     continue # Next job
@@ -308,7 +334,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 # Collect source folders with 'snapshot'
                 ##
                 debug "Collecting source snapshots"
-                source_snapshots=`(zfs_cache list -t snapshot -r -H -o name ${pool}/${folder} 3>>${cache_list} 
+                source_snapshots=`(zfs_cache list -t snapshot -r -H -o name ${pool}/${folder} 3>>${cache_list}_${dataset_name}
                     echo $?>${CTMP}/result_$$ ) | ${GREP} "@${snapshot}$"`
                 if [ $(cat ${CTMP}/result_$$) -ne 0 ]; then
                     warning "Could not collect source snapshots for ${pool}/${folder}."
@@ -321,7 +347,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
                 # Verify 'snapshot' on all coresponding target folders
                 debug "Collecting target snapshots"
-                target_snapshots=`(remote_zfs_cache list -t snapshot -r -H -o name ${target_pool}/${target_folder} 3>>${cache_list}
+                target_snapshots=`(remote_zfs_cache list -t snapshot -r -H -o name ${target_pool}/${target_folder} 3>>${cache_list}_${dataset_name}
                     echo $?>${CTMP}/result_$$ ) | ${GREP} "@${snapshot}$"`
                 if [ $(cat ${CTMP}/result_$$) -ne 0 ]; then
                     warning "Could not collect target snapshots for ${target_pool}/${target_folder}."
@@ -359,7 +385,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
 
                 if [ "$match" == 'false' ]; then
                     debug "Could not find coresponding snapshot to $nomatch on target $target_pool/$target_folder"
-                    clean_cache
+                    clean_cache ${dataset_name}
                     update_job_status "$job_status" 'clean_missing_snapshot' '+1'
                     continue # Next job
                 fi
@@ -405,6 +431,7 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                             'clean_missing_snapshot' '#REMOVE#' \
                             'last_complete' "$(job_stamp)"
                         #update_job_status "$job_status" 'clean_missing_snapshot' '#REMOVE#'
+                        nowork='false'
                     else
                         notice "Would have removed previous snapshot ${pool}/${folder}@${previous_snapshot} from dataset ${dataset_name}. Job is complete."
                     fi
@@ -474,6 +501,14 @@ while [ $SECONDS -lt $zfs_replication_job_cleaner_cycle ]; do
                 fi
 
             done # for job
+ 
+            if [ "$nowork" == 'true' ]; then
+                # We didn't find any jobs to clean.  Cache may be too out of date.
+                debug "No cleaning jobs this cycle.  Cleaning cache."
+                clean_cache
+                nowork='true'
+            fi
+                
 
             if [ -f "${job_cleaner_lock_dir}/abort_cleaning" ]; then
                 debug "Early abort of cleaning requested"
