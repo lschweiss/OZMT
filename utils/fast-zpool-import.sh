@@ -98,7 +98,7 @@ cp /var/ozmt/zfscache/${import_pool} /var/ozmt/zfscache/${import_pool}.save
 # Mount zfs_tools first
 zfs mount ${import_pool}
 [ -d /${import_pool}/zfs_tools ] && rm -rf /${import_pool}/zfs_tools
-zfs mount ${import_pool}/zfs_tools 1>/dev/null 2>/dev/null
+zfs mount ${import_pool}/zfs_tools 1>/dev/null 2>/dev/null && rm -rf /${import_pool}/zfs_tools/var/spool/snapshot
 
 # List unmounted folders
 /usr/sbin/zfs list -o mounted,name -r ${import_pool} | ${GREP} "   no" | \
