@@ -107,11 +107,13 @@ collect_expander_info () {
      
     for dev in $devs; do
         debug "Collecting slot info from: ${ses_path}/${dev}"
-        $SG_SES -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp 2>/dev/null
-        if [ $? -ne 0 ]; then
+        $SG_SES --verbose -p ed ${ses_path}/${dev} 1> $myTMP/ses_info.tmp
+        result=$?
+        if [ $result -ne 0 ]; then
             # Not a useful SES link
             #rm -f $myTMP/ses_info.tmp
-            debug "Skipping ${ses_path}/${dev}"
+            debug "Skipping ${ses_path}/${dev}  $result"
+            cat $myTMP/ses_info.tmp
             continue
         else
             # Parse the output for useful information
@@ -272,6 +274,8 @@ collect_disk_info () {
 
     if [ "$SDPARM" == '/bin/false' ]; then 
         error "Cannot map disks, sdparm not installed."
+    else 
+        debug "sdparm: $SDPARM"
     fi
 
     pushd . 1>/dev/null
@@ -599,6 +603,10 @@ locate_in_use_disks () {
 
                     if [[ "$disk_osname" == *"d0p"* ]] || [[ "$disk_osname" == *"d0s"* ]]; then
                         disk_osname="${disk_osname::-2}"
+                    fi
+
+                    if [ "$os" == 'Linux' ]; then
+                        disk_osname="${zpooldev_prefix}${disk_osname}"
                     fi
 
                     debug "Found: $disk_osname,$disk_state,$disk_read_err,$disk_write_err,$disk_cksum_err"
