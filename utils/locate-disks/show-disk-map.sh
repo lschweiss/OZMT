@@ -78,6 +78,7 @@ output_map () {
     local mapping=
     local wwn="$1"
     local bay=
+    local bay_num=
     local serial=
     local model=
     local last_wwn=
@@ -148,6 +149,12 @@ output_map () {
 
         compact_status="${slot_pfailure}${slot_disabled}${slot_ident}${slot_fault}${slot_off}"
 
+        if [ -f "/etc/ozmt/jbod-maps/${wwn}_baymap" ]; then
+            bay_num=`${GREP} "^${bay}," "/etc/ozmt/jbod-maps/${wwn}_baymap" | $CUT -d ',' -f 2`
+        else
+            bay_num="$(( bay + 1 ))"
+        fi
+
         if [ $highlight -eq 1 ]; then
             echo -n "$(color bd cyan )"
             highlight=0
@@ -157,12 +164,12 @@ output_map () {
         fi
         if [ "$wide" == 'true' ]; then
             printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-5s | %5s | %5s | %5s | %-16s | %-16s | %-16s | %-16s | %-16s\n' \
-                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
+                "$bay_num" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
                 "$disk_status" "$disk_pool" "$disk_vdev" "$disk_sdnum" "$compact_status" "$softE" "$hardE" "$transE" "$slot_status" \
                 "$disk_wwn" "$disk_addr1" "$disk_addr2"
         else
             printf '%3s | %-22s | %-15s | %-9s | %-15s | %-4s | %-8s | %-10s | %-9s | %-5s | %-14s\n' \
-                "$(( bay + 1 ))" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
+                "$bay_num" "$disk_osname" "$disk_serial" "$disk_vendor" "$disk_model" "$disk_fwrev" \
                 "$disk_status" "$disk_pool" "$disk_vdev" "$compact_status" "$slot_status"
         fi
         bay=$(( bay + 1 ))
